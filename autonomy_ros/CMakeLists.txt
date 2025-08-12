@@ -27,8 +27,6 @@ find_package(visualization_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(octomap REQUIRED)
 find_package(octomap_ros REQUIRED)
-find_package(grid_map_octomap REQUIRED)
-find_package(grid_map_ros REQUIRED)
 find_package(pcl_ros REQUIRED)
 
 include(FindPkgConfig)
@@ -52,6 +50,10 @@ set(executable_name autonomy_node)
 add_executable(${executable_name}
   src/main.cpp
   src/autonomy_node.cpp
+  src/msg_conversion.cpp
+  src/node_constants.cpp
+  src/sensor_bridge.cpp
+  src/time_conversion.cpp
 )
 ament_target_dependencies(${executable_name}
   ${dependencies}
