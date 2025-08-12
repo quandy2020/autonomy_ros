@@ -14,21 +14,85 @@
  * limitations under the License.
  */
 
-#include "rclcpp/rclcpp.hpp"
+
+#pragma once 
+
+#include <map>
+#include <memory>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include <rclcpp/rclcpp.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
+#include <sensor_msgs/msg/multi_echo_laser_scan.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include "autonomy/common/macros.hpp"
- 
+#include "autonomy/system/system.hpp"
+#include "autonomy_ros/node_constants.hpp"
+ #include "autonomy_ros/node_options.hpp"
+
 namespace autonomy_ros {
 
 class Node : public rclcpp::Node
 {
 public:
     Node();
+
+    Node(const NodeOptions& node_options,
+        std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
+        rclcpp::Node::SharedPtr node,
+        bool collect_metrics);
+
     ~Node() = default;
 
+    Node(const Node&) = delete;
+    Node& operator=(const Node&) = delete;
 
+     // The following functions handle adding sensor data.
+    void HandleOdometryMessage(const std::string& sensor_id, const nav_msgs::msg::Odometry::ConstSharedPtr& msg);
+
+    void HandleNavSatFixMessage(const std::string& sensor_id, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& msg);
+
+    void HandleImuMessage(const std::string& sensor_id, const sensor_msgs::msg::Imu::ConstSharedPtr &msg);
+
+    void HandleLaserScanMessage(const std::string& sensor_id, const sensor_msgs::msg::LaserScan::ConstSharedPtr& msg);
+
+    void HandleMultiEchoLaserScanMessage(const std::string& sensor_id, const sensor_msgs::msg::MultiEchoLaserScan::ConstSharedPtr& msg);
+
+    void HandlePointCloud2Message(const std::string& sensor_id, const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg);
+        
 private:
-    
+    struct Subscriber 
+    {
+        rclcpp::SubscriptionBase::SharedPtr subscriber;
+
+        // ::ros::Subscriber::getTopic() does not necessarily return the same
+        // std::string
+        // it was given in its constructor. Since we rely on the topic name as the
+        // unique identifier of a subscriber, we remember it ourselves.
+        std::string topic;
+    };
+
+
+    void PublishTrajectoryList();
+    void PublishEnvPointCloudData();
+
+    // // ROS2 Node
+    rclcpp::Node::SharedPtr node_{nullptr};
+    std::vector<std::vector<Subscriber>> subscribers_;
+
+    // timers
+    ::rclcpp::TimerBase::SharedPtr trajectory_list_timer_{nullptr};
+    ::rclcpp::TimerBase::SharedPtr env_point_cloud_data_timer_{nullptr};
 };
 
 }  // namespace autonomy_ros
