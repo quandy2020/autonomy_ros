@@ -16,7 +16,7 @@
 
 #include <memory>
 
-
+#include "autonomy/common/version.hpp"
 #include "autonomy/system/system.hpp"
 #include "autonomy_ros/autonomy_node.hpp"
 #include "autonomy_ros/node_options.hpp"
@@ -45,6 +45,11 @@ namespace {
 
 void Run() 
 {
+
+  // Show autonomu app version
+  autonomy::common::ShowVersion();
+  
+  LOG(INFO) << "Autonomy open robot for everyone enjoy !!!";
   rclcpp::Node::SharedPtr ros_node = rclcpp::Node::make_shared("autonomy_node");
   constexpr double kTfBufferCacheTimeInSeconds = 10.;
 
