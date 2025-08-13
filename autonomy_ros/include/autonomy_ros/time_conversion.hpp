@@ -17,7 +17,16 @@
 
 #pragma once 
 
+#include "autonomy/common/time.hpp"
+#include "autonomy/commsgs//builtin_interfaces.hpp"
+
+#include <builtin_interfaces/msg/time.hpp>
+#include <rclcpp/rclcpp.hpp>
+
 namespace autonomy_ros {
 
+rclcpp::Time ToRos(::autonomy::commsgs::builtin_interfaces::Time time);
+
+::autonomy::commsgs::builtin_interfaces::Time FromRos(const rclcpp::Time& time);
 
 }  // namespace autonomy_ros

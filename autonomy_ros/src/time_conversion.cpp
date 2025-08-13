@@ -18,5 +18,17 @@
 
 namespace autonomy_ros {
 
+rclcpp::Time ToRos(::autonomy::commsgs::builtin_interfaces::Time time)
+{
+    return rclcpp::Time{time.sec, time.nanosec};
+}
 
+::autonomy::commsgs::builtin_interfaces::Time FromRos(const rclcpp::Time& time)
+{
+    return ::autonomy::commsgs::builtin_interfaces::Time {
+        time.seconds(),   
+        time.nanoseconds() % 1'000'000'000  
+    };
+}
+    
 }  // namespace autonomy_ros

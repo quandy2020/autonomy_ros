@@ -58,6 +58,7 @@ set(executable_name autonomy_node)
 add_executable(${executable_name}
   src/main.cpp
   src/autonomy_node.cpp
+  src/autonomoy_bridge.cpp
   src/msg_conversion.cpp
   src/node_constants.cpp
   src/node_options.cpp
