@@ -17,7 +17,44 @@
 
 #pragma once 
 
+#include <memory>
+#include <set>
+#include <string>
+#include <unordered_map>
+
+// #include "absl/synchronization/mutex.h"
+
+#include "autonomy/system/system.hpp"
+#include "autonomy_ros/node_options.hpp"
+#include "autonomy_ros/sensor_bridge.hpp"
+#include "autonomy_ros/tf_bridge.hpp"
+
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "nav_msgs/msg/occupancy_grid.hpp"
+
+
 namespace autonomy_ros {
 
+
+class AutonomyBridge
+{
+public:
+    AutonomyBridge(
+        const NodeOptions& node_options,
+        std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
+        tf2_ros::Buffer* tf_buffer);
+
+    AutonomyBridge(const AutonomyBridge&) = delete;
+    AutonomyBridge& operator=(const AutonomyBridge&) = delete;
+
+    // SensorBridge* sensor_bridge();
+
+private:
+
+    const NodeOptions node_options_;
+
+    std::unique_ptr<::autonomy::system::AutonomyNode> autonomy_builder_{nullptr};
+    tf2_ros::Buffer* const tf_buffer_{nullptr};
+};
 
 }  // namespace autonomy_ros

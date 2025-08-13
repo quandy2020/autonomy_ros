@@ -18,8 +18,56 @@
 
 namespace autonomy_ros {
 
-Node::Node()
-    : rclcpp::Node("autonomy_node")
+Node::Node(const NodeOptions& node_options,
+    std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer,
+    rclcpp::Node::SharedPtr node,
+    bool collect_metrics)
+{
+
+}
+
+void Node::StartupWithDefaultTopics()
+{
+
+}
+
+void Node::HandleOdometryMessage(const std::string& sensor_id, const nav_msgs::msg::Odometry::ConstSharedPtr& msg)
+{
+
+}
+
+void Node::HandleNavSatFixMessage(const std::string& sensor_id, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& msg)
+{
+
+}
+
+void Node::HandleImuMessage(const std::string& sensor_id, const sensor_msgs::msg::Imu::ConstSharedPtr& msg)
+{
+
+}
+
+void Node::HandleLaserScanMessage(const std::string& sensor_id, const sensor_msgs::msg::LaserScan::ConstSharedPtr& msg)
+{
+
+}
+
+void Node::HandleMultiEchoLaserScanMessage(const std::string& sensor_id, const sensor_msgs::msg::MultiEchoLaserScan::ConstSharedPtr& msg)
+{
+
+}
+
+void Node::HandlePointCloud2Message(const std::string& sensor_id, const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
+{
+
+}
+
+void Node::PublishTrajectoryList()
+{
+
+}
+
+void Node::PublishEnvPointCloudData()
 {
 
 }

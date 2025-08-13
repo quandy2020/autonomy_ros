@@ -19,4 +19,15 @@
 namespace autonomy_ros {
 
 
+AutonomyBridge(
+    const NodeOptions& node_options,
+    std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
+    tf2_ros::Buffer* tf_buffer)
+    : node_options_{node_options},
+      autonomy_builder_{std::move(autonomy)},
+      tf_buffer_{tf_buffer}
+{
+
+}
+
 }  // namespace autonomy_ros
