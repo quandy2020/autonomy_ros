@@ -30,7 +30,11 @@ namespace autonomy_ros {
 struct NodeOptions 
 {
     ::autonomy::system::proto::AutonomyOptions autonomy_options;
+    std::string tracking_frame;
+    std::string published_frame;
+
     std::string map_frame;
+    std::string odom_frame;
 };
   
 bool CreateNodeOptions(::autonomy::common::LuaParameterDictionary* lua_parameter_dictionary, NodeOptions& node_options);

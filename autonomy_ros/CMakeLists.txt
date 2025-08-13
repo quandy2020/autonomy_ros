@@ -37,14 +37,22 @@ include_directories(
 
 set(dependencies
   rclcpp
+  builtin_interfaces
   std_msgs
   visualization_msgs
+  sensor_msgs
   nav2_msgs
   nav_msgs
+  autonomy_msgs
   geometry_msgs
-  builtin_interfaces
+  tf2
+  tf2_eigen
+  tf2_msgs
   tf2_ros
+  pcl_ros
+  pcl_conversions
 )
+
 
 set(executable_name autonomy_node)
 add_executable(${executable_name}
@@ -52,7 +60,9 @@ add_executable(${executable_name}
   src/autonomy_node.cpp
   src/msg_conversion.cpp
   src/node_constants.cpp
+  src/node_options.cpp
   src/sensor_bridge.cpp
+  src/tf_bridge.cpp
   src/time_conversion.cpp
 )
 ament_target_dependencies(${executable_name}
@@ -60,12 +70,16 @@ ament_target_dependencies(${executable_name}
 )
 target_link_libraries(${executable_name} autonomy)
 
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
 install(TARGETS ${executable_name}
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY include/
-  DESTINATION include/
+install(DIRECTORY configuration_files urdf launch rviz
+  DESTINATION share/${PROJECT_NAME}/
 )
 
 if(BUILD_TESTING)
