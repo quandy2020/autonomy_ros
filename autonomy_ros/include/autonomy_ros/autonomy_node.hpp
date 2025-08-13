@@ -104,6 +104,8 @@ private:
     void PublishTrajectoryList();
     void PublishEnvPointCloudData();
 
+    std::unique_ptr<AutonomyBridge> autonomy_builder_{nullptr};
+
     // // ROS2 Node
     rclcpp::Node::SharedPtr node_{nullptr};
     std::vector<std::vector<Subscriber>> subscribers_;

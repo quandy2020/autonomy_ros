@@ -19,7 +19,7 @@
 namespace autonomy_ros {
 
 
-AutonomyBridge(
+  AutonomyBridge::AutonomyBridge(
     const NodeOptions& node_options,
     std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
     tf2_ros::Buffer* tf_buffer)
@@ -28,6 +28,11 @@ AutonomyBridge(
       tf_buffer_{tf_buffer}
 {
 
+}
+
+SensorBridge* AutonomyBridge::sensor_bridge()
+{
+    return sensor_bridges_.get();
 }
 
 }  // namespace autonomy_ros

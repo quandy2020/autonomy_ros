@@ -34,7 +34,17 @@ void Node::StartupWithDefaultTopics()
 
 void Node::HandleOdometryMessage(const std::string& sensor_id, const nav_msgs::msg::Odometry::ConstSharedPtr& msg)
 {
+    if (msg == nullptr) {
+        return;
+    }
 
+    // if (!sensor_samplers_.odometry_sampler.Pulse()) {
+    //     return;
+    // }
+
+    auto sensor_bridge_ptr = autonomy_builder_->sensor_bridge();
+    auto odometry_data_ptr = sensor_bridge_ptr->ToOdometryData(msg);
+    sensor_bridge_ptr->HandleOdometryMessage(sensor_id, msg);
 }
 
 void Node::HandleNavSatFixMessage(const std::string& sensor_id, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& msg)
@@ -71,5 +81,6 @@ void Node::PublishEnvPointCloudData()
 {
 
 }
+
 
 }  // namespace autonomy_ros

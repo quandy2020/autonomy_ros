@@ -47,7 +47,7 @@ public:
     AutonomyBridge(const AutonomyBridge&) = delete;
     AutonomyBridge& operator=(const AutonomyBridge&) = delete;
 
-    // SensorBridge* sensor_bridge();
+    SensorBridge* sensor_bridge();
 
 private:
 
@@ -55,6 +55,8 @@ private:
 
     std::unique_ptr<::autonomy::system::AutonomyNode> autonomy_builder_{nullptr};
     tf2_ros::Buffer* const tf_buffer_{nullptr};
+
+    std::unique_ptr<SensorBridge> sensor_bridges_{nullptr};
 };
 
 }  // namespace autonomy_ros
