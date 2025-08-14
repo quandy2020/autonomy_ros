@@ -72,7 +72,17 @@ void Node::HandlePointCloud2Message(const std::string& sensor_id, const sensor_m
 
 }
 
-void Node::PublishTrajectoryList()
+void Node::PublishOccupancyGridMap2D()
+{
+
+}
+
+void Node::PublishGlobalTrajectory()
+{
+
+}
+
+void Node::PublishLocalTrajectory()
 {
 
 }
@@ -81,6 +91,7 @@ void Node::PublishEnvPointCloudData()
 {
 
 }
+
 
 
 }  // namespace autonomy_ros

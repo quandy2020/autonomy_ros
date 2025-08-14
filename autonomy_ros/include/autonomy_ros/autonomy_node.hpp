@@ -31,6 +31,7 @@
 #include <sensor_msgs/msg/multi_echo_laser_scan.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/buffer.h>
@@ -63,6 +64,10 @@ public:
         rclcpp::Node::SharedPtr node,
         bool collect_metrics);
 
+    /**
+     * @brief Destroy the Node object
+     * 
+     */
     ~Node() = default;
 
     Node(const Node&) = delete;
@@ -75,18 +80,59 @@ public:
      */
     void StartupWithDefaultTopics();
 
-    // The following functions handle adding sensor data.
-    void HandleOdometryMessage(const std::string& sensor_id, const nav_msgs::msg::Odometry::ConstSharedPtr& msg);
+    /**
+     * @brief The following functions handle adding sensor data(odom).
+     * 
+     * @param sensor_id 
+     * @param msg 
+     */
+    void HandleOdometryMessage(const std::string& sensor_id, 
+        const nav_msgs::msg::Odometry::ConstSharedPtr& msg);
 
-    void HandleNavSatFixMessage(const std::string& sensor_id, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& msg);
+    /**
+     * @brief The following functions handle adding sensor data(NavSatFix).
+     * 
+     * @param sensor_id 
+     * @param msg 
+     */
+    void HandleNavSatFixMessage(const std::string& sensor_id, 
+        const sensor_msgs::msg::NavSatFix::ConstSharedPtr& msg);
 
-    void HandleImuMessage(const std::string& sensor_id, const sensor_msgs::msg::Imu::ConstSharedPtr &msg);
+    /**
+     * @brief The following functions handle adding sensor data(Imu).
+     * 
+     * @param sensor_id 
+     * @param msg 
+     */
+    void HandleImuMessage(const std::string& sensor_id, 
+        const sensor_msgs::msg::Imu::ConstSharedPtr &msg);
 
-    void HandleLaserScanMessage(const std::string& sensor_id, const sensor_msgs::msg::LaserScan::ConstSharedPtr& msg);
+     /**
+     * @brief The following functions handle adding sensor data(LaserScan).
+     * 
+     * @param sensor_id 
+     * @param msg 
+     */
+    void HandleLaserScanMessage(const std::string& sensor_id, 
+        const sensor_msgs::msg::LaserScan::ConstSharedPtr& msg);
 
-    void HandleMultiEchoLaserScanMessage(const std::string& sensor_id, const sensor_msgs::msg::MultiEchoLaserScan::ConstSharedPtr& msg);
+    /**
+     * @brief The following functions handle adding sensor data.
+     * 
+     * @param sensor_id 
+     * @param msg 
+     */
+    void HandleMultiEchoLaserScanMessage(const std::string& sensor_id, 
+        const sensor_msgs::msg::MultiEchoLaserScan::ConstSharedPtr& msg);
 
-    void HandlePointCloud2Message(const std::string& sensor_id, const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg);
+    /**
+     * @brief The following functions handle adding sensor data(PointCloud2).
+     * 
+     * @param sensor_id 
+     * @param msg 
+     */
+    void HandlePointCloud2Message(const std::string& sensor_id, 
+        const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg);
         
 private:
     struct Subscriber 
@@ -100,19 +146,55 @@ private:
         std::string topic;
     };
 
+    /**
+     * @brief Publish OccupancyGrid
+     * 
+     */
+    void PublishOccupancyGridMap2D();
 
-    void PublishTrajectoryList();
+    /**
+     * @brief Publish global path
+     * 
+     */
+    void PublishGlobalTrajectory();
+
+    /**
+     * @brief Publish local path data
+     * 
+     */
+    void PublishLocalTrajectory();
+
+    /**
+     * @brief Publish PointCloud2 data
+     * 
+     */
     void PublishEnvPointCloudData();
 
+    // AutonomyBridge
     std::unique_ptr<AutonomyBridge> autonomy_builder_{nullptr};
 
-    // // ROS2 Node
-    rclcpp::Node::SharedPtr node_{nullptr};
+    // ROS2 Node
+    ::rclcpp::Node::SharedPtr node_{nullptr};
+
+    // visualization for map 2d
+    ::rclcpp::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_map2d_publisher_{nullptr};
+
+    // visualization for global_trajectory
+    ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr global_trajectory_publisher_{nullptr};
+
+    // visualization for local_trajectory
+    ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr local_trajectory_publisher_{nullptr};
+
+    // visualization for global env 3D 
+    ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr env_point_cloud_publisher_;
+
+    // Topics subscribers
     std::vector<std::vector<Subscriber>> subscribers_;
 
     // timers
-    ::rclcpp::TimerBase::SharedPtr trajectory_list_timer_{nullptr};
-    ::rclcpp::TimerBase::SharedPtr env_point_cloud_data_timer_{nullptr};
+    ::rclcpp::TimerBase::SharedPtr occupancy_grid_2d_timer_{nullptr};
+    ::rclcpp::TimerBase::SharedPtr global_trajectory_timer_{nullptr};
+    ::rclcpp::TimerBase::SharedPtr local_trajectory_timer_{nullptr};
 };
 
 }  // namespace autonomy_ros
