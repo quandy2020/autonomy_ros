@@ -30,20 +30,19 @@ bool CreateNodeOptions(::autonomy::common::LuaParameterDictionary* lua_parameter
     node_options.autonomy_options =
         ::autonomy::system::CreateAutonomyOptions(
             lua_parameter_dictionary->GetDictionary("autonomy").get());
-
     node_options.tracking_frame = lua_parameter_dictionary->GetString("tracking_frame");
     node_options.published_frame = lua_parameter_dictionary->GetString("published_frame");
     node_options.odom_frame = lua_parameter_dictionary->GetString("odom_frame");
     node_options.map_frame = lua_parameter_dictionary->GetString("map_frame");
-
-    LOG(INFO) << "autonomy options: " << autonomy::common::JsonUtil::ProtoToJson(node_options.autonomy_options);
+    if (lua_parameter_dictionary->GetBool("show_configuration_contents")) {
+        LOG(INFO) << "autonomy options: " 
+                  << autonomy::common::JsonUtil::ProtoToJson(node_options.autonomy_options);
+    }
     return true;
 }
 
 NodeOptions LoadOptions(const std::string& configuration_directory, const std::string& configuration_basename)
 {
-
-    LOG(INFO) << "Run LoadOptions tfcuntion.";
     auto file_resolver = std::make_unique<::autonomy::common::ConfigurationFileResolver>(std::vector<std::string>{configuration_directory});
     const std::string code = file_resolver->GetFileContentOrDie(configuration_basename);
     ::autonomy::common::LuaParameterDictionary lua_parameter_dictionary(code, std::move(file_resolver));
@@ -53,7 +52,6 @@ NodeOptions LoadOptions(const std::string& configuration_directory, const std::s
     if (!success) {
         LOG(ERROR) << "Create nodes option error.";
     }
-
     return options;
 }
 
