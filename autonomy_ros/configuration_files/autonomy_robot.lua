@@ -21,6 +21,7 @@ options = {
     tracking_frame = "base_footprint",
     published_frame = "base_footprint",
     odom_frame = "odom",
+    show_configuration_contents = true,
 }
 
 return options
