@@ -16,6 +16,9 @@
 
 #include "autonomy_ros/autonomy_node.hpp"
 
+#include "autonomy/common/logging.hpp"
+#include "autonomy_ros/node_constants.hpp"
+
 namespace autonomy_ros {
 
 Node::Node(const NodeOptions& node_options,
@@ -23,8 +26,31 @@ Node::Node(const NodeOptions& node_options,
     std::shared_ptr<tf2_ros::Buffer> tf_buffer,
     rclcpp::Node::SharedPtr node,
     bool collect_metrics)
+    : node_{node}
 {
+    occupancy_grid_publisher_ = node_->create_publisher<nav_msgs::msg::OccupancyGrid>(
+        kOccupancyGridTopic, rclcpp::QoS(1).transient_local());
 
+    global_trajectory_publisher_ = node_->create_publisher<::visualization_msgs::msg::MarkerArray>(
+        kGlobalPlanTopic, rclcpp::QoS(1).transient_local());
+
+    local_trajectory_publisher_ = node_->create_publisher<::visualization_msgs::msg::MarkerArray>(
+        kLocalPlanTopic, rclcpp::QoS(1).transient_local());
+
+    occupancy_grid_timer_ = node_->create_wall_timer(
+        std::chrono::milliseconds(int(kOccupancyGridPublishPeriodSec * 1000)), [this]() {
+            PublishOccupancyGridMap2D();
+        });
+
+    global_trajectory_timer_ = node_->create_wall_timer(
+        std::chrono::milliseconds(int(kGlobalTrajectoryPublishPeriodSec * 1000)), [this]() {
+            PublishGlobalTrajectory();
+        });
+
+    local_trajectory_timer_ = node_->create_wall_timer(
+        std::chrono::milliseconds(int(kLocalTrajectoryPublishPeriodSec * 1000)), [this]() {
+            PublishLocalTrajectory();
+        });
 }
 
 void Node::StartupWithDefaultTopics()
@@ -74,11 +100,21 @@ void Node::HandlePointCloud2Message(const std::string& sensor_id, const sensor_m
 
 void Node::PublishOccupancyGridMap2D()
 {
+    auto data = autonomy_builder_->AutonomySystemNode()->map_server()->occupancy_grid_map_data();
+    if (data == nullptr) {
+        LOG(ERROR) << "Publish OccupancyGrid(format) map 2D error, OccupancyGrid map data is nullptr.";
+        return;
+    }
 
+    // LOG(INFO) << "Publishing occupancy grid topic " << kOccupancyGridTopic
+    //         << " (frame_id: " << map_frame_id
+    //         << ", resolution:" << std::to_string(resolution) << ").";
+
+    // occupancy_grid_publisher_->publish(ToRos(*data));
 }
 
 void Node::PublishGlobalTrajectory()
-{
+{   
 
 }
 

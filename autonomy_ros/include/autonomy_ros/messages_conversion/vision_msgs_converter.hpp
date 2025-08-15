@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The Openbot Authors (duyongquan)
+ * Copyright 2024 The OpenRobotic Beginner Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,15 @@
  * limitations under the License.
  */
 
+#ifndef OPENBOT_ROS_MESSAGES_CONVERSION_VISION_MSGS_CONVERTER_HPP
+#define OPENBOT_ROS_MESSAGES_CONVERSION_VISION_MSGS_CONVERTER_HPP
 
-#include "autonomy_ros/node_constants.hpp"
+#include <string>
+#include <tuple>
 
-#include "glog/logging.h"
 
-namespace autonomy_ros {
+namespace openbot_ros {
 
-std::vector<std::string> ComputeRepeatedTopicNames(const std::string& topic, const int num_topics) 
-{
-    CHECK_GE(num_topics, 0);
-    if (num_topics == 1) {
-        return {topic};
-    }
-    std::vector<std::string> topics;
-    topics.reserve(num_topics);
-    for (int i = 0; i < num_topics; ++i) {
-        topics.emplace_back(topic + "_" + std::to_string(i + 1));
-    }
-    return topics;
-}
+}  // namespace openbot_ros
 
-}  // namespace autonomy_ros
+#endif  // OPENBOT_ROS_MESSAGES_CONVERSION_VISION_MSGS_CONVERTER_HPP
