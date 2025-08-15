@@ -47,7 +47,19 @@ public:
     AutonomyBridge(const AutonomyBridge&) = delete;
     AutonomyBridge& operator=(const AutonomyBridge&) = delete;
 
+    /**
+     * @brief Get sensor_bridge pointer
+     * 
+     * @return SensorBridge* 
+     */
     SensorBridge* sensor_bridge();
+
+    /**
+     * @brief Get autonomy_builder pointer
+     * 
+     * @return ::autonomy::system::AutonomyNode* 
+     */
+    ::autonomy::system::AutonomyNode* AutonomySystemNode();
 
 private:
 

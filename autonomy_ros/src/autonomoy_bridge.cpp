@@ -35,4 +35,9 @@ SensorBridge* AutonomyBridge::sensor_bridge()
     return sensor_bridges_.get();
 }
 
+::autonomy::system::AutonomyNode* AutonomyBridge::AutonomySystemNode()
+{
+    return autonomy_builder_.get();
+}
+
 }  // namespace autonomy_ros

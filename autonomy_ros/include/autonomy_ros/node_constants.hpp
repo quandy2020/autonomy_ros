@@ -17,7 +17,32 @@
 
 #pragma once 
 
+#include <string>
+#include <vector>
+
 namespace autonomy_ros {
 
+// Default topic names; expected to be remapped as needed.
+constexpr char kLaserScanTopic[] = "scan";
+constexpr char kMultiEchoLaserScanTopic[] = "echoes";
+constexpr char kPointCloud2Topic[] = "points2";
+constexpr char kImuTopic[] = "imu";
+constexpr char kOdometryTopic[] = "odom";
+constexpr char kNavSatFixTopic[] = "fix";
+constexpr char kLandmarkTopic[] = "landmark";
+constexpr char kOccupancyGridTopic[] = "map";
+constexpr char kGlobalPlanTopic[] = "plan";
+constexpr char kLocalPlanTopic[] = "local_plan";
+
+// constexpr char kGetTrajectoryStatesServiceName[] = "get_trajectory_states";
+constexpr double kOccupancyGridPublishPeriodSec = 1.0;
+constexpr double kGlobalTrajectoryPublishPeriodSec = 5.0;
+constexpr double kLocalTrajectoryPublishPeriodSec = 20.0;
+
+constexpr int kInfiniteSubscriberQueueSize = 0;
+constexpr int kLatestOnlyPublisherQueueSize = 1;
+
+// For multiple topics adds numbers to the topic name and returns the list.
+std::vector<std::string> ComputeRepeatedTopicNames(const std::string& topic, int num_topics);
 
 }  // namespace autonomy_ros

@@ -177,7 +177,7 @@ private:
     ::rclcpp::Node::SharedPtr node_{nullptr};
 
     // visualization for map 2d
-    ::rclcpp::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_map2d_publisher_{nullptr};
+    ::rclcpp::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_ {nullptr};
 
     // visualization for global_trajectory
     ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr global_trajectory_publisher_{nullptr};
@@ -192,7 +192,7 @@ private:
     std::vector<std::vector<Subscriber>> subscribers_;
 
     // timers
-    ::rclcpp::TimerBase::SharedPtr occupancy_grid_2d_timer_{nullptr};
+    ::rclcpp::TimerBase::SharedPtr occupancy_grid_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr global_trajectory_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr local_trajectory_timer_{nullptr};
 };

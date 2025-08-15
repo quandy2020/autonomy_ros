@@ -40,6 +40,7 @@ DEFINE_string(configuration_basename, "",
 DEFINE_bool(startup_with_default_topics, true,
   "Enable to immediately start with default topics.");
 
+
 namespace autonomy_ros {
 namespace {
 
