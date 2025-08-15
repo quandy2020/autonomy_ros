@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-#include "builtin_interfaces_converter.hpp"
+#include "autonomy_ros/messages_conversion/builtin_interfaces_converter.hpp"
 
+namespace autonomy_ros {
 
-namespace openbot_ros {
-
-rclcpp::Time ToRos(const ::openbot::common::builtin_interfaces::Time& data)
+rclcpp::Time ToRos(const ::autonomy::commsgs::builtin_interfaces::Time& data)
 {
     return rclcpp::Time {
         data.sec,
@@ -27,10 +26,28 @@ rclcpp::Time ToRos(const ::openbot::common::builtin_interfaces::Time& data)
     };
 }
 
-::openbot::common::builtin_interfaces::Time FromRos(const rclcpp::Time& ros)
+::autonomy::commsgs::builtin_interfaces::Time FromRos(const rclcpp::Time& ros)
 {
-    ::openbot::common::builtin_interfaces::Time data;
-    return data;
+    return ::autonomy::commsgs::builtin_interfaces::Time {
+        ros.seconds(),   
+        ros.nanoseconds() % 1'000'000'000  
+    };
 }
 
-}  // namespace openbot_ros
+// rclcpp::Duration ToRos(const ::autonomy::commsgs::builtin_interfaces::Duration& data)
+// {
+//     return rclcpp::Duration {
+//         ToRos(data.stamp),
+//         data.frame_id
+//     };
+// }
+
+// ::autonomy::commsgs::builtin_interfaces::Duration FromRos(const rclcpp::Duration& ros)
+// {
+//     return ::autonomy::commsgs::builtin_interfaces::Time {
+//         FromRos(ros.stamp),
+//         ros.frame_id
+//     };
+// }
+
+}  // namespace autonomy_ros

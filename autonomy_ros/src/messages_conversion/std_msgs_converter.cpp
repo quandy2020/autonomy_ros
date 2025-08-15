@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "std_msgs_converter.hpp"
-#include "builtin_interfaces_converter.hpp"
+#include "autonomy_ros/messages_conversion/std_msgs_converter.hpp"
+#include "autonomy_ros/messages_conversion/builtin_interfaces_converter.hpp"
 
-namespace openbot_ros {
+namespace autonomy_ros {
 
-std_msgs::msg::Header ToRos(const ::openbot::common::std_msgs::Header& data)
+std_msgs::msg::Header ToRos(const ::autonomy::commsgs::std_msgs::Header& data)
 {
     std_msgs::msg::Header ros;
     ros.stamp = ToRos(data.stamp);
@@ -27,12 +27,12 @@ std_msgs::msg::Header ToRos(const ::openbot::common::std_msgs::Header& data)
     return ros;
 }
 
-::openbot::common::std_msgs::Header FromRos(const std_msgs::msg::Header& ros)
+::autonomy::commsgs::std_msgs::Header FromRos(const std_msgs::msg::Header& ros)
 {
-    ::openbot::common::std_msgs::Header data;
+    ::autonomy::commsgs::std_msgs::Header data;
     data.stamp = FromRos(ros.stamp);
     data.frame_id = ros.frame_id;
     return data;
 }
 
-}  // namespace openbot_ros
+}  // namespace autonomy_ros
