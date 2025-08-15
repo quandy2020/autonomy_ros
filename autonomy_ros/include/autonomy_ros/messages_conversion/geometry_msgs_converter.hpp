@@ -14,41 +14,93 @@
  * limitations under the License.
  */
 
-#ifndef OPENBOT_ROS_MESSAGES_CONVERSION_GEOMETRY_MSGS_CONVERTER_HPP
-#define OPENBOT_ROS_MESSAGES_CONVERSION_GEOMETRY_MSGS_CONVERTER_HPP
+#pragma once
 
 #include <string>
 #include <tuple>
 
-// openbot::common::geometry_msgs
-#include "openbot/common/msgs/msgs.hpp"
 
-// nav_msgs
-#include "nav_msgs/msg/grid_cells.hpp"
-#include "nav_msgs/msg/map_meta_data.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
-#include "nav_msgs/msg/odometry.hpp"
-#include "nav_msgs/msg/path.hpp"
+// autonomy::comsmgs::geometry_msgs
+#include "autonomy/commsgs/geometry_msgs.hpp"
 
-namespace openbot_ros {
+//ros geometry_msgs
+#include "geometry_msgs/msg/accel.hpp"
+#include "geometry_msgs/msg/accel_stamped.hpp"
+#include "geometry_msgs/msg/accel_with_covariance.hpp"
+#include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
+#include "geometry_msgs/msg/inertia.hpp"
+#include "geometry_msgs/msg/inertia_stamped.hpp"
+#include "geometry_msgs/msg/point.hpp"
+#include "geometry_msgs/msg/point32.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/polygon.hpp"
+#include "geometry_msgs/msg/polygon_stamped.hpp"
+#include "geometry_msgs/msg/pose.hpp"
+#include "geometry_msgs/msg/pose2_d.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/pose_with_covariance.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+#include "geometry_msgs/msg/quaternion.hpp"
+#include "geometry_msgs/msg/quaternion_stamped.hpp"
+#include "geometry_msgs/msg/transform.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "geometry_msgs/msg/twist_with_covariance.hpp" 
+#include "geometry_msgs/msg/twist_with_covariance_stamped.hpp"
+#include "geometry_msgs/msg/vector3.hpp"
+#include "geometry_msgs/msg/vector3_stamped.hpp"
+#include "geometry_msgs/msg/velocity_stamped.hpp"
+
+
+namespace autonomy_ros {
+
+// Accel
+geometry_msgs::msg::Accel ToRos(const ::autonomy::commsgs::geometry_msgs::Accel& proto);
+geometry_msgs::msg::AccelStamped ToRos(const ::autonomy::commsgs::geometry_msgs::AccelStamped& proto);
+geometry_msgs::msg::AccelWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::AccelWithCovariance& proto);
+geometry_msgs::msg::AccelWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::AccelWithCovarianceStamped& proto);
+
+// Inertia
+geometry_msgs::msg::Inertia ToRos(const ::autonomy::commsgs::geometry_msgs::Inertia& proto);
+geometry_msgs::msg::InertiaStamped ToRos(const ::autonomy::commsgs::geometry_msgs::InertiaStamped& proto);
 
 // Point
-geometry_msgs::msg::Point ToRos(const ::openbot::common::geometry_msgs::Point& data);
-::openbot::common::geometry_msgs::Point FromRos(const geometry_msgs::msg::Point& ros);
+geometry_msgs::msg::Point ToRos(const ::autonomy::commsgs::geometry_msgs::Point& proto);
+geometry_msgs::msg::Point32 ToRos(const ::autonomy::commsgs::geometry_msgs::Point32& proto);
+geometry_msgs::msg::PointStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PointStamped& proto);
 
-// Quaternion
-geometry_msgs::msg::Quaternion ToRos(const ::openbot::common::geometry_msgs::Quaternion& data);
-::openbot::common::geometry_msgs::Quaternion FromRos(const geometry_msgs::msg::Quaternion& ros);
+// polygon
+geometry_msgs::msg::Polygon ToRos(const ::autonomy::commsgs::geometry_msgs::Polygon& proto);
+geometry_msgs::msg::PolygonStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PolygonStamped& proto);
 
 // Pose
-geometry_msgs::msg::Pose ToRos(const ::openbot::common::geometry_msgs::Pose& data);
-::openbot::common::geometry_msgs::Pose FromRos(const geometry_msgs::msg::Pose& ros);
+geometry_msgs::msg::Pose ToRos(const ::autonomy::commsgs::geometry_msgs::Pose& proto);
+geometry_msgs::msg::Pose2D ToRos(const ::autonomy::commsgs::geometry_msgs::Pose2D& proto);
+geometry_msgs::msg::PoseArray ToRos(const ::autonomy::commsgs::geometry_msgs::PoseArray& proto);
+geometry_msgs::msg::PoseStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PoseStamped& proto);
+geometry_msgs::msg::PoseWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::PoseWithCovariance& proto);
+geometry_msgs::msg::PoseWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PoseWithCovarianceStamped& proto);
 
-// PoseStamped
-geometry_msgs::msg::PoseStamped ToRos(const ::openbot::common::geometry_msgs::PoseStamped& data);
-::openbot::common::geometry_msgs::PoseStamped FromRos(const geometry_msgs::msg::PoseStamped& ros);
+// Quaternion
+geometry_msgs::msg::Quaternion ToRos(const ::autonomy::commsgs::geometry_msgs::Quaternion& proto);
+geometry_msgs::msg::QuaternionStamped ToRos(const ::autonomy::commsgs::geometry_msgs::QuaternionStamped& proto);
 
+// transform
+geometry_msgs::msg::Transform ToRos(const ::autonomy::commsgs::geometry_msgs::Transform& proto);
+geometry_msgs::msg::TransformStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TransformStamped& proto);
 
-}  // namespace openbot_ros
+// Twist
+geometry_msgs::msg::Twist ToRos(const ::autonomy::commsgs::geometry_msgs::Twist& proto);
+geometry_msgs::msg::TwistStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TwistStamped& proto);
+geometry_msgs::msg::TwistWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::TwistWithCovariance& proto);
+geometry_msgs::msg::TwistWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TwistWithCovarianceStamped& proto);
 
-#endif  // OPENBOT_ROS_MESSAGES_CONVERSION_GEOMETRY_MSGS_CONVERTER_HPP
+// Vector3
+geometry_msgs::msg::Vector3 ToRos(const ::autonomy::commsgs::geometry_msgs::Vector3& proto);
+geometry_msgs::msg::Vector3Stamped ToRos(const ::autonomy::commsgs::geometry_msgs::Vector3Stamped& proto);
+geometry_msgs::msg::VelocityStamped ToRos(const ::autonomy::commsgs::geometry_msgs::VelocityStamped& proto);
+
+}  // namespace autonomy_ros
+

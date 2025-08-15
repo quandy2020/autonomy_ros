@@ -19,22 +19,22 @@
 #include <string>
 #include <tuple>
 
-// openbot::common::geometry_msgs
-#include "openbot/common/msgs/msgs.hpp"
+
+#include "autonomy/commsgs/planning_msgs.hpp"
 
 // nav_msgs
-#include "nav_msgs/msg/grid_cells.hpp"
-#include "nav_msgs/msg/map_meta_data.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 
-#include "openbot/common/msgs/msgs.hpp"
+namespace autonomy_ros {
 
-namespace openbot_ros {
+// Odometry
+nav_msgs::msg::Odometry ToRos(const ::autonomy::commsgs::planning_msgs::Odometry& proto);
+::autonomy::commsgs::planning_msgs::Odometry FromRos(const nav_msgs::msg::Odometry& ros);
 
 // Path
-nav_msgs::msg::Path ToRos(const ::openbot::common::nav_msgs::Path& data);
-// ::openbot::common::nav_msgs::Path FromRos(const nav_msgs::msg::Path& ros);
+nav_msgs::msg::Path ToRos(const ::autonomy::commsgs::planning_msgs::Path& proto);
+::autonomy::commsgs::planning_msgs::Path FromRos(const nav_msgs::msg::Path& ros);
 
-}  // namespace openbot_ros
+
+}  // namespace autonomy_ros

@@ -53,7 +53,6 @@ set(dependencies
   pcl_conversions
 )
 
-
 set(executable_name autonomy_node)
 add_executable(${executable_name}
   src/main.cpp
@@ -64,7 +63,11 @@ add_executable(${executable_name}
   src/node_options.cpp
   src/sensor_bridge.cpp
   src/tf_bridge.cpp
-  src/time_conversion.cpp
+  src/messages_conversion/std_msgs_converter.cpp
+  src/messages_conversion/builtin_interfaces_converter.cpp 
+  src/messages_conversion/geometry_msgs_converter.cpp 
+  src/messages_conversion/nav_msgs_converter.cpp
+  src/messages_conversion/map_msgs_converter.cpp
 )
 ament_target_dependencies(${executable_name}
   ${dependencies}

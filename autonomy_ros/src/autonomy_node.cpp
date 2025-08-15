@@ -18,6 +18,7 @@
 
 #include "autonomy/common/logging.hpp"
 #include "autonomy_ros/node_constants.hpp"
+#include "autonomy_ros/messages_conversion/map_msgs_converter.hpp"
 
 namespace autonomy_ros {
 
@@ -219,16 +220,16 @@ void Node::MaybeWarnAboutTopicMismatch()
 
 void Node::PublishOccupancyGridMap2D()
 {
-    // auto data = autonomy_builder_->AutonomySystemNode()->map_server()->occupancy_grid_map_data();
-    // if (data == nullptr) {
-    //     LOG(ERROR) << "Publish OccupancyGrid(format) map 2D error, OccupancyGrid map data is nullptr.";
-    //     return;
-    // }
+    auto data = autonomy_builder_->AutonomySystemNode()->map_server()->occupancy_grid_map_data();
+    if (data == nullptr) {
+        LOG(ERROR) << "Publish OccupancyGrid(format) map 2D error, OccupancyGrid map data is nullptr.";
+        return;
+    }
 
     LOG(INFO) << "Publishing occupancy grid topic " << kOccupancyGridTopic
              << " (frame_id: " << node_options_.map_frame<< ").";
 
-    // occupancy_grid_publisher_->publish(ToRos(*data));
+    occupancy_grid_publisher_->publish(ToRos(*data));
 }
 
 void Node::PublishGlobalTrajectory()

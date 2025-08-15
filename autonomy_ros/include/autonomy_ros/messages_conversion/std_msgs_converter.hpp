@@ -14,30 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef OPENBOT_ROS_MESSAGES_CONVERSION_STD_MSGS_CONVERTER_HPP
-#define OPENBOT_ROS_MESSAGES_CONVERSION_STD_MSGS_CONVERTER_HPP
+#pragma once 
 
 #include <string>
 #include <tuple>
 
 // std_msgs
 #include "std_msgs/msg/header.hpp"
+#include "autonomy/commsgs//std_msgs.hpp"
 
-#include "nav_msgs/msg/grid_cells.hpp"
-#include "nav_msgs/msg/map_meta_data.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
-#include "nav_msgs/msg/odometry.hpp"
-#include "nav_msgs/msg/path.hpp"
-
-#include "openbot/common/msgs/msgs.hpp"
-
-namespace openbot_ros {
+namespace autonomy_ros {
 
 // Header
-std_msgs::msg::Header ToRos(const ::openbot::common::std_msgs::Header& data);
-::openbot::common::std_msgs::Header FromRos(const std_msgs::msg::Header& ros);
+std_msgs::msg::Header ToRos(const ::autonomy::commsgs::std_msgs::Header& data);
+::autonomy::commsgs::std_msgs::Header FromRos(const std_msgs::msg::Header& ros);
 
 
-}  // namespace openbot_ros
-
-#endif  // OPENBOT_ROS_MESSAGES_CONVERSION_STD_MSGS_CONVERTER_HPP
+}  // namespace autonomy_ros
