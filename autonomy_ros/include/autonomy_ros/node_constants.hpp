@@ -36,9 +36,10 @@ constexpr char kLocalPlanTopic[] = "local_plan";
 
 // constexpr char kGetTrajectoryStatesServiceName[] = "get_trajectory_states";
 constexpr double kOccupancyGridPublishPeriodSec = 1.0;
-constexpr double kGlobalTrajectoryPublishPeriodSec = 5.0;
+constexpr double kGlobalTrajectoryPublishPeriodSec = 1.0;
 constexpr double kLocalTrajectoryPublishPeriodSec = 20.0;
 
+constexpr double kTopicMismatchCheckDelaySec = 3.0;
 constexpr int kInfiniteSubscriberQueueSize = 0;
 constexpr int kLatestOnlyPublisherQueueSize = 1;
 

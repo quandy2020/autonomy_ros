@@ -58,6 +58,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         # Nodes
-        robot_state_publisher_node,
+        # robot_state_publisher_node,
         autonomy_node,
     ])

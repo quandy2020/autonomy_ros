@@ -18,10 +18,24 @@ include "autonomy.lua"
 options = {
     autonomy = AUTONOMY,
     map_frame = "map",
-    tracking_frame = "base_footprint",
-    published_frame = "base_footprint",
+    base_frame = "base_footprint",
     odom_frame = "odom",
-    show_configuration_contents = true,
+    use_imu_data = true,
+    use_odometry = true,
+    use_nav_sat = false,
+    use_landmarks = false,
+    num_laser_scans = 1,
+    num_multi_echo_laser_scans = 1,
+    num_subdivisions_per_laser_scan = 10,
+    num_point_clouds = 0,
+    lookup_transform_timeout_sec = 0.2,
+    global_plan_publish_period_sec = 0.2,
+    rangefinder_sampling_ratio = 1.,
+    odometry_sampling_ratio = 1.,
+    fixed_frame_pose_sampling_ratio = 1.,
+    imu_sampling_ratio = 1.,
+    landmarks_sampling_ratio = 1.,
+    show_configuration_contents = true
 }
 
 return options
