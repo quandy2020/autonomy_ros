@@ -38,6 +38,8 @@
 #include <tf2_ros/transform_listener.h>
 
 #include "autonomy/common/macros.hpp"
+#include "autonomy/common/fixed_ratio_sampler.hpp"
+#include "autonomy/sensor/data.hpp"
 #include "autonomy/system/system.hpp"
 #include "autonomy_ros/autonomoy_bridge.hpp"
 #include "autonomy_ros/node_constants.hpp"
@@ -72,6 +74,10 @@ public:
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
+
+    // Returns the set of SensorIds expected for a autonomy.
+    // 'SensorId::id' is the expected ROS topic name.
+    std::set<::autonomy::sensor::SensorId> ComputeExpectedSensorIds(const NodeOptions& options) const;
 
     /**
      * @brief Starts with the default topics.
@@ -133,6 +139,12 @@ public:
      */
     void HandlePointCloud2Message(const std::string& sensor_id, 
         const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg);
+
+    /**
+     * @brief Warn topics mismatch
+     * 
+     */
+    void MaybeWarnAboutTopicMismatch();
         
 private:
     struct Subscriber 
@@ -170,6 +182,13 @@ private:
      */
     void PublishEnvPointCloudData();
 
+    /**
+     * @brief Add sensor ros options
+     * 
+     * @param options 
+     */
+    void AddSensorSamplers(const NodeOptions& options);
+
     // AutonomyBridge
     std::unique_ptr<AutonomyBridge> autonomy_builder_{nullptr};
 
@@ -188,13 +207,38 @@ private:
     // visualization for global env 3D 
     ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr env_point_cloud_publisher_;
 
+    struct AutonomySensorSamplers 
+    {
+        AutonomySensorSamplers(const double rangefinder_sampling_ratio,
+                                 const double odometry_sampling_ratio,
+                                 const double fixed_frame_pose_sampling_ratio,
+                                 const double imu_sampling_ratio,
+                                 const double landmark_sampling_ratio)
+            : rangefinder_sampler(rangefinder_sampling_ratio),
+              odometry_sampler(odometry_sampling_ratio),
+              fixed_frame_pose_sampler(fixed_frame_pose_sampling_ratio),
+              imu_sampler(imu_sampling_ratio),
+              landmark_sampler(landmark_sampling_ratio) {}
+    
+        ::autonomy::common::FixedRatioSampler rangefinder_sampler;
+        ::autonomy::common::FixedRatioSampler odometry_sampler;
+        ::autonomy::common::FixedRatioSampler fixed_frame_pose_sampler;
+        ::autonomy::common::FixedRatioSampler imu_sampler;
+        ::autonomy::common::FixedRatioSampler landmark_sampler;
+    };
+
+    const NodeOptions node_options_;
+    
     // Topics subscribers
-    std::vector<std::vector<Subscriber>> subscribers_;
+    std::vector<Subscriber> subscribers_;
+    std::unordered_set<std::string> subscribed_topics_;
+    // AutonomySensorSamplers sensor_samplers_;
 
     // timers
     ::rclcpp::TimerBase::SharedPtr occupancy_grid_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr global_trajectory_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr local_trajectory_timer_{nullptr};
+    ::rclcpp::TimerBase::SharedPtr maybe_warn_about_topic_mismatch_timer_{nullptr};
 };
 
 }  // namespace autonomy_ros

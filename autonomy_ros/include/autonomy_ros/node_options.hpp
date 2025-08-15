@@ -30,13 +30,26 @@ namespace autonomy_ros {
 struct NodeOptions 
 {
     ::autonomy::system::proto::AutonomyOptions autonomy_options;
-    std::string tracking_frame;
-    std::string published_frame;
-
     std::string map_frame;
+    std::string base_frame;
     std::string odom_frame;
+    bool use_imu_data;
+    bool use_odometry;
+    bool use_nav_sat;
+    bool use_landmarks;
+    int num_laser_scans;
+    int num_multi_echo_laser_scans;
+    int num_subdivisions_per_laser_scan;
+    int num_point_clouds;
+    double global_plan_publish_period_sec;
+    double lookup_transform_timeout_sec;
+    double rangefinder_sampling_ratio;
+    double odometry_sampling_ratio;
+    double fixed_frame_pose_sampling_ratio;
+    double imu_sampling_ratio;
+    double landmarks_sampling_ratio;
 };
-  
+
 bool CreateNodeOptions(::autonomy::common::LuaParameterDictionary* lua_parameter_dictionary, NodeOptions& node_options);
   
 NodeOptions LoadOptions(const std::string& configuration_directory, const std::string& configuration_basename);

@@ -27,13 +27,28 @@ namespace autonomy_ros {
 
 bool CreateNodeOptions(::autonomy::common::LuaParameterDictionary* lua_parameter_dictionary, NodeOptions& node_options)
 {
-    node_options.autonomy_options =
-        ::autonomy::system::CreateAutonomyOptions(
-            lua_parameter_dictionary->GetDictionary("autonomy").get());
-    node_options.tracking_frame = lua_parameter_dictionary->GetString("tracking_frame");
-    node_options.published_frame = lua_parameter_dictionary->GetString("published_frame");
-    node_options.odom_frame = lua_parameter_dictionary->GetString("odom_frame");
+    node_options.autonomy_options = ::autonomy::system::CreateAutonomyOptions(
+        lua_parameter_dictionary->GetDictionary("autonomy").get());
     node_options.map_frame = lua_parameter_dictionary->GetString("map_frame");
+    node_options.base_frame= lua_parameter_dictionary->GetString("base_frame");
+    node_options.odom_frame = lua_parameter_dictionary->GetString("odom_frame");
+    node_options.use_imu_data = lua_parameter_dictionary->GetBool("use_imu_data");
+    node_options.use_odometry = lua_parameter_dictionary->GetBool("use_odometry");
+    node_options.use_nav_sat = lua_parameter_dictionary->GetBool("use_nav_sat");
+    node_options.use_landmarks = lua_parameter_dictionary->GetBool("use_landmarks");
+    node_options.num_laser_scans = lua_parameter_dictionary->GetInt("num_laser_scans");
+    node_options.num_multi_echo_laser_scans = lua_parameter_dictionary->GetInt("num_multi_echo_laser_scans");
+    node_options.num_subdivisions_per_laser_scan = lua_parameter_dictionary->GetInt("num_subdivisions_per_laser_scan");
+    node_options.num_point_clouds = lua_parameter_dictionary->GetInt("num_point_clouds");
+
+    node_options.global_plan_publish_period_sec = lua_parameter_dictionary->GetDouble("global_plan_publish_period_sec");
+    node_options.lookup_transform_timeout_sec = lua_parameter_dictionary->GetDouble("lookup_transform_timeout_sec");
+    node_options.rangefinder_sampling_ratio = lua_parameter_dictionary->GetDouble("rangefinder_sampling_ratio");
+    node_options.odometry_sampling_ratio = lua_parameter_dictionary->GetDouble("odometry_sampling_ratio");
+    node_options.fixed_frame_pose_sampling_ratio = lua_parameter_dictionary->GetDouble("fixed_frame_pose_sampling_ratio");
+    node_options.imu_sampling_ratio = lua_parameter_dictionary->GetDouble("imu_sampling_ratio");
+    node_options.landmarks_sampling_ratio = lua_parameter_dictionary->GetDouble("landmarks_sampling_ratio");
+
     if (lua_parameter_dictionary->GetBool("show_configuration_contents")) {
         LOG(INFO) << "autonomy options: " 
                   << autonomy::common::JsonUtil::ProtoToJson(node_options.autonomy_options);
