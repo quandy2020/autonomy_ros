@@ -14,12 +14,30 @@
  * limitations under the License.
  */
 
-#include "sensor_msgs_converter.hpp"
-#include "std_msgs_converter.hpp"
 
-namespace openbot_ros {
+#include "autonomy_ros/messages_conversion/std_msgs_converter.hpp"
+#include "autonomy_ros/messages_conversion/geometry_msgs_converter.hpp"
+#include "autonomy_ros/messages_conversion/sensor_msgs_converter.hpp"
 
-sensor_msgs::msg::PointField ToRos(const ::openbot::common::sensor_msgs::PointField& data)
+namespace autonomy_ros {
+
+sensor_msgs::msg::ChannelFloat32 ToRos(const ::autonomy::commsgs::sensor_msgs::ChannelFloat32& data)
+{
+    sensor_msgs::msg::ChannelFloat32 ros;
+    ros.name = data.name;
+    for (auto const& value : data.values) {
+        ros.values.push_back(value);
+    }
+    return ros;
+}
+
+::autonomy::commsgs::sensor_msgs::ChannelFloat32 FromRos(const sensor_msgs::msg::ChannelFloat32& ros)
+{
+    ::autonomy::commsgs::sensor_msgs::ChannelFloat32 data;
+    return data;
+}
+
+sensor_msgs::msg::PointField ToRos(const ::autonomy::commsgs::sensor_msgs::PointField& data)
 {
     sensor_msgs::msg::PointField ros;
     ros.name = data.name;
@@ -29,7 +47,33 @@ sensor_msgs::msg::PointField ToRos(const ::openbot::common::sensor_msgs::PointFi
     return ros;
 }
 
-sensor_msgs::msg::PointCloud2 ToRos(const ::openbot::common::sensor_msgs::PointCloud2& data)
+::autonomy::commsgs::sensor_msgs::PointField FromRos(const sensor_msgs::msg::PointField& ros)
+{
+    ::autonomy::commsgs::sensor_msgs::PointField data;
+    return data;
+}
+
+sensor_msgs::msg::PointCloud ToRos(const ::autonomy::commsgs::sensor_msgs::PointCloud& data)
+{
+    sensor_msgs::msg::PointCloud ros;
+    ros.header = ToRos(data.header);
+    for (const auto& point : data.points) {
+        ros.points.push_back(ToRos(point));
+    }
+
+    for (const auto& channel : data.channels) {
+        ros.channels.push_back(ToRos(channel));
+    }
+    return ros;
+}
+
+::autonomy::commsgs::sensor_msgs::PointCloud FromRos(const sensor_msgs::msg::PointCloud& ros)
+{
+    ::autonomy::commsgs::sensor_msgs::PointCloud  data;
+    return data;
+}
+
+sensor_msgs::msg::PointCloud2 ToRos(const ::autonomy::commsgs::sensor_msgs::PointCloud2& data)
 {
     sensor_msgs::msg::PointCloud2 ros;
     ros.header = ToRos(data.header);
@@ -48,4 +92,11 @@ sensor_msgs::msg::PointCloud2 ToRos(const ::openbot::common::sensor_msgs::PointC
     return ros;
 }
 
-}  // namespace openbot_ros
+::autonomy::commsgs::sensor_msgs::PointCloud2 FromRos(const sensor_msgs::msg::PointCloud2& ros)
+{
+    ::autonomy::commsgs::sensor_msgs::PointCloud2 data;
+    return data;
+}
+
+
+}  // namespace autonomy_ros

@@ -20,6 +20,7 @@
 #include "autonomy/system/system.hpp"
 #include "autonomy_ros/autonomy_node.hpp"
 #include "autonomy_ros/node_options.hpp"
+#include "autonomy_ros/autonomoy_bridge.hpp"
 
 #include "gflags/gflags.h"
 #include "tf2_ros/transform_listener.h"
@@ -61,8 +62,8 @@ void Run()
   //     std::make_shared<tf2_ros::TransformListener>(*tf_buffer);
 
   auto node_options = LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
-  auto autonomy_builder = ::autonomy::system::CreateAutonomyBuilder(node_options.autonomy_options);
-  auto node = std::make_shared<autonomy_ros::Node>(node_options, std::move(autonomy_builder), 
+  auto autonomy = std::make_unique<AutonomyBridge>(node_options, tf_buffer.get());
+  auto node = std::make_shared<autonomy_ros::Node>(node_options, std::move(autonomy), 
       tf_buffer, ros_node, FLAGS_collect_metrics);
 
   if (FLAGS_startup_with_default_topics) {

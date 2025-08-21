@@ -61,10 +61,11 @@ public:
      * @param collect_metrics 
      */
     Node(const NodeOptions& node_options,
-        std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
+        std::unique_ptr<AutonomyBridge> autonomy,
         std::shared_ptr<tf2_ros::Buffer> tf_buffer,
         rclcpp::Node::SharedPtr node,
         bool collect_metrics);
+    
 
     /**
      * @brief Destroy the Node object
@@ -235,6 +236,7 @@ private:
     // AutonomySensorSamplers sensor_samplers_;
 
     // timers
+    ::rclcpp::TimerBase::SharedPtr point_cloud_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr occupancy_grid_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr global_trajectory_timer_{nullptr};
     ::rclcpp::TimerBase::SharedPtr local_trajectory_timer_{nullptr};

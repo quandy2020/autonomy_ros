@@ -65,6 +65,7 @@ add_executable(${executable_name}
   src/tf_bridge.cpp
   src/messages_conversion/std_msgs_converter.cpp
   src/messages_conversion/builtin_interfaces_converter.cpp 
+  src/messages_conversion/sensor_msgs_converter.cpp 
   src/messages_conversion/geometry_msgs_converter.cpp 
   src/messages_conversion/nav_msgs_converter.cpp
   src/messages_conversion/map_msgs_converter.cpp

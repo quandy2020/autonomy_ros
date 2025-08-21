@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef OPENBOT_ROS_MESSAGES_CONVERSION_SENSOR_MSGS_CONVERTER_HPP
-#define OPENBOT_ROS_MESSAGES_CONVERSION_SENSOR_MSGS_CONVERTER_HPP
+#pragma once 
 
 #include <string>
 #include <tuple>
@@ -34,18 +33,24 @@
 #include "sensor_msgs/msg/range.hpp"
 #include "sensor_msgs/msg/region_of_interest.hpp"
 
-#include "openbot/common/msgs/msgs.hpp"
+#include "autonomy/commsgs/sensor_msgs.hpp"
 
-namespace openbot_ros {
+namespace autonomy_ros {
+
+// ChannelFloat32
+sensor_msgs::msg::ChannelFloat32 ToRos(const ::autonomy::commsgs::sensor_msgs::ChannelFloat32& data);
+::autonomy::commsgs::sensor_msgs::ChannelFloat32 FromRos(const sensor_msgs::msg::ChannelFloat32& ros);
 
 // PointField
-sensor_msgs::msg::PointField ToRos(const ::openbot::common::sensor_msgs::PointField& data);
-// ::openbot::common::sensor_msgs::PointField FromRos(const sensor_msgs::msg::PointField& ros);
+sensor_msgs::msg::PointField ToRos(const ::autonomy::commsgs::sensor_msgs::PointField& data);
+::autonomy::commsgs::sensor_msgs::PointField FromRos(const sensor_msgs::msg::PointField& ros);
+
+// PointCloud
+sensor_msgs::msg::PointCloud ToRos(const ::autonomy::commsgs::sensor_msgs::PointCloud& data);
+::autonomy::commsgs::sensor_msgs::PointCloud FromRos(const sensor_msgs::msg::PointCloud& ros);
 
 // PointCloud2
-sensor_msgs::msg::PointCloud2 ToRos(const ::openbot::common::sensor_msgs::PointCloud2& data);
-// ::openbot::common::sensor_msgs::PointCloud2 FromRos(const sensor_msgs::msg::PointCloud2& ros);
+sensor_msgs::msg::PointCloud2 ToRos(const ::autonomy::commsgs::sensor_msgs::PointCloud2& data);
+::autonomy::commsgs::sensor_msgs::PointCloud2 FromRos(const sensor_msgs::msg::PointCloud2& ros);
 
-}  // namespace openbot_ros
-
-#endif  // OPENBOT_ROS_MESSAGES_CONVERSION_SENSOR_MSGS_CONVERTER_HPP
+}  // namespace autonomy_ros
