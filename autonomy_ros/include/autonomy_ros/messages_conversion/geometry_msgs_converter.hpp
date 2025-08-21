@@ -57,50 +57,57 @@
 namespace autonomy_ros {
 
 // Accel
-geometry_msgs::msg::Accel ToRos(const ::autonomy::commsgs::geometry_msgs::Accel& proto);
-geometry_msgs::msg::AccelStamped ToRos(const ::autonomy::commsgs::geometry_msgs::AccelStamped& proto);
-geometry_msgs::msg::AccelWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::AccelWithCovariance& proto);
-geometry_msgs::msg::AccelWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::AccelWithCovarianceStamped& proto);
+geometry_msgs::msg::Accel ToRos(const ::autonomy::commsgs::geometry_msgs::Accel& data);
+geometry_msgs::msg::AccelStamped ToRos(const ::autonomy::commsgs::geometry_msgs::AccelStamped& data);
+geometry_msgs::msg::AccelWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::AccelWithCovariance& data);
+geometry_msgs::msg::AccelWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::AccelWithCovarianceStamped& data);
 
 // Inertia
-geometry_msgs::msg::Inertia ToRos(const ::autonomy::commsgs::geometry_msgs::Inertia& proto);
-geometry_msgs::msg::InertiaStamped ToRos(const ::autonomy::commsgs::geometry_msgs::InertiaStamped& proto);
+geometry_msgs::msg::Inertia ToRos(const ::autonomy::commsgs::geometry_msgs::Inertia& data);
+geometry_msgs::msg::InertiaStamped ToRos(const ::autonomy::commsgs::geometry_msgs::InertiaStamped& data);
 
 // Point
-geometry_msgs::msg::Point ToRos(const ::autonomy::commsgs::geometry_msgs::Point& proto);
-geometry_msgs::msg::Point32 ToRos(const ::autonomy::commsgs::geometry_msgs::Point32& proto);
-geometry_msgs::msg::PointStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PointStamped& proto);
+geometry_msgs::msg::Point ToRos(const ::autonomy::commsgs::geometry_msgs::Point& data);
+::autonomy::commsgs::geometry_msgs::Point FromRos(const geometry_msgs::msg::Point& ros);
+
+// Point32
+geometry_msgs::msg::Point32 ToRos(const ::autonomy::commsgs::geometry_msgs::Point32& data);
+::autonomy::commsgs::geometry_msgs::Point32 FromRos(const geometry_msgs::msg::Point32& ros);
+
+// PointStamped
+geometry_msgs::msg::PointStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PointStamped& data);
+::autonomy::commsgs::geometry_msgs::PointStamped FromRos(const geometry_msgs::msg::PointStamped& ros);
 
 // polygon
-geometry_msgs::msg::Polygon ToRos(const ::autonomy::commsgs::geometry_msgs::Polygon& proto);
-geometry_msgs::msg::PolygonStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PolygonStamped& proto);
+geometry_msgs::msg::Polygon ToRos(const ::autonomy::commsgs::geometry_msgs::Polygon& data);
+geometry_msgs::msg::PolygonStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PolygonStamped& data);
 
 // Pose
-geometry_msgs::msg::Pose ToRos(const ::autonomy::commsgs::geometry_msgs::Pose& proto);
-geometry_msgs::msg::Pose2D ToRos(const ::autonomy::commsgs::geometry_msgs::Pose2D& proto);
-geometry_msgs::msg::PoseArray ToRos(const ::autonomy::commsgs::geometry_msgs::PoseArray& proto);
-geometry_msgs::msg::PoseStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PoseStamped& proto);
-geometry_msgs::msg::PoseWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::PoseWithCovariance& proto);
-geometry_msgs::msg::PoseWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PoseWithCovarianceStamped& proto);
+geometry_msgs::msg::Pose ToRos(const ::autonomy::commsgs::geometry_msgs::Pose& data);
+geometry_msgs::msg::Pose2D ToRos(const ::autonomy::commsgs::geometry_msgs::Pose2D& data);
+geometry_msgs::msg::PoseArray ToRos(const ::autonomy::commsgs::geometry_msgs::PoseArray& data);
+geometry_msgs::msg::PoseStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PoseStamped& data);
+geometry_msgs::msg::PoseWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::PoseWithCovariance& data);
+geometry_msgs::msg::PoseWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::PoseWithCovarianceStamped& data);
 
 // Quaternion
-geometry_msgs::msg::Quaternion ToRos(const ::autonomy::commsgs::geometry_msgs::Quaternion& proto);
-geometry_msgs::msg::QuaternionStamped ToRos(const ::autonomy::commsgs::geometry_msgs::QuaternionStamped& proto);
+geometry_msgs::msg::Quaternion ToRos(const ::autonomy::commsgs::geometry_msgs::Quaternion& data);
+geometry_msgs::msg::QuaternionStamped ToRos(const ::autonomy::commsgs::geometry_msgs::QuaternionStamped& data);
 
 // transform
-geometry_msgs::msg::Transform ToRos(const ::autonomy::commsgs::geometry_msgs::Transform& proto);
-geometry_msgs::msg::TransformStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TransformStamped& proto);
+geometry_msgs::msg::Transform ToRos(const ::autonomy::commsgs::geometry_msgs::Transform& data);
+geometry_msgs::msg::TransformStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TransformStamped& data);
 
 // Twist
-geometry_msgs::msg::Twist ToRos(const ::autonomy::commsgs::geometry_msgs::Twist& proto);
-geometry_msgs::msg::TwistStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TwistStamped& proto);
-geometry_msgs::msg::TwistWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::TwistWithCovariance& proto);
-geometry_msgs::msg::TwistWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TwistWithCovarianceStamped& proto);
+geometry_msgs::msg::Twist ToRos(const ::autonomy::commsgs::geometry_msgs::Twist& data);
+geometry_msgs::msg::TwistStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TwistStamped& data);
+geometry_msgs::msg::TwistWithCovariance ToRos(const ::autonomy::commsgs::geometry_msgs::TwistWithCovariance& data);
+geometry_msgs::msg::TwistWithCovarianceStamped ToRos(const ::autonomy::commsgs::geometry_msgs::TwistWithCovarianceStamped& data);
 
 // Vector3
-geometry_msgs::msg::Vector3 ToRos(const ::autonomy::commsgs::geometry_msgs::Vector3& proto);
-geometry_msgs::msg::Vector3Stamped ToRos(const ::autonomy::commsgs::geometry_msgs::Vector3Stamped& proto);
-geometry_msgs::msg::VelocityStamped ToRos(const ::autonomy::commsgs::geometry_msgs::VelocityStamped& proto);
+geometry_msgs::msg::Vector3 ToRos(const ::autonomy::commsgs::geometry_msgs::Vector3& data);
+geometry_msgs::msg::Vector3Stamped ToRos(const ::autonomy::commsgs::geometry_msgs::Vector3Stamped& data);
+geometry_msgs::msg::VelocityStamped ToRos(const ::autonomy::commsgs::geometry_msgs::VelocityStamped& data);
 
 }  // namespace autonomy_ros
 

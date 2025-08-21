@@ -39,12 +39,13 @@ template <typename MessageType>
 }  // namespace
 
 Node::Node(const NodeOptions& node_options,
-    std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
+    std::unique_ptr<AutonomyBridge> autonomy,
     std::shared_ptr<tf2_ros::Buffer> tf_buffer,
     rclcpp::Node::SharedPtr node,
     bool collect_metrics)
-    : node_options_{node_options}, 
-      node_{node}
+    : node_options_{node_options},
+      node_{node},
+      autonomy_builder_{std::move(autonomy)}
 {
     occupancy_grid_publisher_ = node_->create_publisher<nav_msgs::msg::OccupancyGrid>(
         kOccupancyGridTopic, rclcpp::QoS(1).transient_local());
@@ -54,6 +55,11 @@ Node::Node(const NodeOptions& node_options,
 
     local_trajectory_publisher_ = node_->create_publisher<::visualization_msgs::msg::MarkerArray>(
         kLocalPlanTopic, rclcpp::QoS(1).transient_local());
+
+    point_cloud_timer_ = node_->create_wall_timer(
+        std::chrono::milliseconds(int(kOccupancyGridPublishPeriodSec * 1000)), [this]() {
+            PublishEnvPointCloudData();
+    });
 
     occupancy_grid_timer_ = node_->create_wall_timer(
         std::chrono::milliseconds(int(kOccupancyGridPublishPeriodSec * 1000)), [this]() {

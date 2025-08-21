@@ -21,7 +21,7 @@
 
 // std_msgs
 #include "std_msgs/msg/header.hpp"
-#include "autonomy/commsgs//std_msgs.hpp"
+#include "autonomy/commsgs/std_msgs.hpp"
 
 namespace autonomy_ros {
 

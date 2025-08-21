@@ -41,7 +41,6 @@ class AutonomyBridge
 public:
     AutonomyBridge(
         const NodeOptions& node_options,
-        std::unique_ptr<::autonomy::system::AutonomyNode> autonomy,
         tf2_ros::Buffer* tf_buffer);
 
     AutonomyBridge(const AutonomyBridge&) = delete;
@@ -61,6 +60,7 @@ public:
      */
     ::autonomy::system::AutonomyNode* AutonomySystemNode();
 
+    
 private:
 
     const NodeOptions node_options_;
