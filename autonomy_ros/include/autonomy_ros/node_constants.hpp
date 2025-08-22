@@ -31,6 +31,7 @@ constexpr char kOdometryTopic[] = "odom";
 constexpr char kNavSatFixTopic[] = "fix";
 constexpr char kLandmarkTopic[] = "landmark";
 constexpr char kOccupancyGridTopic[] = "map";
+constexpr char kEnvironmentPointCloudTopic[] = "global_point_cloud";
 constexpr char kGlobalPlanTopic[] = "plan";
 constexpr char kLocalPlanTopic[] = "local_plan";
 
