@@ -5,6 +5,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include("${PROJECT_SOURCE_DIR}/cmake/functions.cmake")
+
+find_program(PROTOBUF_PROTOC_EXECUTABLE protoc)
+if(NOT PROTOBUF_PROTOC_EXECUTABLE)
+  message(STATUS, "protoc not found. Please install protobuf and make sure it's in your PATH.")
+endif()
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -28,6 +35,8 @@ find_package(vision_msgs REQUIRED)
 find_package(octomap REQUIRED)
 find_package(octomap_ros REQUIRED)
 find_package(pcl_ros REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(gRPC REQUIRED)
 
 include(FindPkgConfig)
 
@@ -74,6 +83,8 @@ ament_target_dependencies(${executable_name}
   ${dependencies}
 )
 target_link_libraries(${executable_name} autonomy)
+target_link_libraries(${executable_name} gRPC::grpc++ gRPC::grpc)
+target_link_libraries(${executable_name} ${PROTOBUF_LIBRARY})
 
 install(DIRECTORY include/
   DESTINATION include/

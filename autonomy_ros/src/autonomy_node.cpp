@@ -18,6 +18,7 @@
 
 #include "autonomy/common/logging.hpp"
 #include "autonomy_ros/node_constants.hpp"
+#include "autonomy_ros/messages_conversion/sensor_msgs_converter.hpp"
 #include "autonomy_ros/messages_conversion/map_msgs_converter.hpp"
 
 namespace autonomy_ros {
@@ -47,6 +48,9 @@ Node::Node(const NodeOptions& node_options,
       node_{node},
       autonomy_builder_{std::move(autonomy)}
 {
+    point_cloud_publisher_  = node_->create_publisher<sensor_msgs::msg::PointCloud>(
+        kEnvironmentPointCloudTopic, rclcpp::QoS(1).transient_local());
+
     occupancy_grid_publisher_ = node_->create_publisher<nav_msgs::msg::OccupancyGrid>(
         kOccupancyGridTopic, rclcpp::QoS(1).transient_local());
 
@@ -249,12 +253,18 @@ void Node::PublishGlobalTrajectory()
 
 void Node::PublishLocalTrajectory()
 {
-
+  
+   
 }
 
 void Node::PublishEnvPointCloudData()
 {
+    std::string filename = "/home/quandy/workspace/github/autonomy/src/autonomy/configuration_files/map/matterport_pointcloud.ply";
+    autonomy::commsgs::sensor_msgs::PointCloud map_data;
+    map_data.header.frame_id = "map";
+    auto data = autonomy_builder_->AutonomySystemNode()->map_server()->LoadMapData(filename, map_data);
 
+    point_cloud_publisher_->publish(ToRos(map_data));
 }
 
 void Node::AddSensorSamplers(const NodeOptions& options)

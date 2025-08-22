@@ -30,6 +30,7 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/multi_echo_laser_scan.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <sensor_msgs/msg/point_cloud.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -196,17 +197,12 @@ private:
     // ROS2 Node
     ::rclcpp::Node::SharedPtr node_{nullptr};
 
-    // visualization for map 2d
+    // visualization 
     ::rclcpp::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_ {nullptr};
-
-    // visualization for global_trajectory
     ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr global_trajectory_publisher_{nullptr};
-
-    // visualization for local_trajectory
     ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr local_trajectory_publisher_{nullptr};
-
-    // visualization for global env 3D 
-    ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr env_point_cloud_publisher_;
+    // ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr env_point_cloud_publisher_{nullptr};
+    ::rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr point_cloud_publisher_{nullptr};
 
     struct AutonomySensorSamplers 
     {
