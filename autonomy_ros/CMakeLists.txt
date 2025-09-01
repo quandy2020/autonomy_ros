@@ -6,6 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 include("${PROJECT_SOURCE_DIR}/cmake/functions.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/foxglove.cmake")
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE protoc)
 if(NOT PROTOBUF_PROTOC_EXECUTABLE)
@@ -37,6 +38,7 @@ find_package(octomap_ros REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(gRPC REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 include(FindPkgConfig)
 
@@ -85,6 +87,8 @@ ament_target_dependencies(${executable_name}
 target_link_libraries(${executable_name} autonomy)
 target_link_libraries(${executable_name} gRPC::grpc++ gRPC::grpc)
 target_link_libraries(${executable_name} ${PROTOBUF_LIBRARY})
+target_link_libraries(${executable_name} ${foxglove_SOURCE_DIR}/lib/libfoxglove.so)
+target_sources(${executable_name} PRIVATE ${FOXGLOVE_SOURCES})
 
 install(DIRECTORY include/
   DESTINATION include/
