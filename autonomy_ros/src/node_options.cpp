@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "autonomy/common/configuration_file_resolver.hpp"
+#include "autonomy/system/common/system_interface.hpp"
 #include "autonomy/common/json_util.hpp"
 #include "autonomy/system/system.hpp"
 #include "glog/logging.h"
@@ -27,7 +28,7 @@ namespace autonomy_ros {
 
 bool CreateNodeOptions(::autonomy::common::LuaParameterDictionary* lua_parameter_dictionary, NodeOptions& node_options)
 {
-    node_options.autonomy_options = ::autonomy::system::CreateAutonomyOptions(
+    node_options.autonomy_options = ::autonomy::system::common::LoadOptions(
         lua_parameter_dictionary->GetDictionary("autonomy").get());
     node_options.map_frame = lua_parameter_dictionary->GetString("map_frame");
     node_options.base_frame= lua_parameter_dictionary->GetString("base_frame");

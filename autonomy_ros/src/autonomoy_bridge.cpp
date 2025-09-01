@@ -25,7 +25,7 @@ AutonomyBridge::AutonomyBridge(
     : node_options_{node_options},
       tf_buffer_{tf_buffer}
 {
-  autonomy_builder_ = ::autonomy::system::CreateAutonomyBuilder(node_options.autonomy_options);
+  // autonomy_builder_ = ::autonomy::system::CreateAutonomyBuilder(node_options.autonomy_options);
 }
 
 SensorBridge* AutonomyBridge::sensor_bridge()

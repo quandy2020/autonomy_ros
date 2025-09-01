@@ -230,16 +230,16 @@ void Node::MaybeWarnAboutTopicMismatch()
 
 void Node::PublishOccupancyGridMap2D()
 {
-    auto data = autonomy_builder_->AutonomySystemNode()->map_server()->occupancy_grid_map_data();
-    if (data == nullptr) {
-        LOG(ERROR) << "Publish OccupancyGrid(format) map 2D error, OccupancyGrid map data is nullptr.";
-        return;
-    }
+    // auto data = autonomy_builder_->AutonomySystemNode()->map_server()->occupancy_grid_map_data();
+    // if (data == nullptr) {
+    //     LOG(ERROR) << "Publish OccupancyGrid(format) map 2D error, OccupancyGrid map data is nullptr.";
+    //     return;
+    // }
 
-    LOG(INFO) << "Publishing occupancy grid topic " << kOccupancyGridTopic
-             << " (frame_id: " << node_options_.map_frame<< ").";
+    // LOG(INFO) << "Publishing occupancy grid topic " << kOccupancyGridTopic
+    //          << " (frame_id: " << node_options_.map_frame<< ").";
 
-    occupancy_grid_publisher_->publish(ToRos(*data));
+    // occupancy_grid_publisher_->publish(ToRos(*data));
 }
 
 void Node::PublishGlobalTrajectory()
@@ -259,12 +259,12 @@ void Node::PublishLocalTrajectory()
 
 void Node::PublishEnvPointCloudData()
 {
-    std::string filename = "/home/quandy/workspace/github/autonomy/src/autonomy/configuration_files/map/matterport_pointcloud.ply";
-    autonomy::commsgs::sensor_msgs::PointCloud map_data;
-    map_data.header.frame_id = "map";
-    auto data = autonomy_builder_->AutonomySystemNode()->map_server()->LoadMapData(filename, map_data);
+    // std::string filename = "/home/quandy/workspace/github/autonomy/src/autonomy/configuration_files/map/matterport_pointcloud.ply";
+    // autonomy::commsgs::sensor_msgs::PointCloud map_data;
+    // map_data.header.frame_id = "map";
+    // auto data = autonomy_builder_->AutonomySystemNode()->map_server()->LoadMapData(filename, map_data);
 
-    point_cloud_publisher_->publish(ToRos(map_data));
+    // point_cloud_publisher_->publish(ToRos(map_data));
 }
 
 void Node::AddSensorSamplers(const NodeOptions& options)

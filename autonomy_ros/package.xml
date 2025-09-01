@@ -16,7 +16,7 @@
   <depend>builtin_interfaces</depend>
   <depend>autonomy</depend>
   <depend>autonomy_msgs</depend> 
-  <depend>autonomy_simulator</depend>
+  <depend>autonomy_simulations</depend>
   <depend>geometry_msgs</depend>
   <depend>libgoogle-glog-dev</depend>
   <depend>libpcl-all-dev</depend>
