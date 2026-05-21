@@ -400,58 +400,6 @@
         </visual>
       </link>
 
-      <link name="camera_link">
-        <inertial>
-          <pose>0.069 -0.047 0.107 0 0 0</pose>
-          <inertia>
-            <ixx>0.001</ixx>
-            <ixy>0.000</ixy>
-            <ixz>0.000</ixz>
-            <iyy>0.001</iyy>
-            <iyz>0.000</iyz>
-            <izz>0.001</izz>
-          </inertia>
-          <mass>0.035</mass>
-        </inertial>
-        <collision name="collision">
-          <pose>0 0.047 -0.005 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.008 0.130 0.022</size>
-            </box>
-          </geometry>
-        </collision>
-
-        <pose>0.069 -0.047 0.107 0 0 0</pose>
-
-        <sensor name="intel_realsense_r200_depth" type="depth">
-          <always_on>1</always_on>
-          <update_rate>5</update_rate>
-          <pose>0.064 -0.047 0.107 0 0 0</pose>
-          <gz_frame_id>camera_depth_frame</gz_frame_id>
-          <camera name="realsense_depth_camera">
-            <horizontal_fov>1.047</horizontal_fov>
-            <image>
-              <width>320</width>
-              <height>240</height>
-            </image>
-            <lens>
-              <projection>
-                <!-- focal_length = fx = fy = width / ( 2 * tan (hfov / 2 ) ) -->
-                <!-- tx = hackBaseline * focal_length -->
-                <tx>19.4</tx>
-              </projection>
-            </lens>
-            <depth_camera>
-              <clip>
-                <near>0.001</near>
-                <far>5.0</far>
-              </clip>
-            </depth_camera>
-          </camera>
-        </sensor>
-      </link>
-
       <joint name="base_joint" type="fixed">
         <parent>base_footprint</parent>
         <child>base_link</child>
@@ -490,15 +438,6 @@
         <parent>base_link</parent>
         <child>base_scan</child>
         <pose>-0.064 0 0.121 0 0 0</pose>
-        <axis>
-          <xyz>0 0 1</xyz>
-        </axis>
-      </joint>
-
-      <joint name="camera_joint" type="fixed">
-        <parent>base_link</parent>
-        <child>camera_link</child>
-        <pose>0.064 -0.065 0.094 0 0 0</pose>
         <axis>
           <xyz>0 0 1</xyz>
         </axis>
