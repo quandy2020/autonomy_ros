@@ -1,0 +1,32 @@
+autonomy_node:
+  ros__parameters:
+    use_sim_time: true
+    enable_map: true
+    enable_planner: true
+    enable_controller: true
+    enable_visualization: true
+    enable_command: true
+
+    task:
+      battery_percent: 100.0
+
+    command:
+      default_dock_id: dock_main
+      waypoint_timeout_sec: 120.0
+      dock_x: 0.5
+      dock_y: 0.0
+      dock_w: 1.0
+
+    planner:
+      global_frame: odom
+      waypoint_spacing: 0.1
+
+    controller:
+      max_linear_vel: 0.22
+      max_angular_vel: 1.5
+      goal_tolerance: 0.15
+      lookahead: 0.3
+      base_frame: base_footprint
+
+    visualization:
+      frame_id: odom

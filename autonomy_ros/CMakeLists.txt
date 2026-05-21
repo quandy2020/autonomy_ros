@@ -5,109 +5,78 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-include("${PROJECT_SOURCE_DIR}/cmake/functions.cmake")
-include("${PROJECT_SOURCE_DIR}/cmake/foxglove.cmake")
-
-find_program(PROTOBUF_PROTOC_EXECUTABLE protoc)
-if(NOT PROTOBUF_PROTOC_EXECUTABLE)
-  message(STATUS, "protoc not found. Please install protobuf and make sure it's in your PATH.")
-endif()
-
-# find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(builtin_interfaces REQUIRED)
-find_package(autonomy REQUIRED)
-find_package(autonomy_msgs REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(PCL REQUIRED)
-find_package(pcl_conversions REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(nav2_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_eigen REQUIRED)
-find_package(tf2_msgs REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(urdfdom_headers REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-find_package(vision_msgs REQUIRED)
-find_package(octomap REQUIRED)
-find_package(octomap_ros REQUIRED)
-find_package(pcl_ros REQUIRED)
-find_package(Protobuf REQUIRED)
-find_package(gRPC REQUIRED)
-find_package(OpenSSL REQUIRED)
+find_package(autonomy_msgs REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 
-include(FindPkgConfig)
-
-include_directories(
-  include
-)
-
-set(dependencies
-  rclcpp
-  builtin_interfaces
-  std_msgs
-  visualization_msgs
-  sensor_msgs
-  nav2_msgs
-  nav_msgs
-  autonomy_msgs
-  geometry_msgs
-  tf2
-  tf2_eigen
-  tf2_msgs
-  tf2_ros
-  pcl_ros
-  pcl_conversions
-)
-
-set(executable_name autonomy_node)
-add_executable(${executable_name}
-  src/main.cpp
+set(AUTONOMY_CORE_SOURCES
   src/autonomy_node.cpp
-  src/autonomoy_bridge.cpp
-  src/msg_conversion.cpp
-  src/node_constants.cpp
-  src/node_options.cpp
-  src/sensor_bridge.cpp
-  src/tf_bridge.cpp
-  src/messages_conversion/std_msgs_converter.cpp
-  src/messages_conversion/builtin_interfaces_converter.cpp 
-  src/messages_conversion/sensor_msgs_converter.cpp 
-  src/messages_conversion/geometry_msgs_converter.cpp 
-  src/messages_conversion/nav_msgs_converter.cpp
-  src/messages_conversion/map_msgs_converter.cpp
-)
-ament_target_dependencies(${executable_name}
-  ${dependencies}
-)
-target_link_libraries(${executable_name} autonomy)
-target_link_libraries(${executable_name} gRPC::grpc++ gRPC::grpc)
-target_link_libraries(${executable_name} ${PROTOBUF_LIBRARY})
-target_link_libraries(${executable_name} ${foxglove_SOURCE_DIR}/lib/libfoxglove.so)
-target_sources(${executable_name} PRIVATE ${FOXGLOVE_SOURCES})
-
-install(DIRECTORY include/
-  DESTINATION include/
+  src/map/map_manager.cpp
+  src/planner/planner.cpp
+  src/controller/controller.cpp
+  src/visualization/visualizer.cpp
+  src/task/task_muxer.cpp
+  src/task/task_manager.cpp
+  src/command/command_interface.cpp
 )
 
-install(TARGETS ${executable_name}
+add_library(autonomy_core ${AUTONOMY_CORE_SOURCES})
+target_include_directories(autonomy_core PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(autonomy_core
+  rclcpp
+  rclcpp_action
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  autonomy_msgs
+  builtin_interfaces
+)
+
+add_executable(autonomy_node src/main.cpp)
+target_link_libraries(autonomy_node autonomy_core)
+ament_target_dependencies(autonomy_node rclcpp)
+
+install(TARGETS autonomy_core autonomy_node
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY configuration_files urdf launch rviz
-  DESTINATION share/${PROJECT_NAME}/
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+install(DIRECTORY launch config rviz configs worlds urdf models docs
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_task_muxer test/test_task_muxer.cpp)
+  if(TARGET test_task_muxer)
+    target_link_libraries(test_task_muxer autonomy_core)
+  endif()
+  find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 endif()
 
 ament_export_include_directories(include)
-ament_export_dependencies(${dependencies})
+ament_export_libraries(autonomy_core)
+ament_export_dependencies(
+  rclcpp
+  rclcpp_action
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  autonomy_msgs
+  builtin_interfaces
+)
 ament_package()

@@ -1,0 +1,16 @@
+# Teleoperation session (action: /autonomy/teleop).
+# Operator publishes /cmd_vel; stack disables autonomous controller.
+
+# --- goal ---
+string task_id
+builtin_interfaces/Duration time_allowance  # 0 = until canceled
+bool preempt_other_tasks true  # Preempt lower-priority tasks via TaskMuxer
+float32 max_linear_speed 0.5   # Reserved for clamp
+float32 max_angular_speed 1.5
+# --- result ---
+Error error
+builtin_interfaces/Duration total_elapsed_time
+# --- feedback ---
+builtin_interfaces/Duration current_teleop_duration
+geometry_msgs/TwistStamped last_cmd  # Reserved; may be empty
+TaskState state

@@ -1,0 +1,9 @@
+# Cancel the active task or a matching task_id (service: /autonomy/cancel_task).
+
+string task_id                 # Empty: cancel current active task
+TaskType task_type             # Optional filter; 0 or unset = any type
+bool cancel_all false          # If true, cancel regardless of task_id
+---
+bool success
+Error error
+TaskStatus status
