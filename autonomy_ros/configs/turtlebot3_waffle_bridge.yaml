@@ -1,17 +1,18 @@
-# replace clock_bridge
-- topic_name: "/clock"
+# ros_gz_bridge for turtlebot3_waffle (expand_gz_topic_names: false).
+# Topic names must match gz_waffle.sdf.xacro (DiffDrive: /odom, /tf; sensors: /imu, /scan).
+
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
   ros_type_name: "rosgraph_msgs/msg/Clock"
   gz_type_name: "gz.msgs.Clock"
   direction: GZ_TO_ROS
 
-# JointStatePublisher on the robot model
 - ros_topic_name: "/joint_states"
   gz_topic_name: "/joint_states"
   ros_type_name: "sensor_msgs/msg/JointState"
   gz_type_name: "gz.msgs.Model"
   direction: GZ_TO_ROS
 
-# DiffDrive odom/tf (see gz_waffle.sdf.xacro odom_topic / tf_topic)
 - ros_topic_name: "/odom"
   gz_topic_name: "/odom"
   ros_type_name: "nav_msgs/msg/Odometry"
@@ -36,40 +37,9 @@
   gz_type_name: "gz.msgs.LaserScan"
   direction: GZ_TO_ROS
 
-# DiffDrive subscribes on /model/<robot_name>/cmd_vel (see gz-sim DiffDrive.cc)
+# DiffDrive subscribes on /model/<robot_name>/cmd_vel (see gz_waffle.sdf.xacro)
 - ros_topic_name: "/cmd_vel"
   gz_topic_name: "/model/turtlebot3_waffle/cmd_vel"
   ros_type_name: "geometry_msgs/msg/TwistStamped"
   gz_type_name: "gz.msgs.Twist"
   direction: ROS_TO_GZ
-
-# Intel RealSense D435i (gz rgbd_camera topic prefix: camera)
-- ros_topic_name: "camera/camera/color/image_raw"
-  gz_topic_name: "camera/image"
-  ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "gz.msgs.Image"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "camera/camera/color/camera_info"
-  gz_topic_name: "camera/camera_info"
-  ros_type_name: "sensor_msgs/msg/CameraInfo"
-  gz_type_name: "gz.msgs.CameraInfo"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "camera/camera/depth/image_rect_raw"
-  gz_topic_name: "camera/depth_image"
-  ros_type_name: "sensor_msgs/msg/Image"
-  gz_type_name: "gz.msgs.Image"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "camera/camera/depth/camera_info"
-  gz_topic_name: "camera/camera_info"
-  ros_type_name: "sensor_msgs/msg/CameraInfo"
-  gz_type_name: "gz.msgs.CameraInfo"
-  direction: GZ_TO_ROS
-
-- ros_topic_name: "camera/camera/depth/color/points"
-  gz_topic_name: "camera/points"
-  ros_type_name: "sensor_msgs/msg/PointCloud2"
-  gz_type_name: "gz.msgs.PointCloudPacked"
-  direction: GZ_TO_ROS

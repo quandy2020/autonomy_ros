@@ -28,7 +28,6 @@ from launch.actions import (
     RegisterEventHandler,
     TimerAction,
 )
-from launch.actions import LogInfo
 from launch.event_handlers import OnProcessExit, OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -91,7 +90,7 @@ def generate_launch_description() -> LaunchDescription:
 
     declare_headless_cmd = DeclareLaunchArgument(
         'headless',
-        default_value='False',
+        default_value='True',
         description='Run Gazebo without GUI client when true',
     )
 
@@ -177,25 +176,8 @@ def generate_launch_description() -> LaunchDescription:
         }.items(),
     )
 
+    # Wait for Gazebo world before xacro/spawn (handled inside spawn_tb3.launch.py).
     delayed_spawn = TimerAction(period=8.0, actions=[spawn_robot])
-
-    # Ensure sim is unpaused (DiffDrive ignores commands while paused).
-    unpause_sim = TimerAction(
-        period=10.0,
-        actions=[
-            ExecuteProcess(
-                cmd=[
-                    'ign', 'service', '-s', '/world/default/control',
-                    '--reqtype', 'ignition.msgs.WorldControl',
-                    '--reptype', 'ignition.msgs.Boolean',
-                    '--timeout', '5000',
-                    '--req', 'pause: false',
-                ],
-                output='screen',
-            ),
-            LogInfo(msg='Sent unpause to /world/default/control'),
-        ],
-    )
 
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
@@ -210,7 +192,6 @@ def generate_launch_description() -> LaunchDescription:
     ld.add_action(remove_temp_sdf_file)
     ld.add_action(start_gazebo)
     ld.add_action(delayed_spawn)
-    ld.add_action(unpause_sim)
     ld.add_action(robot_state_publisher_cmd)
 
     return ld

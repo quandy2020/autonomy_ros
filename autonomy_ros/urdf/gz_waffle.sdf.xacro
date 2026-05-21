@@ -1,33 +1,28 @@
 <?xml version="1.0"?>
 <sdf version="1.6" xmlns:xacro="http://www.ros.org/wiki/xacro">
-    <xacro:include filename="realsense_d435i_gz.xacro"/>
     <xacro:arg name="namespace" default=""/>
     <xacro:arg name="robot_name" default="turtlebot3_waffle"/>
-    <!-- Absolute path to mesh directory (Gazebo Sim does not resolve package://). -->
+    <!-- Gazebo Sim does not resolve package://; pass absolute meshes_dir from launch. -->
     <xacro:arg name="meshes_dir" default=""/>
 
-    <model name="$(arg robot_name)"> 
+    <model name="$(arg robot_name)">
       <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
 
-      <link name="base_footprint">
-        <canonical_link/>
-      </link>
+      <link name="base_footprint"/>
 
       <link name="base_link">
-
-        <inertial> 
+        <inertial>
           <pose>-0.064 0 0.048 0 0 0</pose>
           <inertia>
-            <ixx>0.001</ixx>
-            <ixy>0.000</ixy>
-            <ixz>0.000</ixz>
-            <iyy>0.001</iyy>
-            <iyz>0.000</iyz>
-            <izz>0.001</izz>
+            <ixx>4.2111447e-02</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>4.2111447e-02</iyy>
+            <iyz>0</iyz>
+            <izz>7.5254874e-02</izz>
           </inertia>
-          <mass>1.0</mass>
+          <mass>1.3729096</mass>
         </inertial>
-
         <collision name="base_collision">
           <pose>-0.064 0 0.048 0 0 0</pose>
           <geometry>
@@ -36,7 +31,6 @@
             </box>
           </geometry>
         </collision>
-
         <visual name="base_visual">
           <pose>-0.064 0 0 0 0 0</pose>
           <geometry>
@@ -104,7 +98,7 @@
 
       <link name="base_scan">
         <inertial>
-          <pose>-0.064 0 0.121 0 0 0</pose>
+          <pose>-0.052 0 0.111 0 0 0</pose>
           <inertia>
             <ixx>0.001</ixx>
             <ixy>0.000</ixy>
@@ -113,9 +107,8 @@
             <iyz>0.000</iyz>
             <izz>0.001</izz>
           </inertia>
-          <mass>0.125</mass>
+          <mass>0.114</mass>
         </inertial>
-
         <collision name="lidar_sensor_collision">
           <pose>-0.052 0 0.111 0 0 0</pose>
           <geometry>
@@ -125,7 +118,6 @@
             </cylinder>
           </geometry>
         </collision>
-
         <visual name="lidar_sensor_visual">
           <pose>-0.064 0 0.121 0 0 0</pose>
           <geometry>
@@ -138,7 +130,6 @@
             <diffuse>1 1 1</diffuse>
           </material>
         </visual>
-
         <sensor name="hls_lfcd_lds" type="gpu_lidar">
           <always_on>true</always_on>
           <visualize>true</visualize>
@@ -170,20 +161,18 @@
       </link>
 
       <link name="wheel_left_link">
-
         <inertial>
           <pose>0.0 0.144 0.023 -1.57 0 0</pose>
-          <inertia>
-            <ixx>0.001</ixx>
-            <ixy>0.000</ixy>
-            <ixz>0.000</ixz>
-            <iyy>0.001</iyy>
-            <iyz>0.000</iyz>
-            <izz>0.001</izz>
-          </inertia>
           <mass>0.1</mass>
+          <inertia>
+            <ixx>1.1175580e-05</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>1.1192413e-05</iyy>
+            <iyz>0.0</iyz>
+            <izz>2.0712558e-05</izz>
+          </inertia>
         </inertial>
-
         <collision name="wheel_left_collision">
           <pose>0.0 0.144 0.023 -1.57 0 0</pose>
           <geometry>
@@ -195,11 +184,11 @@
           <surface>
             <friction>
               <ode>
-                <mu>1</mu>
-                <mu2>1</mu2>
-                <slip1>0.035</slip1>
-                <slip2>0</slip2>
+                <mu>100000.0</mu>
+                <mu2>100000.0</mu2>
                 <fdir1>0 0 1</fdir1>
+                <slip1>0.0</slip1>
+                <slip2>0.0</slip2>
               </ode>
             </friction>
             <contact>
@@ -208,13 +197,12 @@
                 <soft_erp>0.2</soft_erp>
                 <kp>1e+5</kp>
                 <kd>1</kd>
-                <max_vel>1.0</max_vel>
+                <max_vel>0.01</max_vel>
                 <min_depth>0.001</min_depth>
               </ode>
             </contact>
           </surface>
         </collision>
-
         <visual name="wheel_left_visual">
           <pose>0.0 0.144 0.023 0 0 0</pose>
           <geometry>
@@ -230,20 +218,18 @@
       </link>
 
       <link name="wheel_right_link">
-
         <inertial>
           <pose>0.0 -0.144 0.023 -1.57 0 0</pose>
-          <inertia>
-            <ixx>0.001</ixx>
-            <ixy>0.000</ixy>
-            <ixz>0.000</ixz>
-            <iyy>0.001</iyy>
-            <iyz>0.000</iyz>
-            <izz>0.001</izz>
-          </inertia>
           <mass>0.1</mass>
+          <inertia>
+            <ixx>1.1175580e-05</ixx>
+            <ixy>0.0</ixy>
+            <ixz>0.0</ixz>
+            <iyy>1.1192413e-05</iyy>
+            <iyz>0.0</iyz>
+            <izz>2.0712558e-05</izz>
+          </inertia>
         </inertial>
-      
         <collision name="wheel_right_collision">
           <pose>0.0 -0.144 0.023 -1.57 0 0</pose>
           <geometry>
@@ -255,11 +241,11 @@
           <surface>
             <friction>
               <ode>
-                <mu>1</mu>
-                <mu2>1</mu2>
-                <slip1>0.035</slip1>
-                <slip2>0</slip2>
+                <mu>100000.0</mu>
+                <mu2>100000.0</mu2>
                 <fdir1>0 0 1</fdir1>
+                <slip1>0.0</slip1>
+                <slip2>0.0</slip2>
               </ode>
             </friction>
             <contact>
@@ -268,13 +254,12 @@
                 <soft_erp>0.2</soft_erp>
                 <kp>1e+5</kp>
                 <kd>1</kd>
-                <max_vel>1.0</max_vel>
+                <max_vel>0.01</max_vel>
                 <min_depth>0.001</min_depth>
               </ode>
             </contact>
           </surface>
         </collision>
-
         <visual name="wheel_right_visual">
           <pose>0.0 -0.144 0.023 0 0 0</pose>
           <geometry>
@@ -289,7 +274,7 @@
         </visual>
       </link>
 
-      <link name='caster_back_right_link'>
+      <link name="caster_back_right_link">
         <pose>-0.177 -0.064 -0.004 0 0 0</pose>
         <inertial>
           <mass>0.001</mass>
@@ -302,10 +287,10 @@
             <izz>0.00001</izz>
           </inertia>
         </inertial>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <sphere>
-              <radius>0.006000</radius>
+              <radius>0.006</radius>
             </sphere>
           </geometry>
           <surface>
@@ -323,7 +308,7 @@
         </collision>
       </link>
 
-      <link name='caster_back_left_link'>
+      <link name="caster_back_left_link">
         <pose>-0.177 0.064 -0.004 0 0 0</pose>
         <inertial>
           <mass>0.001</mass>
@@ -336,10 +321,10 @@
             <izz>0.00001</izz>
           </inertia>
         </inertial>
-        <collision name='collision'>
+        <collision name="collision">
           <geometry>
             <sphere>
-              <radius>0.006000</radius>
+              <radius>0.006</radius>
             </sphere>
           </geometry>
           <surface>
@@ -355,48 +340,6 @@
             </contact>
           </surface>
         </collision>
-      </link>
-
-      <!-- camera_link origin is at camera_joint (front of base_link, +X forward). -->
-      <link name="camera_link">
-        <inertial>
-          <pose>0 0 0 0 0 0</pose>
-          <inertia>
-            <ixx>0.001</ixx>
-            <ixy>0.000</ixy>
-            <ixz>0.000</ixz>
-            <iyy>0.001</iyy>
-            <iyz>0.000</iyz>
-            <izz>0.001</izz>
-          </inertia>
-          <mass>0.072</mass>
-        </inertial>
-        <collision name="collision">
-          <pose>0 0 0 0 0 0</pose>
-          <geometry>
-            <!-- RealSense D435i body ~90 x 25 x 25 mm (long axis along +X) -->
-            <box>
-              <size>0.090 0.025 0.025</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="realsense_d435i_visual">
-          <pose>0 0 0 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.090 0.025 0.025</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0.2 0.2 0.2 1</ambient>
-            <diffuse>0.3 0.3 0.35 1</diffuse>
-          </material>
-        </visual>
-      </link>
-
-      <link name="camera_color_frame"/>
-      <link name="camera_color_optical_frame">
-        <xacro:realsense_d435i_sensor namespace="$(arg namespace)"/>
       </link>
 
       <joint name="base_joint" type="fixed">
@@ -423,12 +366,12 @@
         </axis>
       </joint>
 
-      <joint name='caster_back_right_joint' type='ball'>
+      <joint name="caster_back_right_joint" type="ball">
         <parent>base_link</parent>
         <child>caster_back_right_link</child>
       </joint>
 
-      <joint name='caster_back_left_joint' type='ball'>
+      <joint name="caster_back_left_joint" type="ball">
         <parent>base_link</parent>
         <child>caster_back_left_link</child>
       </joint>
@@ -437,30 +380,6 @@
         <parent>base_link</parent>
         <child>base_scan</child>
         <pose>-0.064 0 0.121 0 0 0</pose>
-        <axis>
-          <xyz>0 0 1</xyz>
-        </axis>
-      </joint>
-
-      <joint name="camera_joint" type="fixed">
-        <parent>base_link</parent>
-        <child>camera_link</child>
-        <pose>0.064 -0.065 0.094 0 0 0</pose>
-        <axis>
-          <xyz>0 0 1</xyz>
-        </axis>
-      </joint>
-
-      <joint name="camera_color_joint" type="fixed">
-        <parent>camera_link</parent>
-        <child>camera_color_frame</child>
-        <pose>0 0 0 0 0 0</pose>
-      </joint>
-
-      <joint name="camera_color_optical_joint" type="fixed">
-        <parent>camera_color_frame</parent>
-        <child>camera_color_optical_frame</child>
-        <pose>0 0 0 -1.5708 0 -1.5708</pose>
       </joint>
 
       <joint name="imu_joint" type="fixed">
@@ -468,7 +387,6 @@
         <child>imu_link</child>
         <pose>0.0 0 0.068 0 0 0</pose>
       </joint>
-
 
       <plugin
         filename="gz-sim-diff-drive-system"
