@@ -5,22 +5,59 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+set(msg_files
+  msg/TaskType.msg
+  msg/TaskState.msg
+  msg/Error.msg
+  msg/Waypoint.msg
+  msg/WaypointStatus.msg
+  msg/FollowTarget.msg
+  msg/DockStation.msg
+  msg/ExhibitPoint.msg
+  msg/BatteryStatus.msg
+  msg/TaskStatus.msg
+  msg/Event.msg
+)
 
+set(srv_files
+  srv/CancelTask.srv
+  srv/GetTaskStatus.srv
+  srv/SetTeleopMode.srv
+  srv/ListDocks.srv
+  srv/PauseTask.srv
+  srv/ResumeTask.srv
+  srv/SkipToExhibit.srv
+  srv/ContinueTour.srv
+  srv/TriggerEmergencyStop.srv
+  srv/SetInitialPose.srv
+)
+
+set(action_files
+  action/NavigatePose.action
+  action/NavigateThrough.action
+  action/Follow.action
+  action/GuidedTour.action
+  action/Dock.action
+  action/Teleop.action
+)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+  ${srv_files}
+  ${action_files}
+  DEPENDENCIES
+    builtin_interfaces
+    geometry_msgs
+    nav_msgs
+    std_msgs
+)
+
+ament_export_dependencies(rosidl_default_runtime)
 ament_package()

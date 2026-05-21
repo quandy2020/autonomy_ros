@@ -1,0 +1,6 @@
+# List configured charging docks (service: /autonomy/list_docks).
+
+---
+bool success
+DockStation[] docks
+Error error

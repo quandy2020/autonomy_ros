@@ -1,0 +1,7 @@
+# Query task status (service: /autonomy/get_task_status).
+
+string task_id                 # Empty: return active task; else must match active id
+---
+bool success                   # False if task_id does not match active task
+Error error
+TaskStatus status

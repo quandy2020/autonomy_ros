@@ -1,0 +1,21 @@
+# Navigate to a single pose (action: /autonomy/navigate_pose).
+# Analogous to nav2 NavigateToPose.
+
+# --- goal ---
+string task_id                 # Unique id; required for status/cancel
+geometry_msgs/PoseStamped goal
+string behavior_tree           # Reserved (not used by autonomy_ros stack)
+bool use_start false           # Reserved: custom start pose
+geometry_msgs/PoseStamped start
+float32 max_speed 0.0          # Max linear m/s; 0 = controller default
+# --- result ---
+Error error
+nav_msgs/Path path             # Last planned path when available
+builtin_interfaces/Duration navigation_time
+# --- feedback ---
+geometry_msgs/PoseStamped current_pose
+float32 distance_remaining     # Reserved; may be 0 in skeleton stack
+float32 position_tracking_error
+builtin_interfaces/Duration navigation_time
+builtin_interfaces/Duration estimated_time_remaining
+uint16 number_of_recoveries

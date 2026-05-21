@@ -1,0 +1,7 @@
+# Relocalize robot pose (service: /autonomy/set_initial_pose).
+# Publishes to /initialpose (AMCL-compatible).
+
+geometry_msgs/PoseWithCovarianceStamped pose
+---
+bool success
+Error error

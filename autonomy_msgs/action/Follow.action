@@ -1,0 +1,14 @@
+# Follow a person or pose (action: /autonomy/follow).
+
+# --- goal ---
+string task_id
+FollowTarget target
+builtin_interfaces/Duration time_allowance  # 0 = until canceled
+# --- result ---
+Error error
+builtin_interfaces/Duration follow_duration
+# --- feedback ---
+FollowTarget active_target
+float32 distance_to_target
+geometry_msgs/PoseStamped current_pose
+TaskState state

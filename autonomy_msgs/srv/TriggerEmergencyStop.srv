@@ -1,0 +1,8 @@
+# Software emergency stop (service: /autonomy/trigger_estop).
+
+bool engage true               # True: estop on; False: release latch
+string reason
+---
+bool success
+Error error
+TaskStatus status
