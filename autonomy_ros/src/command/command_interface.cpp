@@ -50,6 +50,8 @@ void CommandInterface::loadDocks()
 
 void CommandInterface::start()
 {
+  const auto node = node_.shared_from_this();
+
   odom_sub_ = node_.create_subscription<nav_msgs::msg::Odometry>(
     "odom", 10,
     [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
@@ -61,7 +63,7 @@ void CommandInterface::start()
   auto cancel_cb = [this](auto &&) { return handleCancel(); };
 
   navigate_pose_server_ = rclcpp_action::create_server<NavigatePose>(
-    node_, "autonomy/navigate_pose",
+    node, "autonomy/navigate_pose",
     [this](auto, auto goal) {
       return handleGoal(goal->task_id, autonomy_msgs::msg::TaskType::NAVIGATION);
     },
@@ -71,7 +73,7 @@ void CommandInterface::start()
     });
 
   navigate_through_server_ = rclcpp_action::create_server<NavigateThrough>(
-    node_, "autonomy/navigate_through",
+    node, "autonomy/navigate_through",
     [this](auto, auto goal) {
       return handleGoal(goal->task_id, autonomy_msgs::msg::TaskType::WAYPOINTS);
     },
@@ -81,7 +83,7 @@ void CommandInterface::start()
     });
 
   follow_server_ = rclcpp_action::create_server<Follow>(
-    node_, "autonomy/follow",
+    node, "autonomy/follow",
     [this](auto, auto goal) {
       return handleGoal(goal->task_id, autonomy_msgs::msg::TaskType::FOLLOW);
     },
@@ -91,7 +93,7 @@ void CommandInterface::start()
     });
 
   guided_tour_server_ = rclcpp_action::create_server<GuidedTour>(
-    node_, "autonomy/guided_tour",
+    node, "autonomy/guided_tour",
     [this](auto, auto goal) {
       return handleGoal(goal->task_id, autonomy_msgs::msg::TaskType::GUIDED_TOUR);
     },
@@ -101,7 +103,7 @@ void CommandInterface::start()
     });
 
   dock_server_ = rclcpp_action::create_server<Dock>(
-    node_, "autonomy/dock",
+    node, "autonomy/dock",
     [this](auto, auto goal) {
       return handleGoal(goal->task_id, autonomy_msgs::msg::TaskType::DOCK);
     },
@@ -111,7 +113,7 @@ void CommandInterface::start()
     });
 
   teleop_server_ = rclcpp_action::create_server<Teleop>(
-    node_, "autonomy/teleop",
+    node, "autonomy/teleop",
     [this](auto, auto goal) {
       return handleGoal(
         goal->task_id, autonomy_msgs::msg::TaskType::TELEOP, goal->preempt_other_tasks);

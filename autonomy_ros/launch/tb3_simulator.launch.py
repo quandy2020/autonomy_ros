@@ -20,17 +20,44 @@ import tempfile
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
+    AppendEnvironmentVariable,
     DeclareLaunchArgument,
     ExecuteProcess,
     IncludeLaunchDescription,
     OpaqueFunction,
     RegisterEventHandler,
+    TimerAction,
 )
-from launch.conditions import IfCondition
-from launch.event_handlers import OnShutdown
+from launch.actions import LogInfo
+from launch.event_handlers import OnProcessExit, OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def _launch_gazebo_after_xacro(context, world_sdf, *args, **kwargs):
+    """Start Ignition Gazebo via ros_gz_sim after the world SDF is generated."""
+    headless = LaunchConfiguration('headless').perform(context).lower()
+    if headless in ('true', '1', 'yes'):
+        gz_args = f'-r -s -v4 {world_sdf}'
+    else:
+        gz_args = f'-r -v4 {world_sdf}'
+
+    return [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory('ros_gz_sim'),
+                    'launch',
+                    'gz_sim.launch.py',
+                )
+            ),
+            launch_arguments={
+                'gz_args': gz_args,
+                'gz_version': '6',
+            }.items(),
+        )
+    ]
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -103,12 +130,20 @@ def generate_launch_description() -> LaunchDescription:
 
     world_sdf = tempfile.mktemp(prefix='autonomy_tb3_', suffix='.sdf')
     world_sdf_xacro = ExecuteProcess(
-        cmd=['xacro', '-o', world_sdf, ['headless:=', headless], world]
+        cmd=['xacro', '-o', world_sdf, ['headless:=', headless], world],
+        output='screen',
     )
 
-    gazebo_server = ExecuteProcess(
-        cmd=['gz', 'sim', '-r', '-s', world_sdf],
-        output='screen',
+    start_gazebo = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=world_sdf_xacro,
+            on_exit=[
+                OpaqueFunction(
+                    function=_launch_gazebo_after_xacro,
+                    kwargs={'world_sdf': world_sdf},
+                )
+            ],
+        )
     )
 
     remove_temp_sdf_file = RegisterEventHandler(
@@ -117,16 +152,12 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
-    gazebo_client = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('ros_gz_sim'),
-                'launch',
-                'gz_sim.launch.py',
-            )
-        ),
-        condition=IfCondition(PythonExpression(['not ', headless])),
-        launch_arguments={'gz_args': ['-v4 -g ']}.items(),
+    models_path = os.path.join(sim_dir, 'models')
+    set_gz_resource_path = AppendEnvironmentVariable(
+        'GZ_SIM_RESOURCE_PATH', f'{sim_dir}:{models_path}'
+    )
+    set_ign_resource_path = AppendEnvironmentVariable(
+        'IGN_GAZEBO_RESOURCE_PATH', f'{sim_dir}:{models_path}'
     )
 
     spawn_robot = IncludeLaunchDescription(
@@ -146,6 +177,26 @@ def generate_launch_description() -> LaunchDescription:
         }.items(),
     )
 
+    delayed_spawn = TimerAction(period=8.0, actions=[spawn_robot])
+
+    # Ensure sim is unpaused (DiffDrive ignores commands while paused).
+    unpause_sim = TimerAction(
+        period=10.0,
+        actions=[
+            ExecuteProcess(
+                cmd=[
+                    'ign', 'service', '-s', '/world/default/control',
+                    '--reqtype', 'ignition.msgs.WorldControl',
+                    '--reptype', 'ignition.msgs.Boolean',
+                    '--timeout', '5000',
+                    '--req', 'pause: false',
+                ],
+                output='screen',
+            ),
+            LogInfo(msg='Sent unpause to /world/default/control'),
+        ],
+    )
+
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
     ld.add_action(declare_use_sim_time_cmd)
@@ -153,11 +204,13 @@ def generate_launch_description() -> LaunchDescription:
     ld.add_action(declare_world_cmd)
     ld.add_action(declare_robot_name_cmd)
     ld.add_action(declare_robot_sdf_cmd)
+    ld.add_action(set_gz_resource_path)
+    ld.add_action(set_ign_resource_path)
     ld.add_action(world_sdf_xacro)
     ld.add_action(remove_temp_sdf_file)
-    ld.add_action(gazebo_server)
-    ld.add_action(gazebo_client)
-    ld.add_action(spawn_robot)
+    ld.add_action(start_gazebo)
+    ld.add_action(delayed_spawn)
+    ld.add_action(unpause_sim)
     ld.add_action(robot_state_publisher_cmd)
 
     return ld

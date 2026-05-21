@@ -20,6 +20,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import AppendEnvironmentVariable
 from launch.actions import DeclareLaunchArgument
+from launch.actions import TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch.substitutions.command import Command
 from launch.substitutions.find_executable import FindExecutable
@@ -29,6 +30,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     bringup_dir = get_package_share_directory('autonomy_ros')
+    meshes_dir = os.path.join(bringup_dir, 'models', 'turtlebot3_model', 'meshes')
 
     namespace = LaunchConfiguration('namespace')
     robot_name = LaunchConfiguration('robot_name')
@@ -65,8 +67,10 @@ def generate_launch_description():
                 'config_file': os.path.join(
                     bringup_dir, 'configs', 'turtlebot3_waffle_bridge.yaml'
                 ),
-                'expand_gz_topic_names': True,
+                # Must match explicit /model/<robot>/... entries in bridge YAML.
+                'expand_gz_topic_names': False,
                 'use_sim_time': True,
+                'qos_overrides./cmd_vel.subscription.reliability': 'reliable',
             }
         ],
         output='screen',
@@ -80,8 +84,11 @@ def generate_launch_description():
         arguments=[
             '-name', robot_name,
             '-string', Command([
-                FindExecutable(name='xacro'), ' ', 'namespace:=',
-                LaunchConfiguration('namespace'), ' ', robot_sdf]),
+                FindExecutable(name='xacro'), ' ',
+                'namespace:=', LaunchConfiguration('namespace'), ' ',
+                'robot_name:=', robot_name, ' ',
+                'meshes_dir:=', meshes_dir, ' ',
+                robot_sdf]),
             '-x', pose['x'], '-y', pose['y'], '-z', pose['z'],
             '-R', pose['R'], '-P', pose['P'], '-Y', pose['Y']]
     )
@@ -95,6 +102,7 @@ def generate_launch_description():
     ld.add_action(declare_robot_sdf_cmd)
     ld.add_action(set_env_vars_resources)
 
-    ld.add_action(bridge)
+    # Spawn first; start bridge after plugins are loaded on the model.
     ld.add_action(spawn_model)
+    ld.add_action(TimerAction(period=2.0, actions=[bridge]))
     return ld

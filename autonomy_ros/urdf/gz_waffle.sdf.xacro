@@ -2,11 +2,16 @@
 <sdf version="1.6" xmlns:xacro="http://www.ros.org/wiki/xacro">
     <xacro:include filename="realsense_d435i_gz.xacro"/>
     <xacro:arg name="namespace" default=""/>
+    <xacro:arg name="robot_name" default="turtlebot3_waffle"/>
+    <!-- Absolute path to mesh directory (Gazebo Sim does not resolve package://). -->
+    <xacro:arg name="meshes_dir" default=""/>
 
-    <model name="turtlebot3_waffle"> 
+    <model name="$(arg robot_name)"> 
       <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
 
-      <link name="base_footprint"/>
+      <link name="base_footprint">
+        <canonical_link/>
+      </link>
 
       <link name="base_link">
 
@@ -36,7 +41,7 @@
           <pose>-0.064 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://autonomy_ros/models/turtlebot3_model/meshes/waffle_base.dae</uri>
+              <uri>file://$(arg meshes_dir)/waffle_base.dae</uri>
               <scale>0.001 0.001 0.001</scale>
             </mesh>
           </geometry>
@@ -125,7 +130,7 @@
           <pose>-0.064 0 0.121 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://autonomy_ros/models/turtlebot3_model/meshes/lds.dae</uri>
+              <uri>file://$(arg meshes_dir)/lds.dae</uri>
               <scale>0.001 0.001 0.001</scale>
             </mesh>
           </geometry>
@@ -203,7 +208,7 @@
                 <soft_erp>0.2</soft_erp>
                 <kp>1e+5</kp>
                 <kd>1</kd>
-                <max_vel>0.01</max_vel>
+                <max_vel>1.0</max_vel>
                 <min_depth>0.001</min_depth>
               </ode>
             </contact>
@@ -214,7 +219,7 @@
           <pose>0.0 0.144 0.023 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://autonomy_ros/models/turtlebot3_model/meshes/tire.dae</uri>
+              <uri>file://$(arg meshes_dir)/tire.dae</uri>
               <scale>0.001 0.001 0.001</scale>
             </mesh>
           </geometry>
@@ -263,7 +268,7 @@
                 <soft_erp>0.2</soft_erp>
                 <kp>1e+5</kp>
                 <kd>1</kd>
-                <max_vel>0.01</max_vel>
+                <max_vel>1.0</max_vel>
                 <min_depth>0.001</min_depth>
               </ode>
             </contact>
@@ -274,7 +279,7 @@
           <pose>0.0 -0.144 0.023 0 0 0</pose>
           <geometry>
             <mesh>
-              <uri>package://autonomy_ros/models/turtlebot3_model/meshes/tire.dae</uri>
+              <uri>file://$(arg meshes_dir)/tire.dae</uri>
               <scale>0.001 0.001 0.001</scale>
             </mesh>
           </geometry>
@@ -352,9 +357,10 @@
         </collision>
       </link>
 
+      <!-- camera_link origin is at camera_joint (front of base_link, +X forward). -->
       <link name="camera_link">
         <inertial>
-          <pose>0.069 -0.047 0.107 0 0 0</pose>
+          <pose>0 0 0 0 0 0</pose>
           <inertia>
             <ixx>0.001</ixx>
             <ixy>0.000</ixy>
@@ -368,7 +374,7 @@
         <collision name="collision">
           <pose>0 0 0 0 0 0</pose>
           <geometry>
-            <!-- RealSense D435i body ~90 x 25 x 25 mm -->
+            <!-- RealSense D435i body ~90 x 25 x 25 mm (long axis along +X) -->
             <box>
               <size>0.090 0.025 0.025</size>
             </box>
@@ -386,9 +392,10 @@
             <diffuse>0.3 0.3 0.35 1</diffuse>
           </material>
         </visual>
+      </link>
 
-        <pose>0.069 -0.047 0.107 0 0 0</pose>
-
+      <link name="camera_color_frame"/>
+      <link name="camera_color_optical_frame">
         <xacro:realsense_d435i_sensor namespace="$(arg namespace)"/>
       </link>
 
@@ -444,6 +451,18 @@
         </axis>
       </joint>
 
+      <joint name="camera_color_joint" type="fixed">
+        <parent>camera_link</parent>
+        <child>camera_color_frame</child>
+        <pose>0 0 0 0 0 0</pose>
+      </joint>
+
+      <joint name="camera_color_optical_joint" type="fixed">
+        <parent>camera_color_frame</parent>
+        <child>camera_color_optical_frame</child>
+        <pose>0 0 0 -1.5708 0 -1.5708</pose>
+      </joint>
+
       <joint name="imu_joint" type="fixed">
         <parent>base_link</parent>
         <child>imu_link</child>
@@ -466,7 +485,7 @@
         <min_linear_velocity>-0.46</min_linear_velocity>
         <max_angular_velocity>1.9</max_angular_velocity>
         <min_angular_velocity>-1.9</min_angular_velocity>
-        <topic>$(arg namespace)/cmd_vel</topic>
+        <topic>/model/$(arg robot_name)/cmd_vel</topic>
         <odom_topic>$(arg namespace)/odom</odom_topic>
         <tf_topic>$(arg namespace)/tf</tf_topic>
         <frame_id>odom</frame_id>

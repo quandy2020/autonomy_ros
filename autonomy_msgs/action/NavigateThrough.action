@@ -1,18 +1,20 @@
 # Visit waypoints in order (action: /autonomy/navigate_through).
 # Analogous to nav2 FollowWaypoints.
 
-# --- goal ---
+# goal
 string task_id
 Waypoint[] waypoints
 uint32 number_of_loops 1
 uint32 start_index 0
 bool stop_on_failure true      # Abort tour on FAILED waypoint if true
 string behavior_tree           # Reserved
-# --- result ---
+---
+# result
 Error error
 WaypointStatus[] waypoint_statuses
 uint32 completed_count
-# --- feedback ---
+---
+# feedback
 uint32 current_waypoint_index
 WaypointStatus[] waypoint_statuses
 float32 distance_remaining
