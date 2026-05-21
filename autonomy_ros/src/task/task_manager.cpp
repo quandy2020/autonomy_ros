@@ -16,7 +16,7 @@ TaskManager::TaskManager(rclcpp::Node & node)
   status_.task_type.value = autonomy_msgs::msg::TaskType::IDLE;
   status_.error = makeError(autonomy_msgs::msg::Error::NONE, "");
   status_.battery.percentage = battery_percent_;
-  status_.battery.is_low = false;
+  status_.battery.low_battery = false;
 }
 
 void TaskManager::start()
@@ -77,7 +77,7 @@ bool TaskManager::beginTask(
   status_.error = makeError(autonomy_msgs::msg::Error::NONE, "");
   status_.description = "running";
   status_.battery.percentage = battery_percent_;
-  status_.battery.is_low = isLowBattery(20.0f);
+  status_.battery.low_battery = isLowBattery(20.0f);
   paused_.store(false);
   continue_requested_.store(false);
   skip_exhibit_index_.reset();
@@ -140,7 +140,7 @@ autonomy_msgs::msg::TaskStatus TaskManager::getStatus() const
     s.current_pose.pose = latest_odom_->pose.pose;
   }
   s.battery.percentage = battery_percent_;
-  s.battery.is_low = isLowBattery(20.0f);
+  s.battery.low_battery = isLowBattery(20.0f);
   return s;
 }
 
@@ -156,7 +156,7 @@ bool TaskManager::getStatusFor(
       out_status.current_pose.pose = latest_odom_->pose.pose;
     }
     out_status.battery.percentage = battery_percent_;
-    out_status.battery.is_low = isLowBattery(20.0f);
+    out_status.battery.low_battery = isLowBattery(20.0f);
     return true;
   }
   return false;
@@ -286,7 +286,7 @@ void TaskManager::setBatteryPercent(float percent)
   battery_percent_ = std::clamp(percent, 0.0f, 100.0f);
   std::lock_guard<std::mutex> lock(mutex_);
   status_.battery.percentage = battery_percent_;
-  status_.battery.is_low = isLowBattery(20.0f);
+  status_.battery.low_battery = isLowBattery(20.0f);
 }
 
 bool TaskManager::isLowBattery(float threshold_percent) const
@@ -343,7 +343,7 @@ void TaskManager::publishStatus()
   autonomy_msgs::msg::BatteryStatus bat;
   bat.header.stamp = node_.now();
   bat.percentage = battery_percent_;
-  bat.is_low = isLowBattery(20.0f);
+  bat.low_battery = isLowBattery(20.0f);
   battery_pub_->publish(bat);
   status_pub_->publish(getStatus());
 }

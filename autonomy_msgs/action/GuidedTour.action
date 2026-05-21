@@ -1,7 +1,7 @@
 # Exhibition guided tour — primary API for 展厅讲解机器人.
 # action: /autonomy/guided_tour
 
-# --- goal ---
+# goal
 string task_id
 string tour_id                 # Route id for events and ContinueTour
 string tour_name                 # Display name (TOUR_STARTED message)
@@ -13,12 +13,14 @@ bool return_to_dock_on_complete true
 bool auto_dock_on_low_battery true
 float32 low_battery_threshold 20.0
 float32 cruise_speed 0.3       # Max linear m/s in hall; 0 = default
-# --- result ---
+---
+# result
 Error error
 WaypointStatus[] exhibit_statuses
 uint32 completed_exhibits
 builtin_interfaces/Duration tour_duration
-# --- feedback ---
+---
+# feedback
 string tour_id
 uint32 current_exhibit_index
 string current_exhibit_id

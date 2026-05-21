@@ -1,7 +1,7 @@
 # Return to charger (action: /autonomy/dock).
 # Analogous to nav2 DockRobot.
 
-# --- goal ---
+# goal
 string task_id
 bool use_dock_id true          # If true, use dock_id; else use dock field
 string dock_id
@@ -9,13 +9,15 @@ DockStation dock              # Inline dock when use_dock_id is false
 bool navigate_to_staging_pose true
 float32 max_staging_time 300.0  # Staging navigation timeout (seconds)
 float32 min_battery_level 0.0   # Reserved policy trigger; 0 = ignore
-# --- result ---
+---
+# result
 Error error
 bool success
 bool charging
 uint16 num_retries
 builtin_interfaces/Duration docking_time
-# --- feedback ---
+---
+# feedback
 uint8 STAGING=1
 uint8 PERCEPTION=2
 uint8 ALIGNING=3
