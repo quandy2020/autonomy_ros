@@ -10,26 +10,33 @@ autonomy_node:
       config_file: autonomy.lua
       enable_bt_tasks: true
       use_bt_navigation: true
-      planner_id: ""
-      controller_id: FollowPath
-      goal_checker_id: goal_checker
-      progress_checker_id: progress_checker
-      map_topic: map
+      map_topic: "map"
       publish_map: true
-      tf_topic: /tf
-      tf_static_topic: /tf_static
-      odom_topic: odom
-      cmd_vel_topic: cmd_vel
-      # Laser scan -> costmap ObstacleLayer (requires obstacle_layer in planner/controller lua).
-      enable_scan_bridge: true
-      scan_topic: /scan
+      tf_topic: "/tf" 
+      tf_static_topic: "/tf_static"
+      odom_topic: "odom"
+      cmd_vel_topic: "cmd_vel"
       publish_costmaps: true
       costmap_publish_hz: 1.0
       publish_diagnostics: true
-      # std_msgs/Float32 on autonomy/speed_limit -> ControllerServer::ApplySpeedLimit
-      enable_speed_limit_topic: true
-      speed_limit_topic: autonomy/speed_limit
-      speed_limit_percentage: false
+
+      planner:
+        # Empty string: use PlannerServer default (see autonomy.lua).
+        planner_id: "NavFn"
+        # Must match TF tree and autonomy lua AUTONOMY_COMMON.global_frame for map-based nav.
+        # Use "odom" for Gazebo sim without AMCL; use "map" when map->odom TF is published.
+        global_frame: "odom"
+        waypoint_spacing: 0.1
+
+      controller:
+        controller_id: "MPCController"
+        goal_checker_id: "goal_checker"
+        progress_checker_id: "progress_checker" 
+        max_linear_vel: 0.22
+        max_angular_vel: 1.5
+        goal_tolerance: 0.15
+        lookahead: 0.3
+        base_frame: "base_footprint"
 
     task:
       battery_percent: 100.0
@@ -37,26 +44,13 @@ autonomy_node:
     command:
       default_dock_id: dock_main
       waypoint_timeout_sec: 120.0
-      init_pose_topic: init_pose
-      goal_pose_topic: goal_pose
+      init_pose_topic: "init_pose"
+      goal_pose_topic: "goal_pose"
       enable_follow_detections: true
-      follow_detections_topic: /detections_3d
+      follow_detections_topic: "/detections_3d"
       dock_x: 0.5
       dock_y: 0.0
       dock_w: 1.0
 
-    planner:
-      # Must match TF tree and autonomy lua AUTONOMY_COMMON.global_frame for map-based nav.
-      # Use "odom" for Gazebo sim without AMCL; use "map" when map->odom TF is published.
-      global_frame: odom
-      waypoint_spacing: 0.1
-
-    controller:
-      max_linear_vel: 0.22
-      max_angular_vel: 1.5
-      goal_tolerance: 0.15
-      lookahead: 0.3
-      base_frame: base_footprint
-
     visualization:
-      frame_id: odom
+      frame_id: "odom"

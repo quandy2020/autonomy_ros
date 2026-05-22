@@ -14,13 +14,13 @@ PlatformBridge::PlatformBridge(rclcpp::Node & node)
 {
   node_.declare_parameter<std::string>("autonomy.odom_topic", odom_topic_);
   node_.declare_parameter<std::string>("autonomy.cmd_vel_topic", cmd_vel_topic_);
-  node_.declare_parameter<std::string>("controller.base_frame", base_frame_);
-  node_.declare_parameter<double>("controller.max_linear_vel", max_linear_vel_);
+  node_.declare_parameter<std::string>("autonomy.controller.base_frame", base_frame_);
+  node_.declare_parameter<double>("autonomy.controller.max_linear_vel", max_linear_vel_);
 
   odom_topic_ = node_.get_parameter("autonomy.odom_topic").as_string();
   cmd_vel_topic_ = node_.get_parameter("autonomy.cmd_vel_topic").as_string();
-  base_frame_ = node_.get_parameter("controller.base_frame").as_string();
-  max_linear_vel_ = node_.get_parameter("controller.max_linear_vel").as_double();
+  base_frame_ = node_.get_parameter("autonomy.controller.base_frame").as_string();
+  max_linear_vel_ = node_.get_parameter("autonomy.controller.max_linear_vel").as_double();
 }
 
 void PlatformBridge::start(
