@@ -4,32 +4,25 @@
 
 #include "autonomy_ros/bridge/map_bridge.hpp"
 
+#include <functional>
+
 #include "autonomy_ros/conversions/conversions.hpp"
 
 namespace autonomy_ros::bridge
 {
 
-MapBridge::MapBridge(rclcpp::Node & node)
-: node_(node)
+MapBridge::MapBridge(rclcpp::Node & node, ::autonomy::map::MapServer * map_server)
+: node_(node), map_server_(map_server)
 {
   node_.declare_parameter<std::string>("autonomy.map_topic", map_topic_);
   node_.declare_parameter<bool>("autonomy.publish_map", publish_map_);
   map_topic_ = node_.get_parameter("autonomy.map_topic").as_string();
   publish_map_ = node_.get_parameter("autonomy.publish_map").as_bool();
-}
-
-void MapBridge::start(::autonomy::map::MapServer * map_server)
-{
-  map_server_ = map_server;
 
   if (publish_map_) {
     map_pub_ = node_.create_publisher<nav_msgs::msg::OccupancyGrid>(
       map_topic_, rclcpp::QoS(1).transient_local());
   }
-
-  map_sub_ = node_.create_subscription<nav_msgs::msg::OccupancyGrid>(
-    map_topic_, rclcpp::QoS(1).transient_local(),
-    std::bind(&MapBridge::onMap, this, std::placeholders::_1));
 
   reload_map_srv_ = node_.create_service<std_srvs::srv::Trigger>(
     "reload_map",
@@ -52,10 +45,9 @@ void MapBridge::start(::autonomy::map::MapServer * map_server)
     map_topic_.c_str(), publish_map_ ? "true" : "false");
 }
 
-void MapBridge::stop()
+MapBridge::~MapBridge()
 {
   reload_map_srv_.reset();
-  map_sub_.reset();
   map_pub_.reset();
   map_server_ = nullptr;
 }
@@ -66,25 +58,36 @@ void MapBridge::publishFromCore(
   if (!publish_map_ || !map_pub_ || !map) {
     return;
   }
+  const auto expected =
+    static_cast<size_t>(map->info.width) * static_cast<size_t>(map->info.height);
+  if (map->data.size() != expected) {
+    RCLCPP_WARN(
+      node_.get_logger(),
+      "[map_bridge] skip publish: data size %zu != %u*%u",
+      map->data.size(), map->info.width, map->info.height);
+    return;
+  }
+
+  size_t occupied = 0;
+  size_t unknown = 0;
+  for (int16_t cell : map->data) {
+    if (cell == 100) {
+      ++occupied;
+    } else if (cell < 0) {
+      ++unknown;
+    }
+  }
+  if (occupied == 0) {
+    RCLCPP_WARN(
+      node_.get_logger(),
+      "[map_bridge] map has no occupied cells (unknown=%zu); check map_file / "
+      "occupancy conversion",
+      unknown);
+  }
+
   auto ros_map = conversions::toRos(*map);
   ros_map.header.stamp = node_.now();
   map_pub_->publish(ros_map);
-}
-
-void MapBridge::onMap(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
-{
-  if (!msg || !map_server_) {
-    return;
-  }
-  const auto core_map = conversions::fromRos(*msg);
-  if (!map_server_->SetStaticMap(core_map)) {
-    RCLCPP_WARN(node_.get_logger(), "[map_bridge] rejected invalid /map");
-    return;
-  }
-  map_server_->PublishMap();
-  RCLCPP_INFO_THROTTLE(
-    node_.get_logger(), *node_.get_clock(), 5000,
-    "[map_bridge] external map %ux%u", msg->info.width, msg->info.height);
 }
 
 void MapBridge::handleReloadMap(

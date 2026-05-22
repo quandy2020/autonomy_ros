@@ -58,7 +58,7 @@ def _remove_robot_sdf(context, robot_sdf_out, *args, **kwargs):
 
 
 def generate_launch_description():
-    bringup_dir = get_package_share_directory('autonomy_ros')
+    bringup_dir = get_package_share_directory('autonomy_simulator')
     meshes_dir = os.path.join(bringup_dir, 'models', 'turtlebot3_model', 'meshes')
 
     namespace = LaunchConfiguration('namespace')

@@ -42,10 +42,7 @@ TfBridge::TfBridge(rclcpp::Node & node)
   node_.declare_parameter<std::string>("autonomy.tf_static_topic", tf_static_topic_);
   tf_topic_ = node_.get_parameter("autonomy.tf_topic").as_string();
   tf_static_topic_ = node_.get_parameter("autonomy.tf_static_topic").as_string();
-}
 
-void TfBridge::start()
-{
   ::autonomy::transform::Buffer::Instance()->Init();
 
   tf_sub_ = node_.create_subscription<tf2_msgs::msg::TFMessage>(
@@ -61,7 +58,7 @@ void TfBridge::start()
     tf_topic_.c_str(), tf_static_topic_.c_str());
 }
 
-void TfBridge::stop()
+TfBridge::~TfBridge()
 {
   tf_sub_.reset();
   tf_static_sub_.reset();

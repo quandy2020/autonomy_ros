@@ -32,9 +32,7 @@ class TfBridge
 {
 public:
   explicit TfBridge(rclcpp::Node & node);
-
-  void start();
-  void stop();
+  ~TfBridge();
 
 private:
   void onTf(const tf2_msgs::msg::TFMessage::SharedPtr msg, bool is_static);

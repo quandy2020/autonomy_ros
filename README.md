@@ -2,7 +2,7 @@
 
 面向**展厅讲解机器人**的 ROS 2 工作区：TurtleBot3 Gazebo 仿真 + 模块化自主栈 + 对外任务接口（`autonomy_msgs`）。
 
-仿真资源已整合进本包（源自 [nav2_minimal_tb3_sim](https://github.com/ros-navigation/nav2_minimal_turtlebot_simulation/tree/main/nav2_minimal_tb3_sim)），无需单独 clone 仿真仓库。
+仿真资源在 **`autonomy_simulator`** 包（源自 [nav2_minimal_tb3_sim](https://github.com/ros-navigation/nav2_minimal_turtlebot_simulation/tree/main/nav2_minimal_tb3_sim)），无需单独 clone 仿真仓库。
 
 ---
 
@@ -22,24 +22,15 @@
 ```
 autonomy_ros/                    # 仓库根（colcon workspace 的 src 目录）
 ├── autonomy_msgs/               # 对外 API 定义，详见 autonomy_msgs/README.md
-│   ├── msg/ action/ srv/
+├── autonomy_simulator/          # Gazebo 仿真（worlds / urdf / models / launch）
+│   ├── launch/tb3_simulator.launch.py
 │   └── README.md
-├── autonomy_ros/                # 主功能包
+├── autonomy_ros/                # 主功能包（导航栈 ROS 桥接）
 │   ├── include/autonomy_ros/
-│   │   ├── autonomy.hpp          # 唯一核心入口
-│   │   ├── autonomy_node.hpp
-│   │   ├── command/command_interface.hpp
-│   │   ├── task/task_manager.hpp
-│   │   └── visualization/visualizer.hpp
 │   ├── docs/architecture.md
-│   ├── src/                     # 与 include 对应实现
-│   ├── launch/
-│   │   ├── tb3_simulator.launch.py
-│   │   └── autonomy_stack.launch.py
+│   ├── launch/autonomy_stack.launch.py
 │   ├── configs/autonomy_params.yaml
 │   ├── rviz/autonomy.rviz
-│   ├── configs/                 # ros_gz_bridge
-│   ├── worlds/ urdf/ models/
 │   └── CMakeLists.txt
 └── README.md
 ```
@@ -95,7 +86,7 @@ sudo apt install -y \
 ```bash
 cd /path/to/your_ws
 # 将本仓库置于 src/ 下，例如 src/autonomy_ros
-colcon build --symlink-install --packages-up-to autonomy autonomy_ros
+colcon build --symlink-install --packages-up-to autonomy autonomy_simulator autonomy_ros
 source install/setup.bash
 ```
 
@@ -114,9 +105,18 @@ ros2 launch autonomy_ros autonomy_stack.launch.py
 ### 仅仿真
 
 ```bash
-ros2 launch autonomy_ros tb3_simulator.launch.py
-# 无 Gazebo GUI：
-ros2 launch autonomy_ros tb3_simulator.launch.py headless:=True
+# Gazebo
+ros2 launch autonomy_simulator tb3_simulator.launch.py
+ros2 launch autonomy_simulator tb3_simulator.launch.py headless:=True
+
+# Fake 机器人（无 Gazebo，参考 turtlebot3_fake_node）
+ros2 launch autonomy_simulator fake_robot.launch.py
+```
+
+### Fake + 完整栈
+
+```bash
+ros2 launch autonomy_ros autonomy_stack.launch.py sim_mode:=fake use_sim_time:=false
 ```
 
 ### 模块开关

@@ -32,13 +32,13 @@
 #include "autonomy/tasks/scheduler/task_scheduler.hpp"
 #include "autonomy_ros/constants.hpp"
 #include "autonomy_ros/bridge/map_bridge.hpp"
-#include "autonomy_ros/bridge/platform_bridge.hpp"
 #include "autonomy_ros/bridge/tf_bridge.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -56,8 +56,8 @@ namespace autonomy_ros
  *
  * Lifecycle:
  * - Constructor: declare and read autonomy.* parameters (loadParameters).
- * - start(): load core, optionally attach TaskScheduler (BT), start Tf/Map/Platform
- *   bridges, publishers, scan/speed-limit subscriptions, and the 20 Hz control timer.
+ * - start(): load core, optionally attach TaskScheduler (BT), start Tf/Map
+ *   bridges, odom/cmd_vel I/O, publishers, scan/speed-limit subscriptions, and the 20 Hz control timer.
  * - shutdown(): reverse order; stops cmd_vel and cancels in-flight navigation.
  *
  * Navigation (navigateToPose):
@@ -83,8 +83,8 @@ namespace autonomy_ros
  * - global_costmap, local_costmap (nav_msgs/OccupancyGrid, transient_local)
  * - /diagnostics (diagnostic_msgs/DiagnosticArray)
  *
- * Platform I/O (odom, cmd_vel, map, TF) is wired in bridge::*; topic names come from
- * autonomy_node parameters outside this class.
+ * Platform I/O (odom in, cmd_vel out) and map/TF are wired in this class and bridge::*;
+ * topic names come from autonomy_node parameters.
  */
 class Autonomy
 {
@@ -187,7 +187,7 @@ public:
   const std::string & globalFrame() const { return global_frame_; }
 
   /**
-   * @brief Register a callback invoked on each odom message from PlatformBridge.
+   * @brief Register a callback invoked on each odom message.
    * @param listener Called with latest nav_msgs/Odometry; may be nullptr (ignored).
    */
   void addOdomListener(
@@ -233,7 +233,7 @@ private:
   /** @brief Attach TaskScheduler to planner/controller when enable_bt_tasks is true. */
   void startTaskScheduler();
 
-  /** @brief Start TfBridge, MapBridge, PlatformBridge, and outbound I/O. */
+  /** @brief Start TfBridge, MapBridge, odom/cmd_vel I/O, and outbound publishers. */
   void startRosBridges();
 
   /** @brief Subscribe scan / speed limit; create costmap and diagnostics timers. */
@@ -302,6 +302,9 @@ private:
   /** @brief Store path, publish plan topic, and invoke plan listeners. */
   void notifyPlan(const nav_msgs::msg::Path & path);
 
+  void publishCmdVel(const ::autonomy::commsgs::geometry_msgs::TwistStamped & cmd);
+  void publishZeroCmdVel();
+
   rclcpp::Node & node_;
   bool running_{false};
 
@@ -325,7 +328,14 @@ private:
 
   std::unique_ptr<bridge::TfBridge> tf_bridge_;
   std::unique_ptr<bridge::MapBridge> map_bridge_;
-  std::unique_ptr<bridge::PlatformBridge> platform_bridge_;
+
+  std::string odom_topic_{constants::topics::kOdom};
+  std::string cmd_vel_topic_{constants::topics::kCmdVel};
+  std::string base_frame_{constants::defaults::kAutonomyBaseFrameDefault};
+  double max_linear_vel_{constants::defaults::kAutonomyMaxLinearVel};
+
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_pub_;
 
   // autonomy.enable_scan_bridge, scan_topic, publish_costmaps, ...
   bool scan_enabled_{constants::defaults::kAutonomyScanEnabled};

@@ -19,6 +19,7 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <future>
 #include <thread>
 
@@ -39,6 +40,24 @@ namespace
 {
 
 using CoreNode = ::autonomy::system::AutonomyNode;
+
+/** autonomy is cmake (not ament_cmake); resolve share/config via autonomy_ros install layout. */
+std::string resolveAutonomyConfigBesideAutonomyRos()
+{
+  try {
+    const auto ros_share =
+      ament_index_cpp::get_package_share_directory("autonomy_ros");
+    const std::filesystem::path install_root =
+      std::filesystem::path(ros_share).parent_path().parent_path().parent_path();
+    const auto candidate = install_root / "autonomy" / "share" / "autonomy" / "config";
+    if (std::filesystem::is_directory(candidate)) {
+      return candidate.string();
+    }
+  } catch (...) {
+  }
+  return {};
+}
+
 
 geometry_msgs::msg::PoseStamped odomToPoseStamped(
   const nav_msgs::msg::Odometry & odom, const std::string & frame)
@@ -86,6 +105,15 @@ void Autonomy::loadParameters()
   global_frame_ = node_.get_parameter(params::kAutonomyGlobalFrame).as_string();
   goal_tolerance_ = node_.get_parameter(params::kAutonomyGoalTolerance).as_double();
 
+  node_.declare_parameter<std::string>(params::kAutonomyOdomTopic, odom_topic_);
+  node_.declare_parameter<std::string>(params::kAutonomyCmdVelTopic, cmd_vel_topic_);
+  node_.declare_parameter<std::string>(params::kAutonomyBaseFrame, base_frame_);
+  node_.declare_parameter<double>(params::kAutonomyMaxLinearVel, max_linear_vel_);
+  odom_topic_ = node_.get_parameter(params::kAutonomyOdomTopic).as_string();
+  cmd_vel_topic_ = node_.get_parameter(params::kAutonomyCmdVelTopic).as_string();
+  base_frame_ = node_.get_parameter(params::kAutonomyBaseFrame).as_string();
+  max_linear_vel_ = node_.get_parameter(params::kAutonomyMaxLinearVel).as_double();
+
   node_.declare_parameter<bool>(params::kAutonomyEnableScanBridge, scan_enabled_);
   node_.declare_parameter<std::string>(params::kAutonomyScanTopic, scan_topic_);
   node_.declare_parameter<bool>(params::kAutonomyPublishCostmaps, costmaps_enabled_);
@@ -113,9 +141,19 @@ std::string Autonomy::resolveConfigDirectory() const
     return ament_index_cpp::get_package_share_directory(constants::defaults::kPkgAutonomy) +
       constants::defaults::kPkgConfigSubpath;
   } catch (const std::exception & e) {
+    const auto fallback = resolveAutonomyConfigBesideAutonomyRos();
+    if (!fallback.empty()) {
+      RCLCPP_INFO(
+        node_.get_logger(),
+        "autonomy package not in ament index (cmake build); using config at %s",
+        fallback.c_str());
+      return fallback;
+    }
     RCLCPP_ERROR(
       node_.get_logger(),
-      "autonomy.config_directory is empty and package 'autonomy' not found: %s",
+      "autonomy.config_directory is empty and package 'autonomy' not found: %s. "
+      "Build the autonomy package (colcon build --packages-select autonomy) and "
+      "source install/setup.bash.",
       e.what());
     return {};
   }
@@ -262,11 +300,9 @@ void Autonomy::applyMapToCostmap(
 void Autonomy::startRosBridges()
 {
   tf_bridge_ = std::make_unique<bridge::TfBridge>(node_);
-  tf_bridge_->start();
 
-  map_bridge_ = std::make_unique<bridge::MapBridge>(node_);
   if (core_ && core_->map_server()) {
-    map_bridge_->start(core_->map_server());
+    map_bridge_ = std::make_unique<bridge::MapBridge>(node_, core_->map_server());
     core_->map_server()->SetMapPublishCallback(
       [this](const ::autonomy::commsgs::map_msgs::OccupancyGrid::SharedPtr & map) {
         applyMapToCostmap(map);
@@ -277,9 +313,14 @@ void Autonomy::startRosBridges()
     core_->map_server()->PublishMap();
   }
 
-  platform_bridge_ = std::make_unique<bridge::PlatformBridge>(node_);
-  platform_bridge_->start(
-    [this](const nav_msgs::msg::Odometry::SharedPtr & msg) { dispatchOdom(msg); });
+  odom_sub_ = node_.create_subscription<nav_msgs::msg::Odometry>(
+    odom_topic_, constants::defaults::kQueueDepth,
+    [this](const nav_msgs::msg::Odometry::SharedPtr msg) { dispatchOdom(msg); });
+  cmd_vel_pub_ = node_.create_publisher<geometry_msgs::msg::TwistStamped>(
+    cmd_vel_topic_, constants::defaults::kQueueDepth);
+  RCLCPP_INFO(
+    node_.get_logger(), "[platform] odom=%s cmd_vel=%s base=%s",
+    odom_topic_.c_str(), cmd_vel_topic_.c_str(), base_frame_.c_str());
 
   startOutboundIo();
 
@@ -300,19 +341,11 @@ void Autonomy::shutdown()
   setControllerEnabled(false);
   control_timer_.reset();
   plan_pub_.reset();
-  if (platform_bridge_) {
-    platform_bridge_->stop();
-    platform_bridge_.reset();
-  }
-  if (map_bridge_) {
-    map_bridge_->stop();
-    map_bridge_.reset();
-  }
+  odom_sub_.reset();
+  cmd_vel_pub_.reset();
+  map_bridge_.reset();
   stopOutboundIo();
-  if (tf_bridge_) {
-    tf_bridge_->stop();
-    tf_bridge_.reset();
-  }
+  tf_bridge_.reset();
   if (task_scheduler_) {
     task_scheduler_->Shutdown();
     task_scheduler_.reset();
@@ -471,9 +504,7 @@ void Autonomy::setControllerEnabled(bool enabled)
         following_path_.store(false);
       }
     }
-    if (platform_bridge_) {
-      platform_bridge_->publishZeroCmdVel();
-    }
+    publishZeroCmdVel();
   }
 }
 
@@ -838,9 +869,7 @@ void Autonomy::controlStep()
   }
 
   if (bt_navigation_active_.load()) {
-    if (platform_bridge_) {
-      platform_bridge_->publishCmdVel(controller->GetLastCmdVel());
-    }
+    publishCmdVel(controller->GetLastCmdVel());
     return;
   }
 
@@ -849,9 +878,7 @@ void Autonomy::controlStep()
   }
 
   const auto tick = controller->TickFollowPath(navigationCancelChecker());
-  if (platform_bridge_) {
-    platform_bridge_->publishCmdVel(controller->GetLastCmdVel());
-  }
+  publishCmdVel(controller->GetLastCmdVel());
   last_follow_result_.store(static_cast<int>(tick));
 
   if (tick != ::autonomy::control::ControllerServer::FollowPathTickResult::Running) {
@@ -865,6 +892,35 @@ void Autonomy::controlStep()
       RCLCPP_WARN(node_.get_logger(), "[autonomy] controller follow failed");
     }
   }
+}
+
+void Autonomy::publishCmdVel(const ::autonomy::commsgs::geometry_msgs::TwistStamped & cmd)
+{
+  if (!cmd_vel_pub_) {
+    return;
+  }
+  auto ros_cmd = conversions::toRos(cmd);
+  ros_cmd.header.frame_id = base_frame_;
+  if (max_linear_vel_ > 0.0) {
+    if (ros_cmd.twist.linear.x > max_linear_vel_) {
+      ros_cmd.twist.linear.x = max_linear_vel_;
+    }
+    if (ros_cmd.twist.linear.x < -max_linear_vel_) {
+      ros_cmd.twist.linear.x = -max_linear_vel_;
+    }
+  }
+  cmd_vel_pub_->publish(ros_cmd);
+}
+
+void Autonomy::publishZeroCmdVel()
+{
+  if (!cmd_vel_pub_) {
+    return;
+  }
+  geometry_msgs::msg::TwistStamped stop;
+  stop.header.stamp = node_.now();
+  stop.header.frame_id = base_frame_;
+  cmd_vel_pub_->publish(stop);
 }
 
 }  // namespace autonomy_ros

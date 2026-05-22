@@ -1,6 +1,6 @@
 autonomy_node:
   ros__parameters:
-    use_sim_time: true
+    # use_sim_time: set from launch (autonomy_stack.launch.py), not here — avoids double-declare
     enable_autonomy: true
     enable_visualization: true
     enable_command: true

@@ -34,7 +34,7 @@ namespace autonomy_ros
  * - 地图加载/更新与向 ROS 透传（MapBridge）
  * - TF 转接到 autonomy::transform::Buffer（TfBridge）
  * - 接收 RViz / 命令行指令（CommandInterface + autonomy_msgs）
- * - 仿真或真机速度输出（PlatformBridge → cmd_vel）
+ * - 仿真或真机速度输出（Autonomy → cmd_vel）
  * - 核心输出可视化透传（Visualizer）
  *
  * 算法与任务逻辑在 autonomy 核心，经 Autonomy 唯一门面调用。
@@ -44,6 +44,9 @@ class AutonomyNode : public rclcpp::Node
 public:
   AutonomyNode();
   ~AutonomyNode() override;
+
+  /** Registers action servers; call after make_shared (shared_from_this). */
+  void startCommandInterface();
 
 private:
   bool enable_autonomy_{true};

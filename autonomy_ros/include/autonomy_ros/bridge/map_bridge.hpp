@@ -19,24 +19,22 @@ namespace autonomy_ros::bridge
 {
 
 /**
- * @brief Map ROS topic: publish core map; external /map updates via MapServer::PublishMap.
+ * @brief Map ROS topic: publish core map to ROS; optional /map subscription.
  *
- * Costmap sync is handled inside autonomy core (MapServer callback). This bridge only
- * republishes to ROS and accepts external map messages.
+ * Costmap sync is handled inside autonomy core (MapServer callback). When
+ * publish_map is true, this bridge is publish-only (no /map echo). Set
+ * publish_map false to accept external SLAM maps on map_topic.
  */
 class MapBridge
 {
 public:
-  explicit MapBridge(rclcpp::Node & node);
-
-  void start(::autonomy::map::MapServer * map_server);
-  void stop();
+  explicit MapBridge(rclcpp::Node & node, ::autonomy::map::MapServer * map_server);
+  ~MapBridge();
 
   /** @brief Publish a core map snapshot to ROS (no costmap side effects). */
   void publishFromCore(const ::autonomy::commsgs::map_msgs::OccupancyGrid::SharedPtr & map);
 
 private:
-  void onMap(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
   void handleReloadMap(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
@@ -46,7 +44,6 @@ private:
   bool publish_map_{true};
   std::string map_topic_{constants::topics::kMap};
 
-  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr map_pub_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_map_srv_;
 };

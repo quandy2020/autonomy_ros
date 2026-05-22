@@ -72,7 +72,6 @@ set(AUTONOMY_CORE_SOURCES
   src/autonomy_node.cpp
   src/bridge/tf_bridge.cpp
   src/bridge/map_bridge.cpp
-  src/bridge/platform_bridge.cpp
   src/visualization/visualizer.cpp
   src/task/task_muxer.cpp
   src/task/task_manager.cpp
@@ -125,7 +124,7 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch rviz configs worlds urdf models docs
+install(DIRECTORY launch rviz configs docs
   DESTINATION share/${PROJECT_NAME}
 )
 
