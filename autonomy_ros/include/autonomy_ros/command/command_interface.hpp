@@ -22,9 +22,11 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "autonomy_ros/autonomy.hpp"
+#include "autonomy_ros/constants.hpp"
 #include "autonomy_ros/task/task_manager.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
@@ -144,6 +146,26 @@ private:
    * @return ACCEPT
    */
   rclcpp_action::CancelResponse handleCancel();
+
+  /**
+   * @brief Register an autonomy service with a request/response handler.
+   */
+  template<typename SrvT, typename HandlerFn>
+  void registerService(
+    std::shared_ptr<rclcpp::Service<SrvT>> & server,
+    const char * service_name,
+    HandlerFn && handler);
+
+  /**
+   * @brief Register an autonomy action server (goal check, cancel, detached execute).
+   */
+  template<typename ActionT, typename GoalFn>
+  void registerActionServer(
+    std::shared_ptr<rclcpp_action::Server<ActionT>> & server,
+    const char * action_name,
+    GoalFn && goal_fn,
+    void (CommandInterface::*execute)(
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>>));
 
   /**
    * @brief Load command.* parameters from the node
@@ -271,20 +293,20 @@ private:
   // SetInitialPose service and init_pose callback publish to `/initialpose` topic
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_pub_;
 
-  std::string init_pose_topic_{"init_pose"};
-  std::string goal_pose_topic_{"goal_pose"};
+  std::string init_pose_topic_{constants::topics::kInitPose};
+  std::string goal_pose_topic_{constants::topics::kGoalPose};
 
   // Charging stations from parameters (ListDocks)
   std::vector<autonomy_msgs::msg::DockStation> docks_;
 
   // Default dock_id for tour-complete and low-battery dock
-  std::string default_dock_id_{"dock_main"};
+  std::string default_dock_id_{constants::defaults::kCommandDockId};
 
   // Per-waypoint navigation timeout (command.waypoint_timeout_sec)
-  double waypoint_timeout_sec_{120.0};
+  double waypoint_timeout_sec_{constants::defaults::kCommandWaypointTimeoutSec};
 
-  bool follow_detections_enabled_{true};
-  std::string follow_detections_topic_{"/detections_3d"};
+  bool follow_detections_enabled_{constants::defaults::kCommandFollowDetectionsEnabled};
+  std::string follow_detections_topic_{constants::topics::kFollowDetections};
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr follow_detections_sub_;
   mutable std::mutex follow_mutex_;
   std::unordered_map<std::string, geometry_msgs::msg::PoseStamped> follow_targets_;
@@ -310,5 +332,45 @@ private:
 };
 
 }  // namespace autonomy_ros::command
+
+template<typename SrvT, typename HandlerFn>
+void autonomy_ros::command::CommandInterface::registerService(
+  std::shared_ptr<rclcpp::Service<SrvT>> & server,
+  const char * service_name,
+  HandlerFn && handler)
+{
+  server = node_.create_service<SrvT>(
+    service_name,
+    [fn = std::forward<HandlerFn>(handler)](
+      const std::shared_ptr<typename SrvT::Request> req,
+      std::shared_ptr<typename SrvT::Response> res) {
+      fn(req, res);
+    });
+}
+
+template<typename ActionT, typename GoalFn>
+void autonomy_ros::command::CommandInterface::registerActionServer(
+  std::shared_ptr<rclcpp_action::Server<ActionT>> & server,
+  const char * action_name,
+  GoalFn && goal_fn,
+  void (CommandInterface::*execute)(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> handle))
+{
+  using Goal = typename ActionT::Goal;
+  const auto node = node_.shared_from_this();
+  server = rclcpp_action::create_server<ActionT>(
+    node, action_name,
+    [fn = std::forward<GoalFn>(goal_fn)](
+      const rclcpp_action::GoalUUID &,
+      std::shared_ptr<const Goal> goal) -> rclcpp_action::GoalResponse {
+      return fn(goal);
+    },
+    [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> &) {
+      return handleCancel();
+    },
+    [this, execute](const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> & handle) {
+      std::thread{execute, this, handle}.detach();
+    });
+}
 
 #endif  // AUTONOMY_ROS__COMMAND__COMMAND_INTERFACE_HPP_

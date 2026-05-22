@@ -19,6 +19,7 @@
 #include <string>
 
 #include "autonomy/commsgs/geometry_msgs.hpp"
+#include "autonomy_ros/constants.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -47,8 +48,8 @@ public:
 
 private:
   rclcpp::Node & node_;
-  std::string odom_topic_{"odom"};
-  std::string cmd_vel_topic_{"cmd_vel"};
+  std::string odom_topic_{constants::topics::kOdom};
+  std::string cmd_vel_topic_{constants::topics::kCmdVel};
   std::string base_frame_{"base_footprint"};
   double max_linear_vel_{0.22};
   double max_linear_override_{0.0};

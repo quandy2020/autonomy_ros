@@ -14,6 +14,8 @@
 
 #include "autonomy_ros/autonomy.hpp"
 
+#include "autonomy_ros/constants.hpp"
+
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <algorithm>
 #include <chrono>
@@ -60,45 +62,46 @@ Autonomy::Autonomy(rclcpp::Node & node)
 
 void Autonomy::loadParameters()
 {
-  node_.declare_parameter<std::string>("autonomy.config_directory", config_directory_);
-  node_.declare_parameter<std::string>("autonomy.config_file", config_file_);
-  node_.declare_parameter<bool>("autonomy.enable_bt_tasks", enable_bt_tasks_);
-  node_.declare_parameter<bool>("autonomy.use_bt_navigation", use_bt_navigation_);
-  node_.declare_parameter<std::string>("autonomy.planner_id", planner_id_);
-  node_.declare_parameter<std::string>("autonomy.controller_id", controller_id_);
-  node_.declare_parameter<std::string>("autonomy.goal_checker_id", goal_checker_id_);
-  node_.declare_parameter<std::string>("autonomy.progress_checker_id", progress_checker_id_);
-  node_.declare_parameter<std::string>("planner.global_frame", global_frame_);
-  node_.declare_parameter<double>("controller.goal_tolerance", goal_tolerance_);
+  using namespace constants;
 
-  config_directory_ = node_.get_parameter("autonomy.config_directory").as_string();
-  config_file_ = node_.get_parameter("autonomy.config_file").as_string();
-  enable_bt_tasks_ = node_.get_parameter("autonomy.enable_bt_tasks").as_bool();
-  use_bt_navigation_ = node_.get_parameter("autonomy.use_bt_navigation").as_bool();
-  planner_id_ = node_.get_parameter("autonomy.planner_id").as_string();
-  controller_id_ = node_.get_parameter("autonomy.controller_id").as_string();
-  goal_checker_id_ = node_.get_parameter("autonomy.goal_checker_id").as_string();
-  progress_checker_id_ =
-    node_.get_parameter("autonomy.progress_checker_id").as_string();
-  global_frame_ = node_.get_parameter("planner.global_frame").as_string();
-  goal_tolerance_ = node_.get_parameter("controller.goal_tolerance").as_double();
+  node_.declare_parameter<std::string>(params::kAutonomyConfigDirectory, config_directory_);
+  node_.declare_parameter<std::string>(params::kAutonomyConfigFile, config_file_);
+  node_.declare_parameter<bool>(params::kAutonomyEnableBtTasks, enable_bt_tasks_);
+  node_.declare_parameter<bool>(params::kAutonomyUseBtNavigation, use_bt_navigation_);
+  node_.declare_parameter<std::string>(params::kAutonomyPlannerId, planner_id_);
+  node_.declare_parameter<std::string>(params::kAutonomyControllerId, controller_id_);
+  node_.declare_parameter<std::string>(params::kAutonomyGoalCheckerId, goal_checker_id_);
+  node_.declare_parameter<std::string>(params::kAutonomyProgressCheckerId, progress_checker_id_);
+  node_.declare_parameter<std::string>(params::kAutonomyGlobalFrame, global_frame_);
+  node_.declare_parameter<double>(params::kAutonomyGoalTolerance, goal_tolerance_);
 
-  node_.declare_parameter<bool>("autonomy.enable_scan_bridge", scan_enabled_);
-  node_.declare_parameter<std::string>("autonomy.scan_topic", scan_topic_);
-  node_.declare_parameter<bool>("autonomy.publish_costmaps", costmaps_enabled_);
-  node_.declare_parameter<double>("autonomy.costmap_publish_hz", costmap_hz_);
-  node_.declare_parameter<bool>("autonomy.publish_diagnostics", diagnostics_enabled_);
-  node_.declare_parameter<bool>("autonomy.enable_speed_limit_topic", speed_limit_enabled_);
-  node_.declare_parameter<std::string>("autonomy.speed_limit_topic", speed_limit_topic_);
-  node_.declare_parameter<bool>("autonomy.speed_limit_percentage", speed_limit_percentage_);
-  scan_enabled_ = node_.get_parameter("autonomy.enable_scan_bridge").as_bool();
-  scan_topic_ = node_.get_parameter("autonomy.scan_topic").as_string();
-  costmaps_enabled_ = node_.get_parameter("autonomy.publish_costmaps").as_bool();
-  costmap_hz_ = node_.get_parameter("autonomy.costmap_publish_hz").as_double();
-  diagnostics_enabled_ = node_.get_parameter("autonomy.publish_diagnostics").as_bool();
-  speed_limit_enabled_ = node_.get_parameter("autonomy.enable_speed_limit_topic").as_bool();
-  speed_limit_topic_ = node_.get_parameter("autonomy.speed_limit_topic").as_string();
-  speed_limit_percentage_ = node_.get_parameter("autonomy.speed_limit_percentage").as_bool();
+  config_directory_ = node_.get_parameter(params::kAutonomyConfigDirectory).as_string();
+  config_file_ = node_.get_parameter(params::kAutonomyConfigFile).as_string();
+  enable_bt_tasks_ = node_.get_parameter(params::kAutonomyEnableBtTasks).as_bool();
+  use_bt_navigation_ = node_.get_parameter(params::kAutonomyUseBtNavigation).as_bool();
+  planner_id_ = node_.get_parameter(params::kAutonomyPlannerId).as_string();
+  controller_id_ = node_.get_parameter(params::kAutonomyControllerId).as_string();
+  goal_checker_id_ = node_.get_parameter(params::kAutonomyGoalCheckerId).as_string();
+  progress_checker_id_ = node_.get_parameter(params::kAutonomyProgressCheckerId).as_string();
+  global_frame_ = node_.get_parameter(params::kAutonomyGlobalFrame).as_string();
+  goal_tolerance_ = node_.get_parameter(params::kAutonomyGoalTolerance).as_double();
+
+  node_.declare_parameter<bool>(params::kAutonomyEnableScanBridge, scan_enabled_);
+  node_.declare_parameter<std::string>(params::kAutonomyScanTopic, scan_topic_);
+  node_.declare_parameter<bool>(params::kAutonomyPublishCostmaps, costmaps_enabled_);
+  node_.declare_parameter<double>(params::kAutonomyCostmapPublishHz, costmap_hz_);
+  node_.declare_parameter<bool>(params::kAutonomyPublishDiagnostics, diagnostics_enabled_);
+  node_.declare_parameter<bool>(params::kAutonomyEnableSpeedLimitTopic, speed_limit_enabled_);
+  node_.declare_parameter<std::string>(params::kAutonomySpeedLimitTopic, speed_limit_topic_);
+  node_.declare_parameter<bool>(params::kAutonomySpeedLimitPercentage, speed_limit_percentage_);
+  scan_enabled_ = node_.get_parameter(params::kAutonomyEnableScanBridge).as_bool();
+  scan_topic_ = node_.get_parameter(params::kAutonomyScanTopic).as_string();
+  costmaps_enabled_ = node_.get_parameter(params::kAutonomyPublishCostmaps).as_bool();
+  costmap_hz_ = node_.get_parameter(params::kAutonomyCostmapPublishHz).as_double();
+  diagnostics_enabled_ = node_.get_parameter(params::kAutonomyPublishDiagnostics).as_bool();
+  speed_limit_enabled_ = node_.get_parameter(params::kAutonomyEnableSpeedLimitTopic).as_bool();
+  speed_limit_topic_ = node_.get_parameter(params::kAutonomySpeedLimitTopic).as_string();
+  speed_limit_percentage_ = node_.get_parameter(params::kAutonomySpeedLimitPercentage).as_bool();
 }
 
 std::string Autonomy::resolveConfigDirectory() const
@@ -107,7 +110,8 @@ std::string Autonomy::resolveConfigDirectory() const
     return config_directory_;
   }
   try {
-    return ament_index_cpp::get_package_share_directory("autonomy") + "/config";
+    return ament_index_cpp::get_package_share_directory(constants::defaults::kPkgAutonomy) +
+      constants::defaults::kPkgConfigSubpath;
   } catch (const std::exception & e) {
     RCLCPP_ERROR(
       node_.get_logger(),
@@ -162,7 +166,7 @@ void Autonomy::startCore()
       planner_id_ = core_->planner_server()->GetDefaultPlannerId();
     }
     if (planner_id_.empty()) {
-      planner_id_ = "navfn_planner";
+      planner_id_ = constants::defaults::kAutonomyFallbackPlannerId;
     }
 
     core_->Start();
@@ -279,9 +283,11 @@ void Autonomy::startRosBridges()
 
   startOutboundIo();
 
-  plan_pub_ = node_.create_publisher<nav_msgs::msg::Path>("plan", 10);
+  plan_pub_ = node_.create_publisher<nav_msgs::msg::Path>(
+    constants::topics::kPlan, constants::defaults::kQueueDepth);
   control_timer_ = node_.create_wall_timer(
-    std::chrono::milliseconds(50), std::bind(&Autonomy::controlStep, this));
+    std::chrono::milliseconds(constants::defaults::kControlTimerMs),
+    std::bind(&Autonomy::controlStep, this));
 }
 
 void Autonomy::shutdown()
@@ -402,7 +408,7 @@ bool Autonomy::planToGoal(const geometry_msgs::msg::PoseStamped & goal)
   try {
     const auto path = planner->ComputePathToPose(
       start, goal_com, planner_id_, navigationCancelChecker());
-    if (path.poses.size() < 2) {
+    if (path.poses.size() < constants::defaults::kAutonomyMinPathPoses) {
       RCLCPP_WARN(node_.get_logger(), "[autonomy] planner returned empty path");
       return false;
     }
@@ -495,7 +501,7 @@ void Autonomy::clearControllerSpeedLimit()
   ::autonomy::commsgs::planning_msgs::SpeedLimit cleared;
   cleared.header.stamp = ::autonomy::commsgs::builtin_interfaces::Time::Now();
   cleared.percentage = false;
-  cleared.speed_limit = 0.0;
+  cleared.speed_limit = constants::defaults::kAutonomyClearedSpeedLimit;
   applyControllerSpeedLimit(cleared);
 }
 
@@ -510,10 +516,14 @@ void Autonomy::startOutboundIo()
 
   if (costmaps_enabled_) {
     global_costmap_pub_ = node_.create_publisher<nav_msgs::msg::OccupancyGrid>(
-      "global_costmap", rclcpp::QoS(1).transient_local());
+      constants::topics::kGlobalCostmap,
+      rclcpp::QoS(constants::defaults::kCostmapPubDepth).transient_local());
     local_costmap_pub_ = node_.create_publisher<nav_msgs::msg::OccupancyGrid>(
-      "local_costmap", rclcpp::QoS(1).transient_local());
-    const auto period_ms = static_cast<int>(1000.0 / std::max(costmap_hz_, 0.1));
+      constants::topics::kLocalCostmap,
+      rclcpp::QoS(constants::defaults::kCostmapPubDepth).transient_local());
+    const auto period_ms = static_cast<int>(
+      constants::defaults::kCostmapHzToMs /
+      std::max(costmap_hz_, constants::defaults::kCostmapMinHz));
     costmap_timer_ = node_.create_wall_timer(
       std::chrono::milliseconds(period_ms),
       std::bind(&Autonomy::publishCostmaps, this));
@@ -523,15 +533,17 @@ void Autonomy::startOutboundIo()
 
   if (diagnostics_enabled_) {
     diagnostics_pub_ = node_.create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-      "/diagnostics", 10);
+      constants::topics::kDiagnostics,
+      constants::defaults::kQueueDepth);
     diagnostics_timer_ = node_.create_wall_timer(
-      std::chrono::seconds(1), std::bind(&Autonomy::publishDiagnostics, this));
+      std::chrono::seconds(constants::defaults::kDiagnosticsTimerSec),
+      std::bind(&Autonomy::publishDiagnostics, this));
     RCLCPP_INFO(node_.get_logger(), "[outbound] /diagnostics");
   }
 
   if (speed_limit_enabled_) {
     speed_limit_sub_ = node_.create_subscription<std_msgs::msg::Float32>(
-      speed_limit_topic_, 10,
+      speed_limit_topic_, constants::defaults::kQueueDepth,
       std::bind(&Autonomy::onSpeedLimitTopic, this, std::placeholders::_1));
     RCLCPP_INFO(
       node_.get_logger(), "[outbound] speed limit %s", speed_limit_topic_.c_str());
@@ -617,7 +629,8 @@ bool Autonomy::navigateToPose(
     auto bt_future = bt_task.get_future();
     std::thread bt_thread(std::move(bt_task));
 
-    while (bt_future.wait_for(std::chrono::milliseconds(50)) !=
+    while (bt_future.wait_for(
+        std::chrono::milliseconds(constants::defaults::kBtWaitPollMs)) !=
       std::future_status::ready)
     {
       if (cancel_checker && cancel_checker()) {
@@ -741,10 +754,11 @@ bool Autonomy::waitForDirectNavigation(
   if (!following_path_.load()) {
     return false;
   }
-  const double limit_sec = timeout_sec > 0.0 ? timeout_sec : 300.0;
+  const double limit_sec = timeout_sec > 0.0 ? timeout_sec :
+    constants::defaults::kDirectNavDefaultTimeoutSec;
   const auto deadline = std::chrono::steady_clock::now() +
     std::chrono::duration<double>(limit_sec);
-  rclcpp::Rate rate(10);
+  rclcpp::Rate rate(constants::defaults::kSpinRateHz);
   while (rclcpp::ok() && following_path_.load()) {
     if (cancel_checker && cancel_checker()) {
       return false;
@@ -790,20 +804,21 @@ diagnostic_msgs::msg::DiagnosticArray Autonomy::buildDiagnostics() const
     return status;
   };
 
+  using namespace constants::msg;
   array.status.push_back(make_status(
-    "autonomy_ros/core", running_ && core_ != nullptr,
-    running_ ? "core running" : "core not running"));
+    kDiagCore, running_ && core_ != nullptr,
+    running_ ? kDiagCoreRunning : kDiagCoreNotRunning));
   array.status.push_back(make_status(
-    "autonomy_ros/odom", hasOdom(), hasOdom() ? "odometry available" : "no odometry"));
+    kDiagOdom, hasOdom(), hasOdom() ? kDiagOdomAvailable : kDiagOdomMissing));
   array.status.push_back(make_status(
-    "autonomy_ros/map",
+    kDiagMap,
     core_ && core_->map_server() && core_->map_server()->HasStaticMap(),
     (core_ && core_->map_server() && core_->map_server()->HasStaticMap()) ?
-    "static map loaded" : "static map missing"));
+    kDiagMapLoaded : kDiagMapMissing));
   array.status.push_back(make_status(
-    "autonomy_ros/controller",
+    kDiagController,
     controller_enabled_.load(),
-    controller_enabled_.load() ? "controller enabled" : "controller idle"));
+    controller_enabled_.load() ? kDiagControllerEnabled : kDiagControllerIdle));
 
   return array;
 }

@@ -149,10 +149,10 @@ sequenceDiagram
 | `autonomy.config_file` | `autonomy.lua` | 核心 Lua 入口 |
 | `autonomy.enable_bt_tasks` | true | 是否附着 `TaskScheduler` |
 | `autonomy.use_bt_navigation` | true | `navigateToPose` 走 BT；`false` 走 plan + TickFollowPath |
-| `autonomy.planner_id` | `""` | 空则用 PlannerServer 默认 |
-| `autonomy.controller_id` | `FollowPath` | 路径跟踪插件 ID |
-| `planner.global_frame` | `odom` | 规划/代价地图全局帧（仿真常用 `odom`，有 AMCL 用 `map`） |
-| `controller.goal_tolerance` | `0.15` | 到达容差（米） |
+| `autonomy.planner.planner_id` | `""` | 空则用 PlannerServer 默认 |
+| `autonomy.controller.controller_id` | `FollowPath` | 路径跟踪插件 ID |
+| `autonomy.planner.global_frame` | `odom` | 规划/代价地图全局帧（仿真常用 `odom`，有 AMCL 用 `map`） |
+| `autonomy.controller.goal_tolerance` | `0.15` | 到达容差（米） |
 
 ### Bridge / 出站
 

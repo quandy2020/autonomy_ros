@@ -10,6 +10,7 @@
 
 #include "autonomy/commsgs/map_msgs.hpp"
 #include "autonomy/map/map_server.hpp"
+#include "autonomy_ros/constants.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/trigger.hpp"
@@ -43,7 +44,7 @@ private:
   rclcpp::Node & node_;
   ::autonomy::map::MapServer * map_server_{nullptr};
   bool publish_map_{true};
-  std::string map_topic_{"map"};
+  std::string map_topic_{constants::topics::kMap};
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr map_pub_;

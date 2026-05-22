@@ -384,7 +384,7 @@ ros2 run autonomy_ros autonomy_cmd.py resume
 | 导航超时 | 增大 `--timeout` 或检查规划/地图/odom |
 | `Unknown pose 'xxx'` | `list-config` 检查 `poses` 是否定义 |
 | `guided_tour` 找不到文件 | `goal_file` 路径相对 **tasks.json 所在目录** |
-| 帧不一致 | `planner.global_frame` 与 pose 的 `frame` 一致（仿真常用 `odom`） |
+| 帧不一致 | `autonomy.planner.global_frame` 与 pose 的 `frame` 一致（仿真常用 `odom`） |
 
 ---
 

@@ -1,5 +1,7 @@
 #include "autonomy_ros/task/task_manager.hpp"
 
+#include "autonomy_ros/constants.hpp"
+
 #include <algorithm>
 #include <vector>
 
@@ -24,9 +26,12 @@ void TaskManager::start()
   node_.declare_parameter<float>("task.battery_percent", battery_percent_);
   battery_percent_ = static_cast<float>(node_.get_parameter("task.battery_percent").as_double());
 
-  status_pub_ = node_.create_publisher<autonomy_msgs::msg::TaskStatus>("autonomy/status", 10);
-  battery_pub_ = node_.create_publisher<autonomy_msgs::msg::BatteryStatus>("autonomy/battery", 10);
-  event_pub_ = node_.create_publisher<autonomy_msgs::msg::Event>("autonomy/events", 10);
+  status_pub_ = node_.create_publisher<autonomy_msgs::msg::TaskStatus>(
+    constants::topics::kTaskStatus, 10);
+  battery_pub_ = node_.create_publisher<autonomy_msgs::msg::BatteryStatus>(
+    constants::topics::kBatteryStatus, 10);
+  event_pub_ = node_.create_publisher<autonomy_msgs::msg::Event>(
+    constants::topics::kEvents, 10);
   status_timer_ = node_.create_wall_timer(
     std::chrono::milliseconds(200), std::bind(&TaskManager::publishStatus, this));
   RCLCPP_INFO(
