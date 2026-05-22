@@ -26,7 +26,9 @@
 | `/autonomy/status` | `autonomy_msgs/msg/TaskStatus` | 发布 ~5 Hz | 当前任务状态、进度、展点讲解 ID |
 | `/autonomy/events` | `autonomy_msgs/msg/Event` | 事件 | 到展点、导览开始/结束、急停、抢占等 |
 | `/autonomy/battery` | `autonomy_msgs/msg/BatteryStatus` | 发布 ~5 Hz | 电量（参数 `task.battery_percent`） |
-| `/initialpose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | 发布 | `SetInitialPose` 服务触发 |
+| `/init_pose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | 订阅 | RViz 重定位；转发到 `/initialpose` |
+| `/initialpose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | 发布 | `SetInitialPose` 服务或 `/init_pose` 触发 |
+| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | 订阅 | RViz 2D Goal Pose；启动导航任务 |
 
 ---
 
@@ -472,6 +474,68 @@
 2. 订阅 `/autonomy/status` 做状态栏，订阅 `/autonomy/events` 驱动播控。  
 3. 展厅场景优先使用 **`GuidedTour` + `ContinueTour`**，不要仅用 `NavigateThrough` 代替（无讲解语义）。  
 4. 馆员接管时发 **`Teleop`** 且 `preempt_other_tasks: true`，或先 `CancelTask`。  
+
+---
+
+## Python CLI（`autonomy_cmd.py`）
+
+完整使用说明见 **[autonomy_cmd.md](autonomy_cmd.md)**。以下为摘要。
+
+### 任务级配置 `tasks.json`
+
+在 `scripts/examples/tasks.json` 中集中定义：
+
+| 段 | 作用 |
+|----|------|
+| `defaults` | 默认 `frame`、`timeout`、`pause_between` 等 |
+| `poses` | 命名位姿（`home`、`point_a`…），任务中按名引用 |
+| `tasks` | 可复用任务：`navigate_pose` 支持 **`repeat`** 对同一 pose 重复导航 |
+| `missions` | 任务序列，按顺序执行多个 `tasks` 或内联步骤 |
+
+```bash
+export AUTONOMY_TASKS_CONFIG=/path/to/tasks.json   # 可选，省略 --config
+
+ros2 run autonomy_ros autonomy_cmd.py list-config
+ros2 run autonomy_ros autonomy_cmd.py run-pose point_a --repeat 5
+ros2 run autonomy_ros autonomy_cmd.py run-task goto_a_x3
+ros2 run autonomy_ros autonomy_cmd.py run-mission demo_patrol --feedback
+```
+
+`navigate_through` 任务可用 `"poses": ["point_a", "point_b", "home"]`；`guided_tour` 用 `"goal_file": "guided_tour.json"`（相对配置文件目录）。
+
+---
+
+`autonomy_ros` 提供统一脚本，运行时解析子命令与参数，对应 `CommandInterface` 全部 Action/Service：
+
+```bash
+ros2 run autonomy_ros autonomy_cmd.py --help
+ros2 run autonomy_ros autonomy_cmd.py navigate-pose --x 1.0 --y 0.5 --frame odom --feedback
+ros2 run autonomy_ros autonomy_cmd.py cancel --all
+ros2 run autonomy_ros autonomy_cmd.py guided-tour \
+  --goal-json $(ros2 pkg prefix autonomy_ros)/share/autonomy_ros/scripts/examples/guided_tour.json
+```
+
+| 子命令 | 接口 |
+|--------|------|
+| `navigate-pose` | Action `/autonomy/navigate_pose` |
+| `navigate-through` | Action `/autonomy/navigate_through`（`--goal-json`） |
+| `guided-tour` | Action `/autonomy/guided_tour`（`--goal-json`） |
+| `follow` | Action `/autonomy/follow` |
+| `dock` | Action `/autonomy/dock` |
+| `teleop` | Action `/autonomy/teleop` |
+| `cancel` | Service `/autonomy/cancel_task` |
+| `status` | Service `/autonomy/get_task_status` |
+| `pause` / `resume` | Service pause/resume |
+| `continue-tour` | Service `/autonomy/continue_tour` |
+| `skip-exhibit` | Service `/autonomy/skip_to_exhibit` |
+| `estop` | Service `/autonomy/trigger_estop` |
+| `set-initial-pose` | Service `/autonomy/set_initial_pose` |
+| `set-teleop-mode` | Service `/autonomy/set_teleop_mode` |
+| `list-docks` | Service `/autonomy/list_docks` |
+| `list-config` | 打印 `tasks.json` 中的 poses/tasks/missions |
+| `run-pose` | 对命名 pose 导航（`--repeat N`） |
+| `run-task` | 执行 `tasks` 中预定义任务 |
+| `run-mission` | 执行 `missions` 序列 |
 
 ---
 

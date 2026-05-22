@@ -167,11 +167,11 @@ Visualization Manager:
           Name: local_costmap
           Topic:
             Depth: 5
-            Durability Policy: Volatile
+            Durability Policy: Transient Local
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: ""
+            Value: /local_costmap
           Update Topic:
             Depth: 5
             Durability Policy: Volatile
@@ -217,14 +217,14 @@ Visualization Manager:
           Color Scheme: map
           Draw Behind: false
           Enabled: true
-          Name: gloabl_costmap
+          Name: global_costmap
           Topic:
             Depth: 5
-            Durability Policy: Volatile
+            Durability Policy: Transient Local
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: ""
+            Value: /global_costmap
           Update Topic:
             Depth: 5
             Durability Policy: Volatile
@@ -286,7 +286,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /initialpose
+        Value: /init_pose
     - Class: rviz_default_plugins/SetGoal
       Topic:
         Depth: 5

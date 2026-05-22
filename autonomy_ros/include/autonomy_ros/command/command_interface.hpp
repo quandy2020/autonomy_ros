@@ -17,17 +17,21 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
-#include "autonomy_ros/controller/controller.hpp"
-#include "autonomy_ros/planner/planner.hpp"
+#include "autonomy_ros/autonomy.hpp"
 #include "autonomy_ros/task/task_manager.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include "vision_msgs/msg/detection3_d_array.hpp"
 
 #include "autonomy_msgs/action/dock.hpp"
 #include "autonomy_msgs/action/follow.hpp"
@@ -54,13 +58,18 @@ namespace autonomy_ros::command
  * @class autonomy_ros::command::CommandInterface
  * @brief External API surface: autonomy_msgs actions, services, and motion execution
  *
- * Registers servers under autonomy/* on the parent node. Each action runs in a
+ * Registers action servers and services under the autonomy namespace on the parent node. Each action runs in a
  * detached thread; TaskManager + TaskMuxer ensure one logical owner. Planner
  * and Controller implement navigation; teleop disables Controller so external
  * /cmd_vel is not overwritten.
  *
  * Parameters: command.default_dock_id, command.waypoint_timeout_sec,
- * command.dock_x/y/w (see loadDocks).
+ * command.dock_x/y/w (see loadDocks), command.init_pose_topic,
+ * command.goal_pose_topic.
+ *
+ * Subscriptions:
+ * - init_pose (PoseWithCovarianceStamped): republished to /initialpose for localization
+ * - goal_pose (PoseStamped): starts a NavigatePose-style task (RViz 2D Goal Pose)
  */
 class CommandInterface
 {
@@ -69,15 +78,13 @@ public:
    * @brief Constructor for autonomy_ros::command::CommandInterface
    * @param node Parent node for servers, services and publishers
    * @param task_manager Shared task state used across all commands
-   * @param planner Planner invoked for navigation goals
-   * @param controller Controller enabled/disabled per task and safety state
+   * @param autonomy ROS facade to autonomy::system (navigation / control)
    */
   CommandInterface(
-    rclcpp::Node & node, task::TaskManager & task_manager,
-    planner::Planner & planner, controller::Controller & controller);
+    rclcpp::Node & node, task::TaskManager & task_manager, Autonomy & autonomy);
 
   /**
-   * @brief Register all autonomy/* action servers and services
+   * @brief Register all autonomy action servers and services
    */
   void start();
 
@@ -228,22 +235,60 @@ private:
    */
   void executeTeleop(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Teleop>> handle);
 
+  /**
+   * @brief init_pose topic: forward to /initialpose (same as SetInitialPose service)
+   */
+  void onInitPose(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
+  /**
+   * @brief goal_pose topic: plan and run navigation task (RViz 2D Goal Pose)
+   */
+  void onGoalPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+
+  /**
+   * @brief Background worker for goal_pose topic navigation
+   */
+  void runTopicGoalPose(geometry_msgs::msg::PoseStamped goal, const std::string & task_id);
+
+  void startFollowTargetTracking();
+  void onFollowDetections(const vision_msgs::msg::Detection3DArray::SharedPtr msg);
+  std::optional<geometry_msgs::msg::PoseStamped> lookupFollowTargetPose(
+    const std::string & target_id) const;
+  bool followTargetTrackingAvailable() const;
+  static geometry_msgs::msg::PoseStamped poseFromDetection(
+    const vision_msgs::msg::Detection3D & detection);
+
   rclcpp::Node & node_;
   task::TaskManager & task_manager_;
-  planner::Planner & planner_;
-  controller::Controller & controller_;
+  Autonomy & autonomy_;
 
-  /** @brief Feeds TaskManager.current_pose from /odom */
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-  /** @brief SetInitialPose service publishes here (AMCL-compatible topic name) */
+  // RViz / external init_pose (republished to `/initialpose` topic)
+  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr init_pose_sub_;
+
+  // RViz 2D Goal Pose (from `/goal_pose` topic)
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
+
+  // SetInitialPose service and init_pose callback publish to `/initialpose` topic
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_pub_;
 
-  /** @brief Charging stations from parameters (ListDocks) */
+  std::string init_pose_topic_{"init_pose"};
+  std::string goal_pose_topic_{"goal_pose"};
+
+  // Charging stations from parameters (ListDocks)
   std::vector<autonomy_msgs::msg::DockStation> docks_;
-  /** @brief Default dock_id for tour-complete and low-battery dock */
+
+  // Default dock_id for tour-complete and low-battery dock
   std::string default_dock_id_{"dock_main"};
-  /** @brief Per-waypoint navigation timeout (command.waypoint_timeout_sec) */
+
+  // Per-waypoint navigation timeout (command.waypoint_timeout_sec)
   double waypoint_timeout_sec_{120.0};
+
+  bool follow_detections_enabled_{true};
+  std::string follow_detections_topic_{"/detections_3d"};
+  rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr follow_detections_sub_;
+  mutable std::mutex follow_mutex_;
+  std::unordered_map<std::string, geometry_msgs::msg::PoseStamped> follow_targets_;
+  rclcpp::Time follow_last_update_{0, 0, RCL_ROS_TIME};
 
   rclcpp_action::Server<NavigatePose>::SharedPtr navigate_pose_server_;
   rclcpp_action::Server<NavigateThrough>::SharedPtr navigate_through_server_;

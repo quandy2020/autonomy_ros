@@ -11,7 +11,7 @@
 | 能力 | 说明 |
 |------|------|
 | 仿真 | Gazebo 单台 TB3 Waffle、激光、里程计、RealSense D435i |
-| 导航栈（骨架） | map / planner / controller / visualization |
+| 导航栈 | `Autonomy` 门面 + 核心 `AutonomyNode` + 可选 BT `TaskScheduler` |
 | 对外指令 | `autonomy_msgs` 的 Action / Service / Topic |
 | 展厅导览 | `GuidedTour`：多展点 + 讲解 ID + 等待观众 |
 
@@ -26,18 +26,17 @@ autonomy_ros/                    # 仓库根（colcon workspace 的 src 目录�
 │   └── README.md
 ├── autonomy_ros/                # 主功能包
 │   ├── include/autonomy_ros/
+│   │   ├── autonomy.hpp          # 唯一核心入口
 │   │   ├── autonomy_node.hpp
-│   │   ├── task/task_manager.hpp
 │   │   ├── command/command_interface.hpp
-│   │   ├── map/map_manager.hpp
-│   │   ├── planner/planner.hpp
-│   │   ├── controller/controller.hpp
+│   │   ├── task/task_manager.hpp
 │   │   └── visualization/visualizer.hpp
+│   ├── docs/architecture.md
 │   ├── src/                     # 与 include 对应实现
 │   ├── launch/
 │   │   ├── tb3_simulator.launch.py
 │   │   └── autonomy_stack.launch.py
-│   ├── config/autonomy_params.yaml
+│   ├── configs/autonomy_params.yaml
 │   ├── rviz/autonomy.rviz
 │   ├── configs/                 # ros_gz_bridge
 │   ├── worlds/ urdf/ models/
@@ -49,48 +48,29 @@ autonomy_ros/                    # 仓库根（colcon workspace 的 src 目录�
 
 ## 软件架构
 
+详细分层、数据流与 BT 附着说明见 **[autonomy_ros/docs/architecture.md](autonomy_ros/docs/architecture.md)**。
+
 ```mermaid
 flowchart TB
-  subgraph external [外部系统]
-    App[App / 中控 / 播控]
-  end
-  subgraph command [command]
-    AS[Action Server]
-    SS[Service]
-  end
-  subgraph task [task]
-    TM[TaskManager]
-  end
-  subgraph stack [自主栈]
-    PL[planner]
-    CT[controller]
-    MP[map]
-    VZ[visualization]
-  end
-  subgraph sim [Gazebo + bridge]
-    GZ[gz sim]
-    TB3[TurtleBot3]
-  end
-  App --> AS
-  App --> SS
-  AS --> TM
-  SS --> TM
-  TM --> PL
-  TM --> CT
-  PL -->|plan| CT
-  CT -->|cmd_vel| TB3
-  GZ --> TB3
-  TM -->|status events| App
+  App[App / RViz]
+  CI[CommandInterface]
+  A[Autonomy 门面]
+  Core[system::AutonomyNode]
+  TS[TaskScheduler BT]
+  App --> CI
+  CI --> A
+  A --> Core
+  A --> TS
+  TS --> Core
+  A -->|cmd_vel plan| TB3[TurtleBot3 / Gazebo]
 ```
 
 | 模块 | 职责 |
 |------|------|
-| **command** | 响应 `autonomy_msgs` 全部 Action / Service |
-| **task** | 任务状态、暂停/急停、发布 `autonomy/status` 与 `autonomy/events` |
-| **planner** | 目标点 → 直线路径 `/plan` |
-| **controller** | 路径跟踪 → `/cmd_vel` |
-| **map** | 订阅 `/map` |
-| **visualization** | RViz Marker `/visualization/markers` |
+| **Autonomy** | 唯一核心入口：配置、`AutonomyNode`、ROS 桥接、附着 `TaskScheduler` |
+| **command** | `autonomy_msgs` Action / Service / `init_pose` / `goal_pose` |
+| **task** | 任务状态、`autonomy/status`、`autonomy/events` |
+| **visualization** | RViz Marker |
 
 ---
 
@@ -115,7 +95,7 @@ sudo apt install -y \
 ```bash
 cd /path/to/your_ws
 # 将本仓库置于 src/ 下，例如 src/autonomy_ros
-colcon build --symlink-install --packages-up-to autonomy_ros
+colcon build --symlink-install --packages-up-to autonomy autonomy_ros
 source install/setup.bash
 ```
 
@@ -141,15 +121,14 @@ ros2 launch autonomy_ros tb3_simulator.launch.py headless:=True
 
 ### 模块开关
 
-编辑 `autonomy_ros/config/autonomy_params.yaml`：
+编辑 `autonomy_ros/configs/autonomy_params.yaml`：
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| `enable_map` | true | 订阅地图 |
-| `enable_planner` | true | 路径规划 |
-| `enable_controller` | true | 速度控制 |
+| `enable_autonomy` | true | 启动核心栈（`Autonomy`） |
 | `enable_visualization` | true | RViz 标记 |
-| `enable_command` | true | 对外 Action/Srv（需 planner+controller） |
+| `enable_command` | true | 对外 Action/Srv（需 `enable_autonomy`） |
+| `autonomy.use_bt_navigation` | true | `NavigatePose` 使用行为树（共享 planner/controller） |
 
 ---
 

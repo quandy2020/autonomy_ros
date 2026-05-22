@@ -3,20 +3,36 @@
 <package format="3">
   <name>autonomy_ros</name>
   <version>0.0.0</version>
-  <description>TurtleBot3 simulation with modular map, planner, controller and visualization</description>
+  <description>ROS 2 bridge to the autonomy navigation core (map, TF, sensors, planning, control)</description>
   <maintainer email="duyongquan3@jd.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>ament_index_cpp</depend>
+  <depend>autonomy</depend>
   <depend>rclcpp</depend>
   <depend>nav_msgs</depend>
+  <depend>map_msgs</depend>
+  <depend>octomap_msgs</depend>
+  <depend>grid_map_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>visualization_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>vision_msgs</depend>
+  <depend>stereo_msgs</depend>
+  <depend>shape_msgs</depend>
+  <depend>pcl_msgs</depend>
   <depend>autonomy_msgs</depend>
   <depend>rclcpp_action</depend>
   <depend>builtin_interfaces</depend>
+  <depend>tf2_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>std_msgs</depend>
 
+  <exec_depend>rclpy</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
