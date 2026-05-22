@@ -9,15 +9,18 @@
 #include "autonomy_msgs/msg/task_state.hpp"
 #include "autonomy_msgs/msg/task_type.hpp"
 #include "autonomy_msgs/msg/waypoint_status.hpp"
+#include "autonomy/commsgs/builtin_interfaces.hpp"
+#include "autonomy/commsgs/geometry_msgs.hpp"
+#include "autonomy/commsgs/planning_msgs.hpp"
+#include "autonomy_ros/conversions/conversions.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 
 namespace autonomy_ros::command
 {
 
 CommandInterface::CommandInterface(
-  rclcpp::Node & node, task::TaskManager & task_manager,
-  planner::Planner & planner, controller::Controller & controller)
-: node_(node), task_manager_(task_manager), planner_(planner), controller_(controller)
+  rclcpp::Node & node, task::TaskManager & task_manager, Autonomy & autonomy)
+: node_(node), task_manager_(task_manager), autonomy_(autonomy)
 {
   loadParameters();
   loadDocks();
@@ -27,8 +30,19 @@ void CommandInterface::loadParameters()
 {
   node_.declare_parameter<std::string>("command.default_dock_id", default_dock_id_);
   node_.declare_parameter<double>("command.waypoint_timeout_sec", waypoint_timeout_sec_);
+  node_.declare_parameter<std::string>("command.init_pose_topic", init_pose_topic_);
+  node_.declare_parameter<std::string>("command.goal_pose_topic", goal_pose_topic_);
+  node_.declare_parameter<bool>("command.enable_follow_detections", follow_detections_enabled_);
+  node_.declare_parameter<std::string>(
+    "command.follow_detections_topic", follow_detections_topic_);
   default_dock_id_ = node_.get_parameter("command.default_dock_id").as_string();
   waypoint_timeout_sec_ = node_.get_parameter("command.waypoint_timeout_sec").as_double();
+  init_pose_topic_ = node_.get_parameter("command.init_pose_topic").as_string();
+  goal_pose_topic_ = node_.get_parameter("command.goal_pose_topic").as_string();
+  follow_detections_enabled_ =
+    node_.get_parameter("command.enable_follow_detections").as_bool();
+  follow_detections_topic_ =
+    node_.get_parameter("command.follow_detections_topic").as_string();
 }
 
 void CommandInterface::loadDocks()
@@ -52,13 +66,23 @@ void CommandInterface::start()
 {
   const auto node = node_.shared_from_this();
 
-  odom_sub_ = node_.create_subscription<nav_msgs::msg::Odometry>(
-    "odom", 10,
-    [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
+  autonomy_.addOdomListener([this](const nav_msgs::msg::Odometry::SharedPtr msg) {
+    if (msg) {
       task_manager_.updateOdom(*msg);
-    });
+    }
+  });
+
   initial_pose_pub_ =
     node_.create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("initialpose", 1);
+
+  init_pose_sub_ = node_.create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+    init_pose_topic_, 10,
+    std::bind(&CommandInterface::onInitPose, this, std::placeholders::_1));
+  goal_pose_sub_ = node_.create_subscription<geometry_msgs::msg::PoseStamped>(
+    goal_pose_topic_, 10,
+    std::bind(&CommandInterface::onGoalPose, this, std::placeholders::_1));
+
+  startFollowTargetTracking();
 
   auto cancel_cb = [this](auto &&) { return handleCancel(); };
 
@@ -128,7 +152,7 @@ void CommandInterface::start()
     [this](
       const std::shared_ptr<autonomy_msgs::srv::CancelTask::Request> req,
       std::shared_ptr<autonomy_msgs::srv::CancelTask::Response> res) {
-      controller_.setEnabled(false);
+      autonomy_.setControllerEnabled(false);
       res->success = task_manager_.cancelTask(
         req->task_id, req->cancel_all, req->task_type.value);
       res->status = task_manager_.getStatus();
@@ -154,7 +178,7 @@ void CommandInterface::start()
     [this](
       const std::shared_ptr<autonomy_msgs::srv::PauseTask::Request> req,
       std::shared_ptr<autonomy_msgs::srv::PauseTask::Response> res) {
-      controller_.setEnabled(false);
+      autonomy_.setControllerEnabled(false);
       res->success = task_manager_.pauseTask(req->reason);
       res->status = task_manager_.getStatus();
       res->error = res->success ?
@@ -172,7 +196,7 @@ void CommandInterface::start()
       if (res->success && !task_manager_.isEstop()) {
         const auto st = task_manager_.getStatus();
         if (st.task_type.value != autonomy_msgs::msg::TaskType::TELEOP) {
-          controller_.setEnabled(true);
+          autonomy_.setControllerEnabled(true);
         }
       }
       res->status = task_manager_.getStatus();
@@ -210,7 +234,7 @@ void CommandInterface::start()
       const std::shared_ptr<autonomy_msgs::srv::TriggerEmergencyStop::Request> req,
       std::shared_ptr<autonomy_msgs::srv::TriggerEmergencyStop::Response> res) {
       if (req->engage) {
-        controller_.setEnabled(false);
+        autonomy_.setControllerEnabled(false);
         task_manager_.triggerEstop(req->reason);
       } else {
         task_manager_.releaseEstop();
@@ -219,7 +243,7 @@ void CommandInterface::start()
           if (st.task_type.value != autonomy_msgs::msg::TaskType::TELEOP &&
             st.task_state.value == autonomy_msgs::msg::TaskState::RUNNING)
           {
-            controller_.setEnabled(true);
+            autonomy_.setControllerEnabled(true);
           }
         }
       }
@@ -250,16 +274,16 @@ void CommandInterface::start()
           res->success = false;
           res->error = task_manager_.makeError(autonomy_msgs::msg::Error::NOT_AVAILABLE, "busy");
         } else {
-          controller_.setEnabled(false);
+          autonomy_.setControllerEnabled(false);
           res->success = true;
           res->error = task_manager_.makeError(autonomy_msgs::msg::Error::NONE, "");
         }
       } else {
         task_manager_.cancelTask("teleop_srv", false);
         if (!task_manager_.isEstop() && !task_manager_.isPaused() && task_manager_.hasActiveTask()) {
-          controller_.setEnabled(true);
+          autonomy_.setControllerEnabled(true);
         } else if (!task_manager_.hasActiveTask()) {
-          controller_.setEnabled(false);
+          autonomy_.setControllerEnabled(false);
         }
         res->success = true;
         res->error = task_manager_.makeError(autonomy_msgs::msg::Error::NONE, "");
@@ -278,7 +302,79 @@ void CommandInterface::start()
       res->error = task_manager_.makeError(autonomy_msgs::msg::Error::NONE, "");
     });
 
-  RCLCPP_INFO(node_.get_logger(), "[command] external action/srv interface ready under autonomy/*");
+  RCLCPP_INFO(
+    node_.get_logger(),
+    "[command] external action/srv ready; topics init_pose=%s goal_pose=%s",
+    init_pose_topic_.c_str(), goal_pose_topic_.c_str());
+}
+
+void CommandInterface::onInitPose(
+  const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+{
+  if (!msg) {
+    return;
+  }
+  initial_pose_pub_->publish(*msg);
+  RCLCPP_INFO(
+    node_.get_logger(), "[command] init_pose -> /initialpose (%.2f, %.2f)",
+    msg->pose.pose.position.x, msg->pose.pose.position.y);
+}
+
+void CommandInterface::onGoalPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+{
+  if (!msg) {
+    return;
+  }
+  if (task_manager_.isEstop()) {
+    RCLCPP_WARN(node_.get_logger(), "[command] reject goal_pose: estop active");
+    return;
+  }
+  constexpr const char * kTopicTaskId = "goal_pose";
+  if (!task_manager_.canBeginTask(
+      kTopicTaskId, autonomy_msgs::msg::TaskType::NAVIGATION, true))
+  {
+    RCLCPP_WARN(node_.get_logger(), "[command] reject goal_pose: another task is running");
+    return;
+  }
+  geometry_msgs::msg::PoseStamped goal = *msg;
+  std::thread{&CommandInterface::runTopicGoalPose, this, std::move(goal), std::string(kTopicTaskId)}
+    .detach();
+  RCLCPP_INFO(
+    node_.get_logger(), "[command] goal_pose accepted (%.2f, %.2f)",
+    msg->pose.position.x, msg->pose.position.y);
+}
+
+void CommandInterface::runTopicGoalPose(
+  geometry_msgs::msg::PoseStamped goal, const std::string & task_id)
+{
+  if (!task_manager_.beginTask(task_id, autonomy_msgs::msg::TaskType::NAVIGATION, "", true)) {
+    RCLCPP_WARN(node_.get_logger(), "[command] goal_pose task start failed");
+    return;
+  }
+  autonomy_.setControllerEnabled(true);
+  const bool ok = autonomy_.navigateToPose(
+    goal, [&]() { return !task_manager_.ownsTask(task_id); });
+  if (wasPreempted(task_id)) {
+    task_manager_.endTask(
+      autonomy_msgs::msg::TaskState::CANCELED,
+      task_manager_.makeError(autonomy_msgs::msg::Error::TASK_CONFLICT, "preempted"),
+      task_id);
+  } else if (ok) {
+    task_manager_.endTask(
+      autonomy_msgs::msg::TaskState::SUCCEEDED,
+      task_manager_.makeError(autonomy_msgs::msg::Error::NONE, "ok"),
+      task_id);
+    RCLCPP_INFO(node_.get_logger(), "[command] goal_pose navigation succeeded");
+  } else {
+    task_manager_.endTask(
+      autonomy_msgs::msg::TaskState::FAILED,
+      task_manager_.makeError(autonomy_msgs::msg::Error::TIMEOUT, "goal_pose"),
+      task_id);
+    RCLCPP_WARN(node_.get_logger(), "[command] goal_pose navigation failed or timed out");
+  }
+  if (!task_manager_.hasActiveTask() || task_manager_.isPaused() || task_manager_.isEstop()) {
+    autonomy_.setControllerEnabled(false);
+  }
 }
 
 rclcpp_action::GoalResponse CommandInterface::handleGoal(
@@ -297,20 +393,25 @@ rclcpp_action::GoalResponse CommandInterface::handleGoal(
 
 rclcpp_action::CancelResponse CommandInterface::handleCancel()
 {
-  controller_.setEnabled(false);
+  autonomy_.setControllerEnabled(false);
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
 void CommandInterface::applySpeedLimit(float max_speed)
 {
-  if (max_speed > 0.0f) {
-    controller_.setMaxLinearVel(static_cast<double>(max_speed));
+  if (max_speed <= 0.0f) {
+    return;
   }
+  ::autonomy::commsgs::planning_msgs::SpeedLimit limit;
+  limit.header.stamp = ::autonomy::commsgs::builtin_interfaces::Time::Now();
+  limit.percentage = false;
+  limit.speed_limit = static_cast<double>(max_speed);
+  autonomy_.applyControllerSpeedLimit(limit);
 }
 
 void CommandInterface::restoreSpeedLimit()
 {
-  controller_.setMaxLinearVel(0.0);
+  autonomy_.clearControllerSpeedLimit();
 }
 
 double CommandInterface::distanceToPose(const geometry_msgs::msg::Pose & goal) const
@@ -333,35 +434,15 @@ bool CommandInterface::navigateToGoal(
   double timeout_sec,
   const std::function<bool()> & extra_cancel)
 {
-  planner_.setGoal(goal_pose);
-  const auto deadline = std::chrono::steady_clock::now() +
-    std::chrono::duration<double>(timeout_sec);
-  bool reached = false;
-  bool timed_out = false;
-  spinUntilCancel(
-    task_id,
-    [&]() {
-      if (extra_cancel && extra_cancel()) {
-        return true;
-      }
-      if (std::chrono::steady_clock::now() > deadline) {
-        timed_out = true;
-        return true;
-      }
-      return reached;
-    },
-    [&]() {
-      if (reachedPose(goal_pose.pose, tolerance)) {
-        reached = true;
-      }
-    });
-  if (wasPreempted(task_id)) {
-    return false;
-  }
-  if (timed_out && !reached) {
-    return false;
-  }
-  return reached;
+  (void)tolerance;
+  auto cancel = [&]() {
+    if (wasPreempted(task_id)) {
+      return true;
+    }
+    return extra_cancel && extra_cancel();
+  };
+  autonomy_.setControllerEnabled(true);
+  return autonomy_.navigateToPose(goal_pose, cancel, timeout_sec);
 }
 
 bool CommandInterface::runDock(
@@ -392,7 +473,7 @@ bool CommandInterface::runDock(
     staging_pose = goal.dock.staging_pose;
   }
 
-  const double tol = controller_.goalTolerance();
+  const double tol = autonomy_.goalTolerance();
   if (goal.navigate_to_staging_pose) {
     if (!navigateToGoal(task_id, staging_pose, tol, goal.max_staging_time, cancel_check)) {
       result.error = task_manager_.makeError(
@@ -401,7 +482,7 @@ bool CommandInterface::runDock(
     }
   }
 
-  planner_.setGoal(dock_pose);
+  autonomy_.setNavigationGoal(dock_pose);
   bool docked = false;
   spinUntilCancel(
     task_id,
@@ -464,6 +545,13 @@ void CommandInterface::executeNavigatePose(
   const auto goal = handle->get_goal();
   const auto & task_id = goal->task_id;
   auto result = std::make_shared<NavigatePose::Result>();
+  if (!goal->behavior_tree.empty()) {
+    result->error = task_manager_.makeError(
+      autonomy_msgs::msg::Error::NAV_GOAL_INVALID,
+      "per-action behavior_tree is not supported; set default BT in tasks lua");
+    handle->abort(result);
+    return;
+  }
   if (!task_manager_.beginTask(task_id, autonomy_msgs::msg::TaskType::NAVIGATION)) {
     result->error = task_manager_.makeError(
       autonomy_msgs::msg::Error::NOT_AVAILABLE, "estop or busy");
@@ -471,14 +559,13 @@ void CommandInterface::executeNavigatePose(
     return;
   }
   applySpeedLimit(goal->max_speed);
-  controller_.setEnabled(true);
-  const double tol = controller_.goalTolerance();
+  autonomy_.setControllerEnabled(true);
   const auto nav_start = std::chrono::steady_clock::now();
   const bool ok = navigateToGoal(
-    task_id, goal->goal, tol, waypoint_timeout_sec_,
+    task_id, goal->goal, autonomy_.goalTolerance(), waypoint_timeout_sec_,
     [&]() { return handle->is_canceling(); });
   restoreSpeedLimit();
-  if (auto path = planner_.lastPath()) {
+  if (auto path = autonomy_.lastPath()) {
     result->path = *path;
   }
   const auto nav_dur = std::chrono::steady_clock::now() - nav_start;
@@ -509,6 +596,13 @@ void CommandInterface::executeNavigateThrough(
 {
   const auto goal = handle->get_goal();
   auto result = std::make_shared<NavigateThrough::Result>();
+  if (!goal->behavior_tree.empty()) {
+    result->error = task_manager_.makeError(
+      autonomy_msgs::msg::Error::NAV_GOAL_INVALID,
+      "per-action behavior_tree is not supported; set default BT in tasks lua");
+    handle->abort(result);
+    return;
+  }
   if (goal->waypoints.empty()) {
     result->error = task_manager_.makeError(
       autonomy_msgs::msg::Error::WP_NO_VALID_WAYPOINTS, "empty waypoints");
@@ -521,8 +615,8 @@ void CommandInterface::executeNavigateThrough(
     handle->abort(result);
     return;
   }
-  controller_.setEnabled(true);
-  const double tol = controller_.goalTolerance();
+  autonomy_.setControllerEnabled(true);
+  const double tol = autonomy_.goalTolerance();
   uint32_t completed = 0;
   try {
     for (uint32_t loop = 0; loop < goal->number_of_loops; ++loop) {
@@ -610,7 +704,7 @@ void CommandInterface::executeFollow(
     return;
   }
   applySpeedLimit(goal->target.max_linear_speed);
-  controller_.setEnabled(true);
+  autonomy_.setControllerEnabled(true);
   const auto start = std::chrono::steady_clock::now();
   const double follow_dist = goal->target.follow_distance;
   try {
@@ -623,14 +717,27 @@ void CommandInterface::executeFollow(
         fb->current_pose = task_manager_.getStatus().current_pose;
         fb->state.value = autonomy_msgs::msg::TaskState::RUNNING;
         if (goal->target.use_target_pose) {
-          planner_.setGoal(goal->target.target_pose);
+          autonomy_.setNavigationGoal(goal->target.target_pose);
           const double d = distanceToPose(goal->target.target_pose.pose);
           fb->distance_to_target = static_cast<float>(d);
           if (d <= follow_dist) {
             throw std::runtime_error("reached");
           }
-        } else {
-          fb->distance_to_target = 0.0f;
+        } else if (goal->target.use_target_id) {
+          const auto target_pose = lookupFollowTargetPose(goal->target.target_id);
+          if (!target_pose) {
+            if (!followTargetTrackingAvailable()) {
+              throw std::runtime_error("target_lost");
+            }
+            fb->distance_to_target = -1.0f;
+          } else {
+            autonomy_.setNavigationGoal(*target_pose);
+            const double d = distanceToPose(target_pose->pose);
+            fb->distance_to_target = static_cast<float>(d);
+            if (d <= follow_dist) {
+              throw std::runtime_error("reached");
+            }
+          }
         }
         handle->publish_feedback(fb);
         if (goal->time_allowance.sec > 0 || goal->time_allowance.nanosec > 0) {
@@ -645,6 +752,14 @@ void CommandInterface::executeFollow(
   } catch (const std::runtime_error & e) {
     restoreSpeedLimit();
     const std::string what = e.what();
+    if (what == "target_lost") {
+      result->error = task_manager_.makeError(
+        autonomy_msgs::msg::Error::FOLLOW_TARGET_LOST,
+        "detection stream missing or target id not found");
+      task_manager_.endTask(autonomy_msgs::msg::TaskState::FAILED, result->error, task_id);
+      handle->abort(result);
+      return;
+    }
     if (what == "timeout" || what == "reached") {
       const auto elapsed = std::chrono::steady_clock::now() - start;
       result->follow_duration.sec = static_cast<int32_t>(
@@ -667,13 +782,6 @@ void CommandInterface::executeFollow(
     result->error = task_manager_.makeError(autonomy_msgs::msg::Error::NONE, "canceled");
     task_manager_.endTask(autonomy_msgs::msg::TaskState::CANCELED, result->error, task_id);
     handle->canceled(result);
-    return;
-  }
-  if (goal->target.use_target_id) {
-    result->error = task_manager_.makeError(
-      autonomy_msgs::msg::Error::FOLLOW_TARGET_LOST, "target_id tracking not implemented");
-    task_manager_.endTask(autonomy_msgs::msg::TaskState::FAILED, result->error, task_id);
-    handle->abort(result);
     return;
   }
   result->follow_duration.sec = 0;
@@ -701,8 +809,8 @@ void CommandInterface::executeGuidedTour(
   }
   task_manager_.publishEvent(autonomy_msgs::msg::Event::TOUR_STARTED, goal->tour_name);
   applySpeedLimit(goal->cruise_speed);
-  controller_.setEnabled(true);
-  const double tol = controller_.goalTolerance();
+  autonomy_.setControllerEnabled(true);
+  const double tol = autonomy_.goalTolerance();
   const auto tour_start = std::chrono::steady_clock::now();
 
   std::vector<std::string> exhibit_ids;
@@ -831,7 +939,7 @@ void CommandInterface::executeGuidedTour(
       dock_goal.dock_id = default_dock_id_;
       autonomy_msgs::action::Dock::Result dock_result;
       if (task_manager_.beginTask(dock_goal.task_id, autonomy_msgs::msg::TaskType::DOCK)) {
-        controller_.setEnabled(true);
+        autonomy_.setControllerEnabled(true);
         task_manager_.publishEvent(autonomy_msgs::msg::Event::DOCK_STARTED);
         if (runDock(dock_goal.task_id, dock_goal, dock_result, []() { return false; })) {
           task_manager_.publishEvent(autonomy_msgs::msg::Event::DOCK_COMPLETED);
@@ -875,7 +983,7 @@ void CommandInterface::executeDock(
     return;
   }
   task_manager_.publishEvent(autonomy_msgs::msg::Event::DOCK_STARTED);
-  controller_.setEnabled(true);
+  autonomy_.setControllerEnabled(true);
   if (runDock(task_id, *goal, *result, [&]() { return handle->is_canceling(); })) {
     task_manager_.publishEvent(autonomy_msgs::msg::Event::DOCK_COMPLETED);
     task_manager_.endTask(autonomy_msgs::msg::TaskState::SUCCEEDED, result->error, task_id);
@@ -908,7 +1016,7 @@ void CommandInterface::executeTeleop(
     handle->abort(result);
     return;
   }
-  controller_.setEnabled(false);
+  autonomy_.setControllerEnabled(false);
   const auto start = std::chrono::steady_clock::now();
   try {
     spinUntilCancel(
@@ -959,6 +1067,103 @@ void CommandInterface::executeTeleop(
   result->error = task_manager_.makeError(autonomy_msgs::msg::Error::NONE, "ok");
   task_manager_.endTask(autonomy_msgs::msg::TaskState::SUCCEEDED, result->error, task_id);
   handle->succeed(result);
+}
+
+void CommandInterface::startFollowTargetTracking()
+{
+  if (!follow_detections_enabled_) {
+    RCLCPP_INFO(node_.get_logger(), "[command] follow detections disabled");
+    return;
+  }
+  follow_detections_sub_ = node_.create_subscription<vision_msgs::msg::Detection3DArray>(
+    follow_detections_topic_, 10,
+    std::bind(&CommandInterface::onFollowDetections, this, std::placeholders::_1));
+  RCLCPP_INFO(
+    node_.get_logger(), "[command] follow detections %s", follow_detections_topic_.c_str());
+}
+
+geometry_msgs::msg::PoseStamped CommandInterface::poseFromDetection(
+  const vision_msgs::msg::Detection3D & detection)
+{
+  geometry_msgs::msg::PoseStamped pose;
+  pose.header = detection.header;
+  if (!detection.results.empty()) {
+    pose.pose = detection.results.front().pose.pose;
+    return pose;
+  }
+  pose.pose = detection.bbox.center;
+  return pose;
+}
+
+void CommandInterface::onFollowDetections(
+  const vision_msgs::msg::Detection3DArray::SharedPtr msg)
+{
+  if (!msg) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(follow_mutex_);
+  follow_last_update_ = node_.now();
+  for (const auto & det : msg->detections) {
+    auto pose = poseFromDetection(det);
+    if (pose.header.frame_id.empty()) {
+      continue;
+    }
+    if (!det.id.empty()) {
+      follow_targets_[det.id] = pose;
+    }
+    for (const auto & hyp : det.results) {
+      if (!hyp.hypothesis.class_id.empty()) {
+        follow_targets_[hyp.hypothesis.class_id] = pose;
+      }
+    }
+  }
+}
+
+bool CommandInterface::followTargetTrackingAvailable() const
+{
+  std::lock_guard<std::mutex> lock(follow_mutex_);
+  if (follow_last_update_.nanoseconds() == 0) {
+    return false;
+  }
+  return (node_.now() - follow_last_update_).seconds() < 2.0;
+}
+
+std::optional<geometry_msgs::msg::PoseStamped> CommandInterface::lookupFollowTargetPose(
+  const std::string & target_id) const
+{
+  if (target_id.empty()) {
+    return std::nullopt;
+  }
+  geometry_msgs::msg::PoseStamped pose;
+  {
+    std::lock_guard<std::mutex> lock(follow_mutex_);
+    const auto it = follow_targets_.find(target_id);
+    if (it == follow_targets_.end()) {
+      return std::nullopt;
+    }
+    pose = it->second;
+  }
+
+  const auto & global_frame = autonomy_.globalFrame();
+  if (pose.header.frame_id.empty() || pose.header.frame_id == global_frame) {
+    pose.header.frame_id = global_frame;
+    return pose;
+  }
+
+  auto * planner = autonomy_.core().planner_server();
+  if (!planner) {
+    return pose;
+  }
+  auto wrapper = planner->GetCostmapWrapper();
+  if (!wrapper) {
+    return pose;
+  }
+  auto input = conversions::fromRos(pose);
+  ::autonomy::commsgs::geometry_msgs::PoseStamped transformed;
+  if (wrapper->transformPoseToGlobalFrame(input, transformed)) {
+    return conversions::toRos(transformed);
+  }
+  return pose;
 }
 
 }  // namespace autonomy_ros::command

@@ -14,11 +14,11 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('autonomy_ros')
-    params_file = os.path.join(pkg_share, 'config', 'autonomy_params.yaml')
+    params_file = os.path.join(pkg_share, 'configs', 'autonomy_params.yaml')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_rviz = LaunchConfiguration('use_rviz')
-    enable_controller = LaunchConfiguration('enable_controller')
+    enable_autonomy = LaunchConfiguration('enable_autonomy')
 
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time', default_value='true',
@@ -26,9 +26,9 @@ def generate_launch_description():
     declare_use_rviz = DeclareLaunchArgument(
         'use_rviz', default_value='true',
         description='Start RViz2')
-    declare_enable_controller = DeclareLaunchArgument(
-        'enable_controller', default_value='true',
-        description='Enable cmd_vel output from controller')
+    declare_enable_autonomy = DeclareLaunchArgument(
+        'enable_autonomy', default_value='true',
+        description='Start autonomy core (map/plan/control via autonomy_ros::Autonomy)')
 
     simulator = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -46,7 +46,7 @@ def generate_launch_description():
             params_file,
             {
                 'use_sim_time': use_sim_time,
-                'enable_controller': enable_controller,
+                'enable_autonomy': enable_autonomy,
             },
         ],
     )
@@ -63,7 +63,7 @@ def generate_launch_description():
     return LaunchDescription([
         declare_use_sim_time,
         declare_use_rviz,
-        declare_enable_controller,
+        declare_enable_autonomy,
         simulator,
         autonomy_node,
         rviz,

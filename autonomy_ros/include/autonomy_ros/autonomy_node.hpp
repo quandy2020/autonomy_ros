@@ -17,10 +17,8 @@
 
 #include <memory>
 
+#include "autonomy_ros/autonomy.hpp"
 #include "autonomy_ros/command/command_interface.hpp"
-#include "autonomy_ros/controller/controller.hpp"
-#include "autonomy_ros/map/map_manager.hpp"
-#include "autonomy_ros/planner/planner.hpp"
 #include "autonomy_ros/task/task_manager.hpp"
 #include "autonomy_ros/visualization/visualizer.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -30,42 +28,30 @@ namespace autonomy_ros
 
 /**
  * @class autonomy_ros::AutonomyNode
- * @brief Root ROS 2 node that composes the exhibition-robot autonomy stack
+ * @brief autonomy_ros 包根节点
  *
- * Wires optional submodules (map, planner, controller, visualization, command)
- * according to boolean parameters declared on the node. TaskManager is always
- * constructed so status and events are available when command is disabled.
+ * 本包不实现导航算法，负责：
+ * - 地图加载/更新与向 ROS 透传（MapBridge）
+ * - TF 转接到 autonomy::transform::Buffer（TfBridge）
+ * - 接收 RViz / 命令行指令（CommandInterface + autonomy_msgs）
+ * - 仿真或真机速度输出（PlatformBridge → cmd_vel）
+ * - 核心输出可视化透传（Visualizer）
  *
- * Parameters (see config/autonomy_params.yaml):
- * - enable_map, enable_planner, enable_controller, enable_visualization, enable_command
- * - use_sim_time
- *
- * Command requires both planner and controller; otherwise it is not started.
+ * 算法与任务逻辑在 autonomy 核心，经 Autonomy 唯一门面调用。
  */
 class AutonomyNode : public rclcpp::Node
 {
 public:
-  /**
-   * @brief Construct AutonomyNode and initialize enabled submodules from parameters
-   */
   AutonomyNode();
+  ~AutonomyNode() override;
 
 private:
-  /** @brief Subscribe to /map when true */
-  bool enable_map_{true};
-  /** @brief Run straight-line planner when true */
-  bool enable_planner_{true};
-  /** @brief Run path-tracking controller when true */
-  bool enable_controller_{true};
-  /** @brief Publish RViz markers for plan/goal when true */
+  bool enable_autonomy_{true};
   bool enable_visualization_{true};
-  /** @brief Host autonomy_msgs action/service servers when true */
   bool enable_command_{true};
 
+  std::unique_ptr<Autonomy> autonomy_;
   std::unique_ptr<task::TaskManager> task_manager_;
-  std::unique_ptr<map::MapManager> map_manager_;
-  std::unique_ptr<planner::Planner> planner_;
-  std::unique_ptr<controller::Controller> controller_;
   std::unique_ptr<visualization::Visualizer> visualizer_;
   std::unique_ptr<command::CommandInterface> command_interface_;
 };
