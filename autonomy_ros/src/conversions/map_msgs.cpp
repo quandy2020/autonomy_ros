@@ -4,6 +4,8 @@
 
 #include "autonomy_ros/conversions/map_msgs.hpp"
 
+#include <cmath>
+
 #include "autonomy_ros/conversions/detail.hpp"
 #include "autonomy_ros/conversions/geometry_msgs.hpp"
 #include "autonomy_ros/conversions/std_msgs.hpp"
@@ -14,13 +16,64 @@ namespace autonomy_ros::conversions
 namespace
 {
 
+// nav_msgs/OccupancyGrid (ROS): -1 unknown, 0 free, 1..100 occupied probability.
+// Some SLAM stacks / PGM caches use 0..255 (0 free, 255 occupied, 205 unknown).
+constexpr int16_t kOccUnknown = -1;
+constexpr int16_t kOccFree = 0;
+constexpr int16_t kOccOccupied = 100;
+
+int16_t occupancyCellFromRos(int8_t ros_cell)
+{
+  if (ros_cell < 0) {
+    return kOccUnknown;
+  }
+  if (ros_cell <= kOccOccupied) {
+    return static_cast<int16_t>(ros_cell);
+  }
+  // Legacy 0..255 in a signed byte (e.g. -51 for 205): remap by unsigned view.
+  const uint8_t raw = static_cast<uint8_t>(ros_cell);
+  if (raw >= 254) {
+    return kOccFree;
+  }
+  if (raw <= 1) {
+    return kOccOccupied;
+  }
+  if (raw == 205) {
+    return kOccUnknown;
+  }
+  return static_cast<int16_t>(
+    std::round((static_cast<double>(raw) / 255.0) * static_cast<double>(kOccOccupied)));
+}
+
+int8_t occupancyCellToRos(int16_t core_cell)
+{
+  if (core_cell < 0) {
+    return static_cast<int8_t>(kOccUnknown);
+  }
+  if (core_cell <= kOccOccupied) {
+    return static_cast<int8_t>(core_cell);
+  }
+  // Core stored legacy 0..255 (e.g. raw PGM cache in int16).
+  if (core_cell >= 254) {
+    return static_cast<int8_t>(kOccFree);
+  }
+  if (core_cell <= 1) {
+    return static_cast<int8_t>(kOccOccupied);
+  }
+  if (core_cell == 205) {
+    return static_cast<int8_t>(kOccUnknown);
+  }
+  return static_cast<int8_t>(std::round(
+    (static_cast<double>(core_cell) / 255.0) * static_cast<double>(kOccOccupied)));
+}
+
 void copyOccupancyDataFromRos(
   const std::vector<int8_t> & from,
   std::vector<int16_t> & to)
 {
   to.resize(from.size());
   for (size_t i = 0; i < from.size(); ++i) {
-    to[i] = static_cast<int16_t>(from[i]);
+    to[i] = occupancyCellFromRos(from[i]);
   }
 }
 
@@ -30,7 +83,7 @@ void copyOccupancyDataToRos(
 {
   to.resize(from.size());
   for (size_t i = 0; i < from.size(); ++i) {
-    to[i] = static_cast<int8_t>(from[i]);
+    to[i] = occupancyCellToRos(from[i]);
   }
 }
 

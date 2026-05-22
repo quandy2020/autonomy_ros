@@ -22,7 +22,6 @@ namespace autonomy_ros
 AutonomyNode::AutonomyNode()
 : Node("autonomy_node")
 {
-  declare_parameter<bool>("use_sim_time", false);
   declare_parameter<bool>("enable_autonomy", enable_autonomy_);
   declare_parameter<bool>("enable_visualization", enable_visualization_);
   declare_parameter<bool>("enable_command", enable_command_);
@@ -65,7 +64,6 @@ AutonomyNode::AutonomyNode()
     } else {
       command_interface_ = std::make_unique<command::CommandInterface>(
         *this, *task_manager_, *autonomy_);
-      command_interface_->start();
     }
   }
 
@@ -75,6 +73,13 @@ AutonomyNode::AutonomyNode()
     (autonomy_ && autonomy_->isRunning()) ? "on" : "off",
     enable_visualization_ ? "on" : "off",
     (enable_command_ && command_interface_) ? "on" : "off");
+}
+
+void AutonomyNode::startCommandInterface()
+{
+  if (command_interface_) {
+    command_interface_->start();
+  }
 }
 
 AutonomyNode::~AutonomyNode()

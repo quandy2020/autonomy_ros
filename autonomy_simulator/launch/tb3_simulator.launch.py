@@ -60,7 +60,7 @@ def _launch_gazebo_after_xacro(context, world_sdf, *args, **kwargs):
 
 
 def generate_launch_description() -> LaunchDescription:
-    sim_dir = get_package_share_directory('autonomy_ros')
+    sim_dir = get_package_share_directory('autonomy_simulator')
 
     namespace = LaunchConfiguration('namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')

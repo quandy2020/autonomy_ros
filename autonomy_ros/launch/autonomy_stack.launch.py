@@ -12,29 +12,53 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
+def _resolve_autonomy_config_directory() -> str:
+    """autonomy uses cmake build_type; config lives beside autonomy_ros in install/."""
+    try:
+        return os.path.join(get_package_share_directory('autonomy'), 'config')
+    except Exception:
+        pass
+    ros_share = get_package_share_directory('autonomy_ros')
+    install_root = os.path.dirname(os.path.dirname(os.path.dirname(ros_share)))
+    candidate = os.path.join(install_root, 'autonomy', 'share', 'autonomy', 'config')
+    if os.path.isdir(candidate):
+        return candidate
+    return ''
+
+
 def generate_launch_description():
     pkg_share = get_package_share_directory('autonomy_ros')
     params_file = os.path.join(pkg_share, 'configs', 'autonomy_params.yaml')
+    autonomy_config_dir = _resolve_autonomy_config_directory()
 
+    sim_mode = LaunchConfiguration('sim_mode')
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_rviz = LaunchConfiguration('use_rviz')
     enable_autonomy = LaunchConfiguration('enable_autonomy')
 
+    declare_sim_mode = DeclareLaunchArgument(
+        'sim_mode',
+        default_value='gazebo',
+        description="Robot backend: 'gazebo' (Gazebo Sim) or 'fake' (diff-drive, no Gazebo)")
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time', default_value='true',
         description='Use simulation clock')
     declare_use_rviz = DeclareLaunchArgument(
-        'use_rviz', default_value='true',
+        'use_rviz', default_value='false',
         description='Start RViz2')
     declare_enable_autonomy = DeclareLaunchArgument(
         'enable_autonomy', default_value='true',
         description='Start autonomy core (map/plan/control via autonomy_ros::Autonomy)')
 
+    sim_share = get_package_share_directory('autonomy_simulator')
     simulator = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_share, 'launch', 'tb3_simulator.launch.py')
+            os.path.join(sim_share, 'launch', 'simulator.launch.py')
         ),
-        launch_arguments={'use_sim_time': use_sim_time}.items(),
+        launch_arguments={
+            'sim_mode': sim_mode,
+            'use_sim_time': use_sim_time,
+        }.items(),
     )
 
     autonomy_node = Node(
@@ -47,6 +71,7 @@ def generate_launch_description():
             {
                 'use_sim_time': use_sim_time,
                 'enable_autonomy': enable_autonomy,
+                'autonomy.config_directory': autonomy_config_dir,
             },
         ],
     )
@@ -61,6 +86,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        declare_sim_mode,
         declare_use_sim_time,
         declare_use_rviz,
         declare_enable_autonomy,

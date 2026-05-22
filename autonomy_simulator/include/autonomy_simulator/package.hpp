@@ -1,4 +1,4 @@
-// Copyright 2026 autonomy_ros contributors (duyongquan)
+// Copyright 2026 autonomy_ros contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
+#ifndef AUTONOMY_SIMULATOR__PACKAGE_HPP_
+#define AUTONOMY_SIMULATOR__PACKAGE_HPP_
 
-#include "autonomy_ros/autonomy_node.hpp"
-#include "rclcpp/rclcpp.hpp"
-
-int main(int argc, char * argv[])
+namespace autonomy_simulator
 {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<autonomy_ros::AutonomyNode>();
-  node->startCommandInterface();
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
-}
+
+/** @brief ROS 2 package name for share-directory lookups. */
+inline constexpr const char kPackageName[] = "autonomy_simulator";
+
+}  // namespace autonomy_simulator
+
+#endif  // AUTONOMY_SIMULATOR__PACKAGE_HPP_
