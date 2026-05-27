@@ -18,7 +18,7 @@
 #include <string>
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
-#include "autonomy_ros/constants.hpp"
+#include "autonomy_ros/options.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_msgs/msg/tf_message.hpp"
 
@@ -31,7 +31,7 @@ namespace autonomy_ros::bridge
 class TfBridge
 {
 public:
-  explicit TfBridge(rclcpp::Node & node);
+  explicit TfBridge(rclcpp::Node & node, const AutonomyRosOptions & ros_options);
   ~TfBridge();
 
 private:
@@ -39,8 +39,8 @@ private:
   void injectTransform(const geometry_msgs::msg::TransformStamped & tf, bool is_static);
 
   rclcpp::Node & node_;
-  std::string tf_topic_{constants::topics::kTf};
-  std::string tf_static_topic_{constants::topics::kTfStatic};
+  std::string tf_topic_;
+  std::string tf_static_topic_;
 
   rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr tf_sub_;
   rclcpp::Subscription<tf2_msgs::msg::TFMessage>::SharedPtr tf_static_sub_;

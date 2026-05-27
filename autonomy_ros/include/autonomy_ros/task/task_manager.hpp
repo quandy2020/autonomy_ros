@@ -16,18 +16,29 @@
 #define AUTONOMY_ROS__TASK__TASK_MANAGER_HPP_
 
 #include <atomic>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "autonomy/commsgs/geometry_msgs.hpp"
 #include "autonomy_msgs/msg/battery_status.hpp"
+#include "autonomy_ros/options.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "nav_msgs/msg/path.hpp"
 #include "autonomy_msgs/msg/error.hpp"
 #include "autonomy_msgs/msg/event.hpp"
 #include "autonomy_msgs/msg/task_status.hpp"
 #include "autonomy_ros/task/task_muxer.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
+
+namespace autonomy::system
+{
+class Autonomy;
+}
 
 namespace autonomy_ros::task
 {
@@ -49,16 +60,20 @@ namespace autonomy_ros::task
 class TaskManager
 {
 public:
-  /**
-   * @brief Constructor for autonomy_ros::task::TaskManager
-   * @param node Parent node for publishers, timers, and parameters
-   */
-  explicit TaskManager(rclcpp::Node & node);
+  using StopMotionFn = std::function<void()>;
 
   /**
-   * @brief Declare parameters, create publishers and status timer
+   * @brief Construct TaskManager: declare parameters, publishers, and status timer.
+   * @param node Parent node for publishers, timers, and parameters
+   * @param core Autonomy core for motion / navigation execution
+   * @param core_options Planner / controller options mirrored from ROS params
+   * @param stop_motion Optional hook when controller is disabled (e.g. publish zero cmd_vel)
    */
-  void start();
+  TaskManager(
+    rclcpp::Node & node,
+    ::autonomy::system::Autonomy * core,
+    const AutonomyCoreOptions & core_options,
+    StopMotionFn stop_motion = {});
 
   /**
    * @brief Check estop and muxer without acquiring (action goal callback)
@@ -227,6 +242,47 @@ public:
    */
   void updateOdom(const nav_msgs::msg::Odometry & odom);
 
+  const AutonomyCoreOptions & coreOptions() const { return core_options_; }
+
+  bool navigateToPose(
+    const geometry_msgs::msg::PoseStamped & goal,
+    std::function<bool()> cancel_checker = nullptr,
+    double timeout_sec = 0.0);
+
+  bool navigateThroughPoses(
+    const std::vector<geometry_msgs::msg::PoseStamped> & goals,
+    std::function<bool()> cancel_checker = nullptr,
+    double timeout_sec = 0.0);
+
+  void replanToGoal(const geometry_msgs::msg::PoseStamped & goal);
+
+  std::optional<nav_msgs::msg::Path> lastPath() const;
+
+  void setControllerEnabled(bool enabled);
+
+  bool isControllerEnabled() const { return controller_enabled_.load(); }
+
+  bool hasOdometry() const;
+
+  bool teleopDrive(
+    double time_allowance_sec,
+    double max_linear_vel,
+    double max_angular_vel,
+    std::function<bool()> cancel_checker = nullptr);
+
+  void beginTeleop(double max_linear_vel = 0.0, double max_angular_vel = 0.0);
+
+  void endTeleop();
+
+  bool isTeleopActive() const;
+
+  void updateTeleopCommand(const geometry_msgs::msg::TwistStamped & cmd);
+
+  std::optional<::autonomy::commsgs::geometry_msgs::TwistStamped> teleopCommand() const;
+
+  bool transformPoseToGlobalFrame(
+    ::autonomy::commsgs::geometry_msgs::PoseStamped & pose);
+
   /**
    * @brief Update normalized progress field in status
    * @param progress Value in [0, 1]
@@ -260,6 +316,9 @@ private:
   void publishStatus();
 
   rclcpp::Node & node_;
+  ::autonomy::system::Autonomy * core_{nullptr};
+  AutonomyCoreOptions core_options_;
+  StopMotionFn stop_motion_;
   TaskMuxer muxer_;
   mutable std::mutex mutex_;
   autonomy_msgs::msg::TaskStatus status_;
@@ -267,10 +326,17 @@ private:
 
   std::atomic<bool> paused_{false};
   std::atomic<bool> estop_{false};
+  std::atomic<bool> teleop_active_{false};
+  std::atomic<bool> controller_enabled_{true};
   std::atomic<bool> continue_requested_{false};
   std::optional<uint32_t> skip_exhibit_index_;
   std::optional<std::string> skip_exhibit_id_;
   float battery_percent_{100.0f};
+
+  mutable std::mutex teleop_mutex_;
+  ::autonomy::commsgs::geometry_msgs::TwistStamped teleop_command_;
+  double max_teleop_linear_{0.0};
+  double max_teleop_angular_{0.0};
 
   rclcpp::Publisher<autonomy_msgs::msg::TaskStatus>::SharedPtr status_pub_;
   rclcpp::Publisher<autonomy_msgs::msg::BatteryStatus>::SharedPtr battery_pub_;

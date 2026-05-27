@@ -31,17 +31,19 @@ inline constexpr const char kInitPose[] = "init_pose";
 inline constexpr const char kGoalPose[] = "goal_pose";
 inline constexpr const char kFollowDetections[] = "/detections_3d";
 inline constexpr const char kPlan[] = "plan";
+inline constexpr const char kNavigationGoal[] = "navigation_goal";
+inline constexpr const char kRobotPose[] = "robot_pose";
 inline constexpr const char kGlobalCostmap[] = "global_costmap";
 inline constexpr const char kLocalCostmap[] = "local_costmap";
 inline constexpr const char kDiagnostics[] = "/diagnostics";
 inline constexpr const char kScan[] = "/scan";
-inline constexpr const char kSpeedLimit[] = "autonomy/speed_limit";
 inline constexpr const char kTaskStatus[] = "autonomy/status";
 inline constexpr const char kBatteryStatus[] = "autonomy/battery";
 inline constexpr const char kEvents[] = "autonomy/events";
 inline constexpr const char kMap[] = "map";
 inline constexpr const char kOdom[] = "odom";
 inline constexpr const char kCmdVel[] = "cmd_vel";
+inline constexpr const char kCmdVelTeleop[] = "cmd_vel_teleop";
 inline constexpr const char kTf[] = "/tf";
 inline constexpr const char kTfStatic[] = "/tf_static";
 }  // namespace topics
@@ -100,6 +102,7 @@ inline constexpr const char kAutonomyGlobalFrame[] = "autonomy.planner.global_fr
 inline constexpr const char kAutonomyGoalTolerance[] = "autonomy.controller.goal_tolerance";
 inline constexpr const char kAutonomyOdomTopic[] = "autonomy.odom_topic";
 inline constexpr const char kAutonomyCmdVelTopic[] = "autonomy.cmd_vel_topic";
+inline constexpr const char kAutonomyCmdVelTeleopTopic[] = "autonomy.cmd_vel_teleop_topic";
 inline constexpr const char kAutonomyBaseFrame[] = "autonomy.controller.base_frame";
 inline constexpr const char kAutonomyMaxLinearVel[] = "autonomy.controller.max_linear_vel";
 inline constexpr const char kAutonomyEnableScanBridge[] = "autonomy.enable_scan_bridge";
@@ -107,9 +110,19 @@ inline constexpr const char kAutonomyScanTopic[] = "autonomy.scan_topic";
 inline constexpr const char kAutonomyPublishCostmaps[] = "autonomy.publish_costmaps";
 inline constexpr const char kAutonomyCostmapPublishHz[] = "autonomy.costmap_publish_hz";
 inline constexpr const char kAutonomyPublishDiagnostics[] = "autonomy.publish_diagnostics";
-inline constexpr const char kAutonomyEnableSpeedLimitTopic[] = "autonomy.enable_speed_limit_topic";
-inline constexpr const char kAutonomySpeedLimitTopic[] = "autonomy.speed_limit_topic";
-inline constexpr const char kAutonomySpeedLimitPercentage[] = "autonomy.speed_limit_percentage";
+
+inline constexpr const char kSensorBridgePointCloudEnabled[] =
+  "autonomy.sensor_bridge.point_cloud_enabled";
+inline constexpr const char kSensorBridgePointCloudTopic[] =
+  "autonomy.sensor_bridge.point_cloud_topic";
+inline constexpr const char kSensorBridgeRangeEnabled[] =
+  "autonomy.sensor_bridge.range_enabled";
+inline constexpr const char kSensorBridgeRangeTopic[] = "autonomy.sensor_bridge.range_topic";
+inline constexpr const char kSensorBridgeImageEnabled[] =
+  "autonomy.sensor_bridge.image_enabled";
+inline constexpr const char kSensorBridgeImageTopic[] = "autonomy.sensor_bridge.image_topic";
+inline constexpr const char kSensorBridgeImuEnabled[] = "autonomy.sensor_bridge.imu_enabled";
+inline constexpr const char kSensorBridgeImuTopic[] = "autonomy.sensor_bridge.imu_topic";
 }  // namespace params
 
 // ---------------------------------------------------------------------------
@@ -144,9 +157,6 @@ inline constexpr bool kAutonomyScanEnabled = true;
 inline constexpr bool kAutonomyCostmapsEnabled = true;
 inline constexpr double kAutonomyCostmapPublishHz = 1.0;
 inline constexpr bool kAutonomyDiagnosticsEnabled = true;
-inline constexpr bool kAutonomySpeedLimitEnabled = true;
-inline constexpr bool kAutonomySpeedLimitPercentage = false;
-inline constexpr double kAutonomyClearedSpeedLimit = 0.0;
 inline constexpr std::size_t kAutonomyMinPathPoses = 2;
 inline constexpr const char kPkgAutonomy[] = "autonomy";
 inline constexpr const char kPkgConfigSubpath[] = "/config";

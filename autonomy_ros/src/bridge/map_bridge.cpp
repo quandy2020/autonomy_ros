@@ -11,14 +11,14 @@
 namespace autonomy_ros::bridge
 {
 
-MapBridge::MapBridge(rclcpp::Node & node, ::autonomy::map::MapServer * map_server)
-: node_(node), map_server_(map_server)
+MapBridge::MapBridge(
+  rclcpp::Node & node, ::autonomy::map::MapServer * map_server,
+  const AutonomyRosOptions & ros_options)
+: node_(node),
+  map_server_(map_server),
+  publish_map_(ros_options.publish_map),
+  map_topic_(ros_options.map_topic)
 {
-  node_.declare_parameter<std::string>("autonomy.map_topic", map_topic_);
-  node_.declare_parameter<bool>("autonomy.publish_map", publish_map_);
-  map_topic_ = node_.get_parameter("autonomy.map_topic").as_string();
-  publish_map_ = node_.get_parameter("autonomy.publish_map").as_bool();
-
   if (publish_map_) {
     map_pub_ = node_.create_publisher<nav_msgs::msg::OccupancyGrid>(
       map_topic_, rclcpp::QoS(1).transient_local());

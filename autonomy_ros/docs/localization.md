@@ -4,7 +4,7 @@
 
 ## 仿真（Gazebo，无 AMCL）
 
-- `configs/autonomy_params.yaml` 默认：`autonomy.planner.global_frame: odom`
+- `config/autonomy_params.yaml` 默认：`autonomy.planner.global_frame: odom`
 - 规划、跟随、代价地图均在 **odom** 下工作；无需 `map` 帧。
 
 ## 真机 / 需要全局地图导航

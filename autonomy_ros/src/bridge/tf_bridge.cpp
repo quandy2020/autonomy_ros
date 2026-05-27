@@ -35,14 +35,11 @@ namespace
 
 }  // namespace
 
-TfBridge::TfBridge(rclcpp::Node & node)
-: node_(node)
+TfBridge::TfBridge(rclcpp::Node & node, const AutonomyRosOptions & ros_options)
+: node_(node),
+  tf_topic_(ros_options.tf_topic),
+  tf_static_topic_(ros_options.tf_static_topic)
 {
-  node_.declare_parameter<std::string>("autonomy.tf_topic", tf_topic_);
-  node_.declare_parameter<std::string>("autonomy.tf_static_topic", tf_static_topic_);
-  tf_topic_ = node_.get_parameter("autonomy.tf_topic").as_string();
-  tf_static_topic_ = node_.get_parameter("autonomy.tf_static_topic").as_string();
-
   ::autonomy::transform::Buffer::Instance()->Init();
 
   tf_sub_ = node_.create_subscription<tf2_msgs::msg::TFMessage>(

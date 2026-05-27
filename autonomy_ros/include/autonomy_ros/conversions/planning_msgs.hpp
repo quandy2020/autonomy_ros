@@ -15,7 +15,7 @@
 /// - Path ↔ nav_msgs/Path (e.g. Autonomy publishes /plan).
 ///
 /// @par Not implemented (no standard ROS 2 message)
-/// Path2D, Point2D, Twist2D, Pose2DStamped, Goals, SpeedLimit, CostmapFilterInfo.
+/// Path2D, Point2D, Twist2D, Pose2DStamped, Goals, CostmapFilterInfo.
 ///
 /// @par Usage
 /// Include this header (or conversions/conversions.hpp). Path conversion

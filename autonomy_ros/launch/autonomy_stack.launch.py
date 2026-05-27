@@ -28,13 +28,18 @@ def _resolve_autonomy_config_directory() -> str:
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('autonomy_ros')
-    params_file = os.path.join(pkg_share, 'configs', 'autonomy_params.yaml')
-    autonomy_config_dir = _resolve_autonomy_config_directory()
+    params_file = os.path.join(pkg_share, 'config', 'autonomy_params.yaml')
+    default_autonomy_config_dir = _resolve_autonomy_config_directory()
+    if not default_autonomy_config_dir:
+        raise RuntimeError(
+            'Could not resolve autonomy config directory. '
+            'Build and source install/setup.bash (colcon build --packages-select autonomy autonomy_ros), '
+            'or pass autonomy_config_directory:=<path/to/autonomy/config>.'
+        )
 
     sim_mode = LaunchConfiguration('sim_mode')
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_rviz = LaunchConfiguration('use_rviz')
-    enable_autonomy = LaunchConfiguration('enable_autonomy')
 
     declare_sim_mode = DeclareLaunchArgument(
         'sim_mode',
@@ -46,9 +51,13 @@ def generate_launch_description():
     declare_use_rviz = DeclareLaunchArgument(
         'use_rviz', default_value='false',
         description='Start RViz2')
-    declare_enable_autonomy = DeclareLaunchArgument(
-        'enable_autonomy', default_value='true',
-        description='Start autonomy core (map/plan/control via autonomy_ros::Autonomy)')
+    declare_autonomy_config_directory = DeclareLaunchArgument(
+        'autonomy_config_directory',
+        default_value=default_autonomy_config_dir,
+        description='Directory containing autonomy.lua (resolved from install layout by default)',
+    )
+
+    autonomy_config_dir = LaunchConfiguration('autonomy_config_directory')
 
     sim_share = get_package_share_directory('autonomy_simulator')
     simulator = IncludeLaunchDescription(
@@ -70,7 +79,6 @@ def generate_launch_description():
             params_file,
             {
                 'use_sim_time': use_sim_time,
-                'enable_autonomy': enable_autonomy,
                 'autonomy.config_directory': autonomy_config_dir,
             },
         ],
@@ -89,7 +97,7 @@ def generate_launch_description():
         declare_sim_mode,
         declare_use_sim_time,
         declare_use_rviz,
-        declare_enable_autonomy,
+        declare_autonomy_config_directory,
         simulator,
         autonomy_node,
         rviz,
