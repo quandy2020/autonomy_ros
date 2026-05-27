@@ -25,11 +25,14 @@
 #include <utility>
 #include <vector>
 
-#include "autonomy_ros/autonomy.hpp"
+#include <optional>
+
 #include "autonomy_ros/constants.hpp"
+#include "autonomy_ros/options.hpp"
 #include "autonomy_ros/task/task_manager.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -52,6 +55,16 @@
 #include "autonomy_msgs/srv/set_teleop_mode.hpp"
 #include "autonomy_msgs/srv/skip_to_exhibit.hpp"
 #include "autonomy_msgs/srv/trigger_emergency_stop.hpp"
+
+namespace autonomy::system
+{
+class Autonomy;
+}
+
+namespace autonomy_ros::visualization
+{
+class Visualizer;
+}
 
 namespace autonomy_ros::command
 {
@@ -77,18 +90,30 @@ class CommandInterface
 {
 public:
   /**
-   * @brief Constructor for autonomy_ros::command::CommandInterface
+   * @brief Construct and register all autonomy action servers and services.
    * @param node Parent node for servers, services and publishers
-   * @param task_manager Shared task state used across all commands
-   * @param autonomy ROS facade to autonomy::system (navigation / control)
+   * @param core Autonomy core executed via TaskManager
+   * @param core_options Planner / controller options from ROS parameters
+   * @param stop_motion Hook when motion must stop (e.g. publish zero cmd_vel)
+   * @param cmd_vel_teleop_topic Teleop ingress topic; empty disables subscription
    */
   CommandInterface(
-    rclcpp::Node & node, task::TaskManager & task_manager, Autonomy & autonomy);
+    rclcpp::Node & node,
+    ::autonomy::system::Autonomy & core,
+    const AutonomyCoreOptions & core_options,
+    task::TaskManager::StopMotionFn stop_motion = {},
+    const std::string & cmd_vel_teleop_topic = {},
+    visualization::Visualizer * visualizer = nullptr);
 
-  /**
-   * @brief Register all autonomy action servers and services
-   */
-  void start();
+  void updateOdom(const nav_msgs::msg::Odometry & odom);
+
+  std::optional<::autonomy::commsgs::geometry_msgs::TwistStamped> teleopCommand() const;
+
+  bool hasOdometry() const;
+
+  bool hasActiveNavigationTask() const;
+
+  bool isControllerEnabled() const;
 
 private:
   using NavigatePose = autonomy_msgs::action::NavigatePose;
@@ -208,17 +233,6 @@ private:
     const std::function<bool()> & cancel_check);
 
   /**
-   * @brief Apply NavigatePose/Tour cruise speed cap on controller
-   * @param max_speed From goal; 0 means no change
-   */
-  void applySpeedLimit(float max_speed);
-
-  /**
-   * @brief Restore controller max_linear_vel to parameter default
-   */
-  void restoreSpeedLimit();
-
-  /**
    * @brief NavigatePose action worker
    * @param handle Server goal handle
    */
@@ -273,6 +287,7 @@ private:
   void runTopicGoalPose(geometry_msgs::msg::PoseStamped goal, const std::string & task_id);
 
   void startFollowTargetTracking();
+  void startTeleopIngress(const std::string & cmd_vel_teleop_topic);
   void onFollowDetections(const vision_msgs::msg::Detection3DArray::SharedPtr msg);
   std::optional<geometry_msgs::msg::PoseStamped> lookupFollowTargetPose(
     const std::string & target_id) const;
@@ -281,8 +296,10 @@ private:
     const vision_msgs::msg::Detection3D & detection);
 
   rclcpp::Node & node_;
-  task::TaskManager & task_manager_;
-  Autonomy & autonomy_;
+  std::unique_ptr<task::TaskManager> task_manager_;
+  visualization::Visualizer * visualizer_{nullptr};
+
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_teleop_sub_;
 
   // RViz / external init_pose (republished to `/initialpose` topic)
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr init_pose_sub_;

@@ -1,28 +1,41 @@
 // Copyright 2026 autonomy_ros contributors (duyongquan)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include <memory>
+#include <tuple>
 
-#include "autonomy_ros/autonomy_node.hpp"
+#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/ros_autonomy_system.hpp"
 #include "rclcpp/rclcpp.hpp"
+
+namespace autonomy_ros
+{
+
+void run()
+{
+  auto node = std::make_shared<rclcpp::Node>("autonomy_node");
+
+  AutonomyOptions options;
+  std::tie(options.core_options, options.ros_options) = createOptions(*node);
+
+  auto system = std::make_unique<RosAutonomySystem>(
+    *node, std::move(options.core_options), std::move(options.ros_options));
+
+  RCLCPP_INFO(
+    node->get_logger(),
+    "autonomy_ros: core=%s",
+    system->isRunning() ? "running" : "failed");
+
+  rclcpp::spin(node);
+}
+
+}  // namespace autonomy_ros
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<autonomy_ros::AutonomyNode>();
-  node->startCommandInterface();
-  rclcpp::spin(node);
+  autonomy_ros::run();
   rclcpp::shutdown();
   return 0;
 }

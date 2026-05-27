@@ -29,7 +29,7 @@ autonomy_ros/                    # 仓库根（colcon workspace 的 src 目录�
 │   ├── include/autonomy_ros/
 │   ├── docs/architecture.md
 │   ├── launch/autonomy_stack.launch.py
-│   ├── configs/autonomy_params.yaml
+│   ├── config/autonomy_params.yaml
 │   ├── rviz/autonomy.rviz
 │   └── CMakeLists.txt
 └── README.md
@@ -121,7 +121,7 @@ ros2 launch autonomy_ros autonomy_stack.launch.py sim_mode:=fake use_sim_time:=f
 
 ### 模块开关
 
-编辑 `autonomy_ros/configs/autonomy_params.yaml`：
+编辑 `autonomy_ros/config/autonomy_params.yaml`：
 
 | 参数 | 默认 | 说明 |
 |------|------|------|

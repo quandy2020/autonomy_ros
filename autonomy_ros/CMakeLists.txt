@@ -20,7 +20,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_index_cpp REQUIRED)
 find_package(autonomy REQUIRED)
 
 # autonomy::autonomy links TinyXML2::TinyXML2 (autolink plugin XML parser).
@@ -68,18 +67,21 @@ set(AUTONOMY_CORE_SOURCES
   src/conversions/shape_msgs.cpp
   src/conversions/pcl_msgs.cpp
   src/conversions/tf2_msgs.cpp
-  src/autonomy.cpp
-  src/autonomy_node.cpp
+  src/ros_autonomy_system.cpp
+  src/options.cpp
   src/bridge/tf_bridge.cpp
   src/bridge/map_bridge.cpp
+  src/bridge/costmap_bridge.cpp
+  src/bridge/actuation_bridge.cpp
+  src/bridge/sensor_bridge.cpp
   src/visualization/visualizer.cpp
+  src/debug/diagnostics_publisher.cpp
   src/task/task_muxer.cpp
   src/task/task_manager.cpp
   src/command/command_interface.cpp
 )
 
 set(DEPENDENCIES
-  ament_index_cpp
   rclcpp
   rclcpp_action
   nav_msgs
@@ -124,7 +126,7 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-install(DIRECTORY launch rviz configs docs
+install(DIRECTORY launch rviz config docs
   DESTINATION share/${PROJECT_NAME}
 )
 

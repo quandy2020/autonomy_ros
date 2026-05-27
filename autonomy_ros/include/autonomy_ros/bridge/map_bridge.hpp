@@ -10,7 +10,7 @@
 
 #include "autonomy/commsgs/map_msgs.hpp"
 #include "autonomy/map/map_server.hpp"
-#include "autonomy_ros/constants.hpp"
+#include "autonomy_ros/options.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/trigger.hpp"
@@ -28,7 +28,9 @@ namespace autonomy_ros::bridge
 class MapBridge
 {
 public:
-  explicit MapBridge(rclcpp::Node & node, ::autonomy::map::MapServer * map_server);
+  explicit MapBridge(
+    rclcpp::Node & node, ::autonomy::map::MapServer * map_server,
+    const AutonomyRosOptions & ros_options);
   ~MapBridge();
 
   /** @brief Publish a core map snapshot to ROS (no costmap side effects). */
@@ -42,7 +44,7 @@ private:
   rclcpp::Node & node_;
   ::autonomy::map::MapServer * map_server_{nullptr};
   bool publish_map_{true};
-  std::string map_topic_{constants::topics::kMap};
+  std::string map_topic_;
 
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr map_pub_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reload_map_srv_;
