@@ -10,7 +10,7 @@
 
 #include "autonomy/commsgs/map_msgs.hpp"
 #include "autonomy/map/map_server.hpp"
-#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/system/options.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/trigger.hpp"
@@ -30,7 +30,7 @@ class MapBridge
 public:
   explicit MapBridge(
     rclcpp::Node & node, ::autonomy::map::MapServer * map_server,
-    const AutonomyRosOptions & ros_options);
+    const system::AutonomyRosOptions & ros_options);
   ~MapBridge();
 
   /** @brief Publish a core map snapshot to ROS (no costmap side effects). */

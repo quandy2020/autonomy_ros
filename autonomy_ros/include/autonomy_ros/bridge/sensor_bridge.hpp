@@ -10,11 +10,9 @@
 #include <string>
 
 #include "autonomy/commsgs/sensor_msgs.hpp"
-#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/system/options.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/msg/image.hpp"
-#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/range.hpp"
@@ -33,22 +31,17 @@ struct SensorBridgeHandlers
   std::function<void(const ::autonomy::commsgs::sensor_msgs::LaserScan &)> on_laser_scan;
   std::function<void(const ::autonomy::commsgs::sensor_msgs::PointCloud2 &)> on_point_cloud;
   std::function<void(const ::autonomy::commsgs::sensor_msgs::Range &)> on_range;
-  std::function<void(const ::autonomy::commsgs::sensor_msgs::Image &)> on_image;
-  std::function<void(const ::autonomy::commsgs::sensor_msgs::Imu &)> on_imu;
 };
 
 /**
- * @brief ROS sensor ingress: LaserScan, PointCloud2, Range, Image, Imu, Odometry.
- *
- * Topics and enable flags come from @ref AutonomyRosOptions (odom/scan) and
- * @ref SensorBridgeOptions (other sensors). Converts via autonomy_ros/conversions
- * before invoking handlers.
+ * @brief ROS sensor ingress: odometry, laser scan, optional point cloud and range.
  */
 class SensorBridge
 {
 public:
   SensorBridge(
-    rclcpp::Node & node, const AutonomyRosOptions & ros_options,
+    rclcpp::Node & node,
+    const system::AutonomyRosOptions & ros_options,
     SensorBridgeHandlers handlers);
   ~SensorBridge();
 
@@ -56,15 +49,13 @@ private:
   void setupSubscriptions();
 
   rclcpp::Node & node_;
-  AutonomyRosOptions ros_options_;
+  system::AutonomyRosOptions ros_options_;
   SensorBridgeHandlers handlers_;
 
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Range>::SharedPtr range_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
 };
 
 }  // namespace autonomy_ros::bridge

@@ -6,7 +6,7 @@ string task_id
 Waypoint[] waypoints
 uint32 number_of_loops 1
 uint32 start_index 0
-bool stop_on_failure true      # Abort tour on FAILED waypoint if true
+bool stop_on_failure true
 string behavior_tree           # Reserved
 ---
 # result

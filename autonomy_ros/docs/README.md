@@ -1,14 +1,32 @@
-# autonomy_ros 文档
+# autonomy_ros 文档索引
+
+本目录描述 **autonomy_ros** 包的架构、对外接口与使用方式。消息定义见同级包 **autonomy_msgs**。
+
+## 文档列表
 
 | 文档 | 说明 |
 |------|------|
-| [autonomy_cmd.md](autonomy_cmd.md) | **`autonomy_cmd.py` 使用指南**（任务配置、子命令、示例） |
-| [architecture.md](architecture.md) | **架构图**：`Autonomy` 门面、`system::AutonomyNode`、ROS Bridge、数据流 |
-| [conversions.md](conversions.md) | **ROS ↔ commsgs**：`fromRos` / `toRos` 转换模块约定 |
-| [localization.md](localization.md) | **map / odom** 与 AMCL；`autonomy.planner.global_frame` 选型 |
-| [external_commands.md](external_commands.md) | **外部指令 API**：Action / Service / 配套 Topic + **ROS2 命令行测试** |
-| [autonomy_msgs/README.md](../../autonomy_msgs/README.md) | 消息类型定义（`.msg` / `.action` / `.srv`） |
+| [architecture.md](architecture.md) | 源码目录、模块职责、数据流 |
+| [external_commands.md](external_commands.md) | `/autonomy/*` Action / Service / Topic 字段与 `ros2` 示例 |
+| [navigation_client.md](navigation_client.md) | `navigation_client.py` 命令行客户端 |
+| [localization.md](localization.md) | `map` / `odom` 坐标系与定位接入 |
+| [conversions.md](conversions.md) | `autonomy_ros::conversions` ROS ↔ commsgs |
 
-对外 Action/Service 由 `CommandInterface` 提供，需 `enable_command: true` 且 `enable_autonomy: true`（核心栈由 `autonomy_ros::Autonomy` 启动）。
+## 快速入口
 
-命令行工具 **`autonomy_cmd.py`** 的完整说明见 **[autonomy_cmd.md](autonomy_cmd.md)**（含 `tasks.json` 任务配置、重复导航、mission 序列与全部子命令示例）。
+```bash
+# 启动仿真 + 导航栈
+ros2 launch autonomy_ros navigation_stack.launch.py use_rviz:=true
+
+# 导航 CLI
+ros2 run autonomy_ros navigation_client.py list-tasks
+ros2 run autonomy_ros navigation_client.py run-task go_to_point_a --feedback
+
+# 查看任务状态
+ros2 topic echo /autonomy/status
+```
+
+## 相关包
+
+- [autonomy_msgs README](../../autonomy_msgs/README.md) — `NavigatePose` / `NavigateThrough` 等消息定义
+- [仓库 README](../../README.md) — 编译、启动与工程结构

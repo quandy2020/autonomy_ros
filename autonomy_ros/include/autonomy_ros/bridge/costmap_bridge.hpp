@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "autonomy/map/costmap_2d/costmap_2d_wrapper.hpp"
-#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/system/options.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -26,7 +26,7 @@ public:
   CostmapBridge(
     rclcpp::Node & node,
     ::autonomy::map::costmap_2d::Costmap2DWrapper * costmap_wrapper,
-    const AutonomyRosOptions & ros_options);
+    const system::AutonomyRosOptions & ros_options);
   ~CostmapBridge();
 
 private:

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <chrono>
 
-#include "autonomy_ros/constants.hpp"
+#include "autonomy_ros/system/constants.hpp"
 #include "autonomy_ros/conversions/conversions.hpp"
 
 namespace autonomy_ros::bridge
@@ -16,7 +16,7 @@ namespace autonomy_ros::bridge
 CostmapBridge::CostmapBridge(
   rclcpp::Node & node,
   ::autonomy::map::costmap_2d::Costmap2DWrapper * costmap_wrapper,
-  const AutonomyRosOptions & ros_options)
+  const system::AutonomyRosOptions & ros_options)
 : wrapper_(costmap_wrapper), node_(node)
 {
   if (!wrapper_) {

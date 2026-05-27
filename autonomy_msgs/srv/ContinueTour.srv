@@ -1,9 +1,0 @@
-# Visitor/staff "next" while robot waits at exhibit (service: /autonomy/continue_tour).
-# Used when ExhibitPoint.wait_for_continue is true.
-
-string tour_id                 # Optional; for logging/validation
-string task_id                 # Optional
----
-bool success
-Error error
-TaskStatus status

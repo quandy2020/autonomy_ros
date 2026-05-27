@@ -1,0 +1,31 @@
+{
+  "waypoints": [
+    {
+      "id": "point_1",
+      "label": "point 1",
+      "pose": {
+        "header": { "frame_id": "odom" },
+        "pose": {
+          "position": { "x": 1.0, "y": 0.0, "z": 0.0 },
+          "orientation": { "w": 1.0 }
+        }
+      },
+      "wait_duration": 2.0
+    },
+    {
+      "id": "point_2",
+      "label": "point 2",
+      "pose": {
+        "header": { "frame_id": "odom" },
+        "pose": {
+          "position": { "x": 2.0, "y": 1.0, "z": 0.0 },
+          "orientation": { "w": 1.0 }
+        }
+      },
+      "wait_duration": 0.0
+    }
+  ],
+  "number_of_loops": 1,
+  "start_index": 0,
+  "stop_on_failure": true
+}

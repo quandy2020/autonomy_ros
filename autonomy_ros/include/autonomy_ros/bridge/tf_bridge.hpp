@@ -18,7 +18,7 @@
 #include <string>
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
-#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/system/options.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_msgs/msg/tf_message.hpp"
 
@@ -31,7 +31,7 @@ namespace autonomy_ros::bridge
 class TfBridge
 {
 public:
-  explicit TfBridge(rclcpp::Node & node, const AutonomyRosOptions & ros_options);
+  explicit TfBridge(rclcpp::Node & node, const system::AutonomyRosOptions & ros_options);
   ~TfBridge();
 
 private:

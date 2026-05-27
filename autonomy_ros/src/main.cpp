@@ -5,11 +5,11 @@
 #include <memory>
 #include <tuple>
 
-#include "autonomy_ros/options.hpp"
-#include "autonomy_ros/ros_autonomy_system.hpp"
+#include "autonomy_ros/system/options.hpp"
+#include "autonomy_ros/system/ros_autonomy_system.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace autonomy_ros
+namespace autonomy_ros::system
 {
 
 void run()
@@ -30,12 +30,12 @@ void run()
   rclcpp::spin(node);
 }
 
-}  // namespace autonomy_ros
+}  // namespace autonomy_ros::system
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  autonomy_ros::run();
+  autonomy_ros::system::run();
   rclcpp::shutdown();
   return 0;
 }

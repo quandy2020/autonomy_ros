@@ -18,10 +18,6 @@ set(msg_files
   msg/Error.msg
   msg/Waypoint.msg
   msg/WaypointStatus.msg
-  msg/FollowTarget.msg
-  msg/DockStation.msg
-  msg/ExhibitPoint.msg
-  msg/BatteryStatus.msg
   msg/TaskStatus.msg
   msg/Event.msg
 )
@@ -29,12 +25,8 @@ set(msg_files
 set(srv_files
   srv/CancelTask.srv
   srv/GetTaskStatus.srv
-  srv/SetTeleopMode.srv
-  srv/ListDocks.srv
   srv/PauseTask.srv
   srv/ResumeTask.srv
-  srv/SkipToExhibit.srv
-  srv/ContinueTour.srv
   srv/TriggerEmergencyStop.srv
   srv/SetInitialPose.srv
 )
@@ -42,10 +34,6 @@ set(srv_files
 set(action_files
   action/NavigatePose.action
   action/NavigateThrough.action
-  action/Follow.action
-  action/GuidedTour.action
-  action/Dock.action
-  action/Teleop.action
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

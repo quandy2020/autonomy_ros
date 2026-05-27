@@ -1,17 +1,3 @@
-# Copyright 2026 The Openbot Authors (duyongquan)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 cmake_minimum_required(VERSION 3.8)
 project(autonomy_ros)
 
@@ -22,7 +8,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(autonomy REQUIRED)
 
-# autonomy::autonomy links TinyXML2::TinyXML2 (autolink plugin XML parser).
 if(NOT TARGET TinyXML2::TinyXML2)
   list(APPEND CMAKE_MODULE_PATH
     "${autonomy_DIR}/modules"
@@ -36,14 +21,8 @@ find_package(map_msgs REQUIRED)
 find_package(octomap_msgs REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(visualization_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
-find_package(trajectory_msgs REQUIRED)
-find_package(vision_msgs REQUIRED)
-find_package(stereo_msgs REQUIRED)
-find_package(shape_msgs REQUIRED)
-find_package(pcl_msgs REQUIRED)
 find_package(autonomy_msgs REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -59,26 +38,19 @@ set(AUTONOMY_CORE_SOURCES
   src/conversions/planning_msgs.cpp
   src/conversions/map_msgs.cpp
   src/conversions/sensor_msgs.cpp
-  src/conversions/visualization_msgs.cpp
-  src/conversions/diagnostic_msgs.cpp
-  src/conversions/trajectory_msgs.cpp
-  src/conversions/vision_msgs.cpp
-  src/conversions/stereo_msgs.cpp
-  src/conversions/shape_msgs.cpp
-  src/conversions/pcl_msgs.cpp
   src/conversions/tf2_msgs.cpp
-  src/ros_autonomy_system.cpp
-  src/options.cpp
+  src/system/ros_autonomy_system.cpp
+  src/system/options.cpp
   src/bridge/tf_bridge.cpp
   src/bridge/map_bridge.cpp
   src/bridge/costmap_bridge.cpp
   src/bridge/actuation_bridge.cpp
   src/bridge/sensor_bridge.cpp
-  src/visualization/visualizer.cpp
+  src/viz/visualizer.cpp
   src/debug/diagnostics_publisher.cpp
-  src/task/task_muxer.cpp
-  src/task/task_manager.cpp
-  src/command/command_interface.cpp
+  src/navigation/task_muxer.cpp
+  src/navigation/task_manager.cpp
+  src/navigation/navigation_server.cpp
 )
 
 set(DEPENDENCIES
@@ -89,14 +61,8 @@ set(DEPENDENCIES
   octomap_msgs
   grid_map_msgs
   geometry_msgs
-  visualization_msgs
   sensor_msgs
   diagnostic_msgs
-  trajectory_msgs
-  vision_msgs
-  stereo_msgs
-  shape_msgs
-  pcl_msgs
   autonomy_msgs
   builtin_interfaces
   tf2_msgs
@@ -109,7 +75,7 @@ target_include_directories(autonomy_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-ament_target_dependencies(autonomy_core ${DEPENDENCIES} )
+ament_target_dependencies(autonomy_core ${DEPENDENCIES})
 target_link_libraries(autonomy_core autonomy::autonomy)
 
 add_executable(autonomy_node src/main.cpp)
@@ -131,12 +97,8 @@ install(DIRECTORY launch rviz config docs
 )
 
 install(PROGRAMS
-  scripts/autonomy_cmd.py
+  scripts/navigation_client.py
   DESTINATION lib/${PROJECT_NAME}
-)
-
-install(DIRECTORY scripts/examples
-  DESTINATION share/${PROJECT_NAME}/scripts
 )
 
 if(BUILD_TESTING)
