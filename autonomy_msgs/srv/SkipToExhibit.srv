@@ -1,9 +1,0 @@
-# Jump to another exhibit during GuidedTour (service: /autonomy/skip_to_exhibit).
-
-string tour_id
-string exhibit_id              # Preferred: matched against tour exhibit list
-uint32 exhibit_index           # Used if exhibit_id empty or not found
----
-bool success
-Error error
-TaskStatus status

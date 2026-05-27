@@ -1,4 +1,4 @@
-# Per-waypoint result (NavigateThrough / GuidedTour exhibit_statuses).
+# Per-waypoint result for NavigateThrough.
 
 uint8 PENDING=0
 uint8 COMPLETED=1

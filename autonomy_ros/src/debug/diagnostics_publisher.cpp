@@ -2,9 +2,13 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 
+#include "autonomy_ros/debug/diagnostics_publisher.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <functional>
+
+#include "autonomy_ros/system/constants.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 
 namespace autonomy_ros::debug
@@ -64,8 +68,7 @@ void DiagnosticsPublisher::publish()
 
   add_status(
     constants::msg::kDiagController,
-    snap.controller_enabled ? diagnostic_msgs::msg::DiagnosticStatus::OK
-                            : diagnostic_msgs::msg::DiagnosticStatus::OK,
+    diagnostic_msgs::msg::DiagnosticStatus::OK,
     snap.controller_enabled ? constants::msg::kDiagControllerEnabled
                             : constants::msg::kDiagControllerIdle);
 

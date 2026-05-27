@@ -4,10 +4,10 @@
 #include <gtest/gtest.h>
 
 #include "autonomy_msgs/msg/task_type.hpp"
-#include "autonomy_ros/task/task_muxer.hpp"
+#include "autonomy_ros/navigation/task_muxer.hpp"
 
 using autonomy_msgs::msg::TaskType;
-using autonomy_ros::task::TaskMuxer;
+using autonomy_ros::navigation::TaskMuxer;
 
 TEST(TaskMuxer, AcquireAndRelease)
 {
@@ -23,27 +23,26 @@ TEST(TaskMuxer, AcquireAndRelease)
 TEST(TaskMuxer, RejectLowerPriority)
 {
   TaskMuxer muxer;
-  muxer.acquire("tour", TaskType::GUIDED_TOUR);
+  muxer.acquire("through", TaskType::WAYPOINTS);
   EXPECT_EQ(
     muxer.acquire("nav", TaskType::NAVIGATION),
     TaskMuxer::AcquireResult::RejectedBusy);
 }
 
-TEST(TaskMuxer, PreemptWithTeleop)
+TEST(TaskMuxer, PreemptWithForceFlag)
 {
   TaskMuxer muxer;
-  muxer.acquire("tour", TaskType::GUIDED_TOUR);
+  muxer.acquire("through", TaskType::WAYPOINTS);
   EXPECT_EQ(
-    muxer.acquire("teleop", TaskType::TELEOP, true),
+    muxer.acquire("nav", TaskType::NAVIGATION, true),
     TaskMuxer::AcquireResult::PreemptedPrevious);
-  EXPECT_TRUE(muxer.ownsTask("teleop"));
-  EXPECT_FALSE(muxer.ownsTask("tour"));
+  EXPECT_TRUE(muxer.ownsTask("nav"));
 }
 
 TEST(TaskMuxer, CanAcquireWithoutMutation)
 {
   TaskMuxer muxer;
-  muxer.acquire("dock", TaskType::DOCK);
+  muxer.acquire("through", TaskType::WAYPOINTS);
   EXPECT_FALSE(muxer.canAcquire("nav", TaskType::NAVIGATION));
-  EXPECT_TRUE(muxer.ownsTask("dock"));
+  EXPECT_TRUE(muxer.ownsTask("through"));
 }

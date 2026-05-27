@@ -35,7 +35,7 @@ namespace
 
 }  // namespace
 
-TfBridge::TfBridge(rclcpp::Node & node, const AutonomyRosOptions & ros_options)
+TfBridge::TfBridge(rclcpp::Node & node, const system::AutonomyRosOptions & ros_options)
 : node_(node),
   tf_topic_(ros_options.tf_topic),
   tf_static_topic_(ros_options.tf_static_topic)

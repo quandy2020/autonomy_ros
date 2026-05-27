@@ -10,7 +10,7 @@
 #include <string>
 
 #include "autonomy/commsgs/geometry_msgs.hpp"
-#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/system/options.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -24,8 +24,8 @@ class ActuationBridge
 {
 public:
   ActuationBridge(
-    rclcpp::Node & node, const AutonomyRosOptions & ros_options,
-    const AutonomyCoreOptions & core_options);
+    rclcpp::Node & node, const system::AutonomyRosOptions & ros_options,
+    const system::AutonomyCoreOptions & core_options);
   ~ActuationBridge();
 
   void publish(const ::autonomy::commsgs::geometry_msgs::TwistStamped & cmd);

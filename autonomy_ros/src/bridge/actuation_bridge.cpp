@@ -4,15 +4,15 @@
 
 #include "autonomy_ros/bridge/actuation_bridge.hpp"
 
-#include "autonomy_ros/constants.hpp"
+#include "autonomy_ros/system/constants.hpp"
 #include "autonomy_ros/conversions/conversions.hpp"
 
 namespace autonomy_ros::bridge
 {
 
 ActuationBridge::ActuationBridge(
-  rclcpp::Node & node, const AutonomyRosOptions & ros_options,
-  const AutonomyCoreOptions & core_options)
+  rclcpp::Node & node, const system::AutonomyRosOptions & ros_options,
+  const system::AutonomyCoreOptions & core_options)
 : node_(node),
   base_frame_(core_options.base_frame),
   max_linear_vel_(core_options.max_linear_vel)

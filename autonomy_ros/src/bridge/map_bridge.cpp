@@ -13,7 +13,7 @@ namespace autonomy_ros::bridge
 
 MapBridge::MapBridge(
   rclcpp::Node & node, ::autonomy::map::MapServer * map_server,
-  const AutonomyRosOptions & ros_options)
+  const system::AutonomyRosOptions & ros_options)
 : node_(node),
   map_server_(map_server),
   publish_map_(ros_options.publish_map),

@@ -33,14 +33,14 @@ ros2 launch autonomy_simulator simulator.launch.py sim_mode:=fake use_sim_time:=
 
 ```bash
 # Gazebo + 导航栈 + RViz
-ros2 launch autonomy_ros autonomy_stack.launch.py
+ros2 launch autonomy_ros navigation_stack.launch.py
 
 # Fake 机器人 + 导航栈（建议关闭仿真时钟与激光桥）
-ros2 launch autonomy_ros autonomy_stack.launch.py \
-  sim_mode:=fake use_sim_time:=false
+ros2 launch autonomy_ros navigation_stack.launch.py \
+  simulation_mode:=fake use_sim_time:=false
 ```
 
-Fake 模式下请在 `autonomy_params.yaml` 中将 `autonomy.enable_scan_bridge` 设为 `false`（无 `/scan`），`autonomy.planner.global_frame` 使用 `odom`。
+Fake 模式下请在 `config/parameters.yaml` 中将 `autonomy.enable_scan_bridge` 设为 `false`（无 `/scan`），`autonomy.planner.global_frame` 使用 `odom`。
 
 ## 目录
 
