@@ -1,6 +1,6 @@
 # 消息转换（conversions）
 
-`autonomy_ros::conversions` 在 ROS 2 `*::msg::*` 与 `autonomy::commsgs::*` 之间做**逐字段拷贝**，不做 TF 变换或时间重映射。
+`autonomy_ros` 在 ROS 2 `*::msg::*` 与 `autonomy::commsgs::*` 之间做**逐字段拷贝**，不做 TF 变换或时间重映射。
 
 - **提供**：`fromRos`、`toRos`
 - **不提供**：`toProto` / `fromProto`（请用 `autonomy/commsgs` 内各包的 `ToProto` / `FromProto`）
@@ -13,11 +13,11 @@
 #include "autonomy_ros/conversions/conversions.hpp"
 
 void on_odom(const nav_msgs::msg::Odometry::SharedPtr msg) {
-  auto core_odom = autonomy_ros::conversions::fromRos(*msg);
+  auto core_odom = autonomy_ros::fromRos(*msg);
   // ...
 }
 
-plan_pub_->publish(autonomy_ros::conversions::toRos(path));
+plan_pub_->publish(autonomy_ros::toRos(path));
 ```
 
 可按需只 include 子模块（如 `geometry_msgs.hpp`）以减少编译依赖。
@@ -44,9 +44,9 @@ include/autonomy_ros/conversions/
 | 模块 | 典型调用方 |
 |------|------------|
 | `geometry_msgs` | 导航 goal、cmd_vel、位姿 |
-| `sensor_msgs` | `SensorBridge`（LaserScan、PointCloud2、Range） |
-| `map_msgs` / `planning_msgs` | `MapBridge`、`CostmapBridge`、路径可视化 |
-| `tf2_msgs` | `TfBridge` |
+| `sensor_msgs` | `RosBridge`（LaserScan、PointCloud2、Range） |
+| `map_msgs` / `planning_msgs` | `RosBridge`、`TaskManager`、`Visualizer` |
+| `tf2_msgs` | `RosBridge` |
 | `planning_msgs::Path` | `TaskManager`、`Visualizer` |
 
 ---
@@ -64,7 +64,7 @@ flowchart LR
   CORE --> CM -->|toRos| CV --> ROS
 ```
 
-Bridge 与 `NavigationServer` 边界处统一经 `conversions` 进入 core，避免在业务代码中散落字段拷贝。
+Bridge 与 `NavigationService` 边界处统一经 `conversions` 进入 core，避免在业务代码中散落字段拷贝。
 
 ---
 

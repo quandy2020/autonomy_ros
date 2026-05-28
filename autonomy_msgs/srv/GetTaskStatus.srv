@@ -1,4 +1,4 @@
-# Query task status (service: /autonomy/get_task_status).
+# Query task status (service: /get_task_status).
 
 string task_id                 # Empty: return active task; else must match active id
 ---

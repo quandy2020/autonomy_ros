@@ -7,20 +7,15 @@ autonomy_node:
       use_bt_navigation: true
       map_topic: map
       publish_map: true
-      tf_topic: /tf
-      tf_static_topic: /tf_static
+      tf_topic: tf
+      tf_static_topic: tf_static
       odom_topic: odom
       cmd_vel_topic: cmd_vel
       enable_scan_bridge: true
-      scan_topic: /scan
+      scan_topic: scan
       publish_costmaps: true
       costmap_publish_hz: 1.0
       publish_diagnostics: true
-      sensor_bridge:
-        point_cloud_enabled: false
-        point_cloud_topic: /points
-        range_enabled: false
-        range_topic: /range
       planner:
         planner_id: NavFn
         global_frame: odom

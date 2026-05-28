@@ -7,10 +7,10 @@
 | 文档 | 说明 |
 |------|------|
 | [architecture.md](architecture.md) | 源码目录、模块职责、数据流 |
-| [external_commands.md](external_commands.md) | `/autonomy/*` Action / Service / Topic 字段与 `ros2` 示例 |
+| [external_commands.md](external_commands.md) | Action / Service / Topic 字段与 `ros2` 示例 |
 | [navigation_client.md](navigation_client.md) | `navigation_client.py` 命令行客户端 |
 | [localization.md](localization.md) | `map` / `odom` 坐标系与定位接入 |
-| [conversions.md](conversions.md) | `autonomy_ros::conversions` ROS ↔ commsgs |
+| [conversions.md](conversions.md) | `autonomy_ros::{fromRos,toRos}` ROS ↔ commsgs |
 
 ## 快速入口
 
@@ -23,7 +23,7 @@ ros2 run autonomy_ros navigation_client.py list-tasks
 ros2 run autonomy_ros navigation_client.py run-task go_to_point_a --feedback
 
 # 查看任务状态
-ros2 topic echo /autonomy/status
+ros2 topic echo /status
 ```
 
 ## 相关包

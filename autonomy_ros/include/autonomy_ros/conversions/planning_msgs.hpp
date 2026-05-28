@@ -1,3 +1,20 @@
+/*
+ * Copyright 2024 The OpenRobotic Beginner Authors (duyongquan)
+ * email: quandy2020@126.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2026 autonomy_ros contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,9 +42,9 @@
 /// @code
 /// #include "autonomy_ros/conversions/planning_msgs.hpp"
 /// void on_odom(const nav_msgs::msg::Odometry::SharedPtr msg) {
-///   auto odom = autonomy_ros::conversions::fromRos(*msg);
+///   auto odom = autonomy_ros::fromRos(*msg);
 /// }
-/// pub_plan->publish(autonomy_ros::conversions::toRos(core_path));
+/// pub_plan->publish(autonomy_ros::toRos(core_path));
 /// @endcode
 
 #include "autonomy/commsgs/planning_msgs.hpp"
@@ -35,7 +52,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 
-namespace autonomy_ros::conversions
+namespace autonomy_ros
 {
 
 using Odometry = ::autonomy::commsgs::planning_msgs::Odometry;
@@ -69,6 +86,6 @@ nav_msgs::msg::Odometry toRos(const Odometry & from);
 Path fromRos(const nav_msgs::msg::Path & from);
 nav_msgs::msg::Path toRos(const Path & from);
 
-}  // namespace autonomy_ros::conversions
+}  // namespace autonomy_ros
 
 #endif  // AUTONOMY_ROS__CONVERSIONS__PLANNING_MSGS_HPP_

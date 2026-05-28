@@ -1,6 +1,6 @@
 # navigation_client.py
 
-`navigation_client.py` 是导航命令行客户端，调用 `NavigationServer` 暴露的 `/autonomy/*` Action 与 Service。
+`navigation_client.py` 是导航命令行客户端，调用 `NavigationService` 暴露的 Action 与 Service。
 
 ---
 
@@ -9,7 +9,7 @@
 ```bash
 source install/setup.bash
 ros2 launch autonomy_ros navigation_stack.launch.py
-ros2 action list | grep autonomy
+ros2 action list | grep navigate
 ```
 
 ---
@@ -85,4 +85,4 @@ ros2 run autonomy_ros navigation_client.py cancel --all
 ## 相关文档
 
 - [external_commands.md](external_commands.md) — Action / Service 字段说明
-- [architecture.md](architecture.md) — `NavigationServer` 在栈中的位置
+- [architecture.md](architecture.md) — `NavigationService` 在栈中的位置

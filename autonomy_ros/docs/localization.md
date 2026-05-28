@@ -18,7 +18,7 @@
    - `autonomy.planner.global_frame: map`
    - 确保 `map` → `odom` 由定位节点发布
    - `odom` → `base_footprint` 由里程计或仿真发布
-3. RViz **2D Pose Estimate** 发布到 `initialpose`（参数 `navigation.init_pose_topic`）；`NavigationServer` 可转发至定位栈订阅的话题
+3. RViz **2D Pose Estimate** 发布到 `initialpose`（参数 `navigation.init_pose_topic`）；`NavigationService` 可转发至定位栈订阅的话题
 
 示例（需自行安装 Nav2）：
 

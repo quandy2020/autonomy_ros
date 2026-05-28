@@ -1,4 +1,4 @@
-# Task snapshot (topic: /autonomy/status, ~5 Hz).
+# Task snapshot (topic: /status, ~5 Hz).
 
 std_msgs/Header header
 string task_id

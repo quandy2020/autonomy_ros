@@ -1,4 +1,4 @@
-# Edge-triggered task notifications (topic: /autonomy/events).
+# Edge-triggered task notifications (topic: /events).
 
 uint8 TASK_PREEMPTED=1
 uint8 TASK_PAUSED=2

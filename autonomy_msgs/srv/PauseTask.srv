@@ -1,4 +1,4 @@
-# Pause navigation / tour (service: /autonomy/pause_task).
+# Pause navigation / tour (service: /pause_task).
 
 string task_id                 # Empty: pause active task
 string reason                  # Stored in TaskStatus.description

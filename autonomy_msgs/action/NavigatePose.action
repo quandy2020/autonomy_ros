@@ -1,4 +1,4 @@
-# Single-goal navigation (/autonomy/navigate_pose).
+# Single-goal navigation (/navigate_pose).
 
 string task_id
 geometry_msgs/PoseStamped goal

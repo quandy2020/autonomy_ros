@@ -10,8 +10,8 @@
 
 | Topic | 类型 | 说明 |
 |-------|------|------|
-| `/autonomy/status` | `TaskStatus` | 任务快照 ~5 Hz |
-| `/autonomy/events` | `Event` | 抢占、暂停/恢复、急停等边沿事件 |
+| `/status` | `TaskStatus` | 任务快照 ~5 Hz |
+| `/events` | `Event` | 抢占、暂停/恢复、急停等边沿事件 |
 | `/goal_pose` | `geometry_msgs/PoseStamped` | RViz 手动目标（抢占当前导航） |
 | `/initialpose` | `geometry_msgs/PoseWithCovarianceStamped` | 重定位 |
 
@@ -21,8 +21,8 @@
 
 | Action | 名称 | 说明 |
 |--------|------|------|
-| `NavigatePose` | `/autonomy/navigate_pose` | 单点导航 |
-| `NavigateThrough` | `/autonomy/navigate_through` | 顺序途经多点 |
+| `NavigatePose` | `/navigate_pose` | 单点导航 |
+| `NavigateThrough` | `/navigate_through` | 顺序途经多点 |
 
 ### NavigatePose
 
@@ -61,12 +61,12 @@
 
 | Service | 名称 | 说明 |
 |---------|------|------|
-| `CancelTask` | `/autonomy/cancel_task` | 取消任务 |
-| `GetTaskStatus` | `/autonomy/get_task_status` | 查询状态 |
-| `PauseTask` | `/autonomy/pause_task` | 暂停导航 |
-| `ResumeTask` | `/autonomy/resume_task` | 恢复导航 |
-| `TriggerEmergencyStop` | `/autonomy/trigger_estop` | 急停 / 解除 |
-| `SetInitialPose` | `/autonomy/set_initial_pose` | 设置初始位姿 |
+| `CancelTask` | `/cancel_task` | 取消任务 |
+| `GetTaskStatus` | `/get_task_status` | 查询状态 |
+| `PauseTask` | `/pause_task` | 暂停导航 |
+| `ResumeTask` | `/resume_task` | 恢复导航 |
+| `TriggerEmergencyStop` | `/trigger_estop` | 急停 / 解除 |
+| `SetInitialPose` | `/set_initial_pose` | 设置初始位姿 |
 
 ---
 
@@ -91,20 +91,20 @@
 
 ```bash
 # 单点导航
-ros2 action send_goal /autonomy/navigate_pose autonomy_msgs/action/NavigatePose \
+ros2 action send_goal /navigate_pose autonomy_msgs/action/NavigatePose \
   "{task_id: 'nav_001', goal: {header: {frame_id: 'odom'}, pose: {position: {x: 1.0, y: 0.5, z: 0.0}, orientation: {w: 1.0}}}, behavior_tree: ''}" \
   --feedback
 
 # 多点导航
-ros2 action send_goal /autonomy/navigate_through autonomy_msgs/action/NavigateThrough \
+ros2 action send_goal /navigate_through autonomy_msgs/action/NavigateThrough \
   "{task_id: 'wp_001', waypoints: [
     {id: 'p1', label: '点1', pose: {header: {frame_id: 'odom'}, pose: {position: {x: 1.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}, wait_duration: 2.0}
   ], number_of_loops: 1, start_index: 0, stop_on_failure: true, behavior_tree: ''}" \
   --feedback
 
 # 暂停 / 取消
-ros2 service call /autonomy/pause_task autonomy_msgs/srv/PauseTask "{task_id: '', reason: 'demo'}"
-ros2 service call /autonomy/cancel_task autonomy_msgs/srv/CancelTask "{task_id: '', cancel_all: true}"
+ros2 service call /pause_task autonomy_msgs/srv/PauseTask "{task_id: '', reason: 'demo'}"
+ros2 service call /cancel_task autonomy_msgs/srv/CancelTask "{task_id: '', cancel_all: true}"
 
 # CLI
 ros2 run autonomy_ros navigation_client.py navigate-pose --x 1.0 --y 0.5 --feedback

@@ -1,3 +1,20 @@
+/*
+ * Copyright 2024 The OpenRobotic Beginner Authors (duyongquan)
+ * email: quandy2020@126.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2026 autonomy_ros contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -9,7 +26,7 @@
 
 #include "autonomy_ros/conversions/detail.hpp"
 
-namespace autonomy_ros::conversions
+namespace autonomy_ros
 {
 namespace
 {
@@ -75,7 +92,7 @@ sensor_msgs::msg::RegionOfInterest toRos(const RegionOfInterest & from)
 CameraInfo fromRos(const sensor_msgs::msg::CameraInfo & from)
 {
   CameraInfo to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.height = from.height;
   to.width = from.width;
   to.distortion_model = from.distortion_model;
@@ -92,7 +109,7 @@ CameraInfo fromRos(const sensor_msgs::msg::CameraInfo & from)
 sensor_msgs::msg::CameraInfo toRos(const CameraInfo & from)
 {
   sensor_msgs::msg::CameraInfo to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.height = from.height;
   to.width = from.width;
   to.distortion_model = from.distortion_model;
@@ -125,7 +142,7 @@ sensor_msgs::msg::ChannelFloat32 toRos(const ChannelFloat32 & from)
 CompressedImage fromRos(const sensor_msgs::msg::CompressedImage & from)
 {
   CompressedImage to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.format = from.format;
   to.data.reserve(from.data.size());
   for (const auto byte : from.data) {
@@ -137,7 +154,7 @@ CompressedImage fromRos(const sensor_msgs::msg::CompressedImage & from)
 sensor_msgs::msg::CompressedImage toRos(const CompressedImage & from)
 {
   sensor_msgs::msg::CompressedImage to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.format = from.format;
   to.data.reserve(from.data.size());
   for (const auto value : from.data) {
@@ -149,7 +166,7 @@ sensor_msgs::msg::CompressedImage toRos(const CompressedImage & from)
 Illuminance fromRos(const sensor_msgs::msg::Illuminance & from)
 {
   Illuminance to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.illuminance = static_cast<float>(from.illuminance);
   to.variance = static_cast<float>(from.variance);
   return to;
@@ -158,7 +175,7 @@ Illuminance fromRos(const sensor_msgs::msg::Illuminance & from)
 sensor_msgs::msg::Illuminance toRos(const Illuminance & from)
 {
   sensor_msgs::msg::Illuminance to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.illuminance = from.illuminance;
   to.variance = from.variance;
   return to;
@@ -167,7 +184,7 @@ sensor_msgs::msg::Illuminance toRos(const Illuminance & from)
 Image fromRos(const sensor_msgs::msg::Image & from)
 {
   Image to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.height = from.height;
   to.width = from.width;
   to.encoding = from.encoding;
@@ -180,7 +197,7 @@ Image fromRos(const sensor_msgs::msg::Image & from)
 sensor_msgs::msg::Image toRos(const Image & from)
 {
   sensor_msgs::msg::Image to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.height = from.height;
   to.width = from.width;
   to.encoding = from.encoding;
@@ -193,12 +210,12 @@ sensor_msgs::msg::Image toRos(const Image & from)
 Imu fromRos(const sensor_msgs::msg::Imu & from)
 {
   Imu to;
-  detail::copyHeader(from.header, to.header);
-  detail::copyQuaternion(from.orientation, to.orientation);
+  copyHeader(from.header, to.header);
+  copyQuaternion(from.orientation, to.orientation);
   copyCovariance9(from.orientation_covariance, to.orientation_covariance);
-  detail::copyVector3(from.angular_velocity, to.angular_velocity);
+  copyVector3(from.angular_velocity, to.angular_velocity);
   copyCovariance9(from.angular_velocity_covariance, to.angular_velocity_covariance);
-  detail::copyVector3(from.linear_acceleration, to.linear_acceleration);
+  copyVector3(from.linear_acceleration, to.linear_acceleration);
   copyCovariance9(from.linear_acceleration_covariance, to.linear_acceleration_covariance);
   return to;
 }
@@ -206,12 +223,12 @@ Imu fromRos(const sensor_msgs::msg::Imu & from)
 sensor_msgs::msg::Imu toRos(const Imu & from)
 {
   sensor_msgs::msg::Imu to;
-  detail::copyHeader(from.header, to.header);
-  detail::copyQuaternion(from.orientation, to.orientation);
+  copyHeader(from.header, to.header);
+  copyQuaternion(from.orientation, to.orientation);
   copyCovariance9(from.orientation_covariance, to.orientation_covariance);
-  detail::copyVector3(from.angular_velocity, to.angular_velocity);
+  copyVector3(from.angular_velocity, to.angular_velocity);
   copyCovariance9(from.angular_velocity_covariance, to.angular_velocity_covariance);
-  detail::copyVector3(from.linear_acceleration, to.linear_acceleration);
+  copyVector3(from.linear_acceleration, to.linear_acceleration);
   copyCovariance9(from.linear_acceleration_covariance, to.linear_acceleration_covariance);
   return to;
 }
@@ -219,7 +236,7 @@ sensor_msgs::msg::Imu toRos(const Imu & from)
 LaserScan fromRos(const sensor_msgs::msg::LaserScan & from)
 {
   LaserScan to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.angle_min = static_cast<float>(from.angle_min);
   to.angle_max = static_cast<float>(from.angle_max);
   to.angle_increment = static_cast<float>(from.angle_increment);
@@ -235,7 +252,7 @@ LaserScan fromRos(const sensor_msgs::msg::LaserScan & from)
 sensor_msgs::msg::LaserScan toRos(const LaserScan & from)
 {
   sensor_msgs::msg::LaserScan to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.angle_min = from.angle_min;
   to.angle_max = from.angle_max;
   to.angle_increment = from.angle_increment;
@@ -251,11 +268,11 @@ sensor_msgs::msg::LaserScan toRos(const LaserScan & from)
 PointCloud fromRos(const sensor_msgs::msg::PointCloud & from)
 {
   PointCloud to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.points.reserve(from.points.size());
   for (const auto & point : from.points) {
     ::autonomy::commsgs::geometry_msgs::Point32 commsg_point;
-    detail::copyPoint32(point, commsg_point);
+    copyPoint32(point, commsg_point);
     to.points.push_back(commsg_point);
   }
   to.channels.reserve(from.channels.size());
@@ -268,11 +285,11 @@ PointCloud fromRos(const sensor_msgs::msg::PointCloud & from)
 sensor_msgs::msg::PointCloud toRos(const PointCloud & from)
 {
   sensor_msgs::msg::PointCloud to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.points.reserve(from.points.size());
   for (const auto & point : from.points) {
     geometry_msgs::msg::Point32 ros_point;
-    detail::copyPoint32(point, ros_point);
+    copyPoint32(point, ros_point);
     to.points.push_back(ros_point);
   }
   to.channels.reserve(from.channels.size());
@@ -305,7 +322,7 @@ sensor_msgs::msg::PointField toRos(const PointField & from)
 PointCloud2 fromRos(const sensor_msgs::msg::PointCloud2 & from)
 {
   PointCloud2 to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.height = from.height;
   to.width = from.width;
   to.fields.reserve(from.fields.size());
@@ -323,7 +340,7 @@ PointCloud2 fromRos(const sensor_msgs::msg::PointCloud2 & from)
 sensor_msgs::msg::PointCloud2 toRos(const PointCloud2 & from)
 {
   sensor_msgs::msg::PointCloud2 to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.height = from.height;
   to.width = from.width;
   to.fields.reserve(from.fields.size());
@@ -341,7 +358,7 @@ sensor_msgs::msg::PointCloud2 toRos(const PointCloud2 & from)
 Range fromRos(const sensor_msgs::msg::Range & from)
 {
   Range to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.radiation_type = from.radiation_type;
   to.field_of_view = static_cast<float>(from.field_of_view);
   to.min_range = static_cast<float>(from.min_range);
@@ -353,7 +370,7 @@ Range fromRos(const sensor_msgs::msg::Range & from)
 sensor_msgs::msg::Range toRos(const Range & from)
 {
   sensor_msgs::msg::Range to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.radiation_type = from.radiation_type;
   to.field_of_view = from.field_of_view;
   to.min_range = from.min_range;
@@ -365,7 +382,7 @@ sensor_msgs::msg::Range toRos(const Range & from)
 Joy fromRos(const sensor_msgs::msg::Joy & from)
 {
   Joy to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.axes.assign(from.axes.begin(), from.axes.end());
   to.buttons.assign(from.buttons.begin(), from.buttons.end());
   return to;
@@ -374,10 +391,10 @@ Joy fromRos(const sensor_msgs::msg::Joy & from)
 sensor_msgs::msg::Joy toRos(const Joy & from)
 {
   sensor_msgs::msg::Joy to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.axes.assign(from.axes.begin(), from.axes.end());
   to.buttons.assign(from.buttons.begin(), from.buttons.end());
   return to;
 }
 
-}  // namespace autonomy_ros::conversions
+}  // namespace autonomy_ros

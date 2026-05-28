@@ -1,4 +1,4 @@
-# Software emergency stop (service: /autonomy/trigger_estop).
+# Software emergency stop (service: /trigger_estop).
 
 bool engage true               # True: estop on; False: release latch
 string reason
