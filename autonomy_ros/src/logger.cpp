@@ -18,7 +18,6 @@
 #include "autonomy_ros/logger.hpp"
 
 #include <chrono>
-#include <cstring>
 #include <string>
 #include <thread>
 
@@ -26,17 +25,6 @@
 
 namespace autonomy_ros
 {
-
-namespace
-{
-
-const char * GetBasename(const char * filepath)
-{
-  const char * base = std::strrchr(filepath, '/');
-  return base ? (base + 1) : filepath;
-}
-
-}  // namespace
 
 ScopedRosLogSink::ScopedRosLogSink()
 {
@@ -57,15 +45,15 @@ void ScopedRosLogSink::send(
   const char * const message,
   const std::size_t message_len)
 {
+  (void)filename;
   (void)base_filename;
+  (void)line;
+  (void)tm_time;
 
-#if defined(GOOGLE_GLOG_DLL_DECL)
-  const std::string message_string = ::google::LogSink::ToString(
-    severity, GetBasename(filename), line, tm_time, message, message_len);
-#else
-  const std::string message_string = ::google::LogSink::ToString(
-    severity, GetBasename(filename), line, ::google::LogMessageTime(*tm_time), message, message_len);
-#endif
+  std::string message_string(message, message_len);
+  while (!message_string.empty() && message_string.back() == '\n') {
+    message_string.pop_back();
+  }
 
   switch (severity) {
     case ::google::GLOG_INFO:

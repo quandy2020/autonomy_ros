@@ -37,9 +37,28 @@ Visualizer::Visualizer(rclcpp::Node & node, std::string frame_id)
 
 void Visualizer::OnGlobalPath(const nav_msgs::msg::Path & path)
 {
-  if (plan_publisher_) {
-    plan_publisher_->publish(path);
+  if (!plan_publisher_) {
+    return;
   }
+
+  nav_msgs::msg::Path published = path;
+  if (published.header.frame_id.empty()) {
+    published.header.frame_id = frame_id_;
+  }
+  if (published.header.stamp.sec == 0 && published.header.stamp.nanosec == 0) {
+    published.header.stamp = node_.now();
+  }
+
+  for (auto & pose : published.poses) {
+    if (pose.header.frame_id.empty()) {
+      pose.header.frame_id = published.header.frame_id;
+    }
+    if (pose.header.stamp.sec == 0 && pose.header.stamp.nanosec == 0) {
+      pose.header.stamp = published.header.stamp;
+    }
+  }
+
+  plan_publisher_->publish(published);
 }
 
 void Visualizer::OnNavigationGoal(const geometry_msgs::msg::PoseStamped & goal)

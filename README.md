@@ -17,6 +17,14 @@ It combines the `autonomy` navigation core, the `autonomy_ros` ROS integration l
 - 🛠️ **Task control APIs** for cancel, pause/resume, emergency stop, and status query.
 - 🧪 **Simulation-ready workflow** with Gazebo and fake-robot modes in one launch entry.
 
+## 🎥 Demo
+
+- Video file: [`autonomy-sim.mov`](autonomy_ros/docs/autonomy-sim.mov)
+
+<video src="autonomy_ros/docs/autonomy-sim.mov" controls muted playsinline width="960">
+  Your browser does not support the video tag.
+</video>
+
 ---
 
 ## 📦 Dependencies and build

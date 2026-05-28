@@ -50,10 +50,10 @@ int16_t occupancyCellFromRos(int8_t ros_cell)
   // Legacy 0..255 in a signed byte (e.g. -51 for 205): remap by unsigned view.
   const uint8_t raw = static_cast<uint8_t>(ros_cell);
   if (raw >= 254) {
-    return kOccFree;
+    return kOccOccupied;
   }
   if (raw <= 1) {
-    return kOccOccupied;
+    return kOccFree;
   }
   if (raw == 205) {
     return kOccUnknown;
@@ -72,10 +72,10 @@ int8_t occupancyCellToRos(int16_t core_cell)
   }
   // Core stored legacy 0..255 (e.g. raw PGM cache in int16).
   if (core_cell >= 254) {
-    return static_cast<int8_t>(kOccFree);
+    return static_cast<int8_t>(kOccOccupied);
   }
   if (core_cell <= 1) {
-    return static_cast<int8_t>(kOccOccupied);
+    return static_cast<int8_t>(kOccFree);
   }
   if (core_cell == 205) {
     return static_cast<int8_t>(kOccUnknown);

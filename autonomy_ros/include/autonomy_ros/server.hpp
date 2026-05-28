@@ -23,6 +23,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 #include "autonomy_ros/constants.hpp"
 #include "autonomy_ros/options.hpp"
@@ -134,6 +135,8 @@ private:
   rclcpp::Service<autonomy_msgs::srv::ResumeTask>::SharedPtr resume_task_srv_;
   rclcpp::Service<autonomy_msgs::srv::TriggerEmergencyStop>::SharedPtr estop_srv_;
   rclcpp::Service<autonomy_msgs::srv::SetInitialPose>::SharedPtr set_initial_pose_srv_;
+
+  std::atomic<uint64_t> topic_goal_seq_{0};
 };
 
 }  // namespace autonomy_ros
