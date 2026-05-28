@@ -2,7 +2,11 @@
 
 A **ROS 2 autonomous navigation** workspace focused on two production features: **single-goal navigation** and **multi-waypoint navigation**.
 
-It combines the `autonomy` navigation core, the `autonomy_ros` ROS integration layer, the `autonomy_msgs` API package, and the `autonomy_simulator` package for simulation assets (based on [nav2_minimal_tb3_sim](https://github.com/ros-navigation/nav2_minimal_turtlebot_simulation/tree/main/nav2_minimal_tb3_sim)).
+It combines the `autonomy` navigation core, the `autonomy_ros` ROS integration layer
+
+*  `autonomy_msgs` API package
+* `autonomy_simulator` 
+*  simulation assets (based on [nav2_minimal_tb3_sim](https://github.com/ros-navigation/nav2_minimal_turtlebot_simulation/tree/main/nav2_minimal_tb3_sim)).
 
 ---
 
