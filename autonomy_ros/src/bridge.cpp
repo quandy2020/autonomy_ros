@@ -25,6 +25,8 @@
 #include "autonomy/transform/geometry_msgs/transform_stamped.h"
 #include "autonomy_ros/constants.hpp"
 #include "autonomy_ros/conversions/conversions.hpp"
+#include "geometry_msgs/msg/point32.hpp"
+#include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
@@ -68,6 +70,25 @@ void InjectTransform(
       node.get_logger(), *node.get_clock(), 5000,
       "[ros_bridge] setTransform failed: %s", e.what());
   }
+}
+
+geometry_msgs::msg::PolygonStamped BuildFootprintMsg(
+  const std::vector<::autonomy::commsgs::geometry_msgs::Point> & footprint,
+  const std::string & frame_id,
+  const rclcpp::Time & stamp)
+{
+  geometry_msgs::msg::PolygonStamped msg;
+  msg.header.frame_id = frame_id;
+  msg.header.stamp = stamp;
+  msg.polygon.points.reserve(footprint.size());
+  for (const auto & point : footprint) {
+    geometry_msgs::msg::Point32 p;
+    p.x = static_cast<float>(point.x);
+    p.y = static_cast<float>(point.y);
+    p.z = static_cast<float>(point.z);
+    msg.polygon.points.push_back(p);
+  }
+  return msg;
 }
 
 }  // namespace
@@ -137,6 +158,8 @@ RosBridge::RosBridge(
       kGlobalCostmapTopic, rclcpp::QoS(1).transient_local());
     local_costmap_pub_ = node_.create_publisher<nav_msgs::msg::OccupancyGrid>(
       kLocalCostmapTopic, rclcpp::QoS(1).transient_local());
+    robot_footprint_pub_ = node_.create_publisher<geometry_msgs::msg::PolygonStamped>(
+      kRobotFootprintTopic, rclcpp::QoS(1).transient_local());
     const int period_ms = static_cast<int>(
       1000.0 / std::max(ros_options_.costmap_publish_hz, 0.1));
     costmap_timer_ = node_.create_wall_timer(
@@ -184,6 +207,14 @@ void RosBridge::OnCostmapTimer()
   }
   if (local_costmap_pub_) {
     local_costmap_pub_->publish(ros_grid);
+  }
+  if (robot_footprint_pub_) {
+    const auto footprint = costmap_wrapper_->getRobotFootprint();
+    if (!footprint.empty()) {
+      auto ros_footprint = BuildFootprintMsg(
+        footprint, base_frame_, node_.now());
+      robot_footprint_pub_->publish(std::move(ros_footprint));
+    }
   }
 }
 
