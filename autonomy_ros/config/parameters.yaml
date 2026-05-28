@@ -17,10 +17,10 @@ autonomy_node:
       costmap_publish_hz: 1.0
       publish_diagnostics: true
       planner:
-        planner_id: NavFn
+        planner_id: navfn_planner
         global_frame: odom
       controller:
-        controller_id: MPCController
+        controller_id: graceful_controller
         goal_checker_id: goal_checker
         progress_checker_id: progress_checker
         max_linear_vel: 0.22

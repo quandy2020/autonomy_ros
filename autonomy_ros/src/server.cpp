@@ -51,7 +51,7 @@ NavigationService::NavigationService(
 
   initial_pose_pub_ =
     node_.create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
-      kInitialPoseTopic, 1);
+      kInitialPoseTopic, rclcpp::QoS(1).reliable().transient_local());
 
   init_pose_sub_ = node_.create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
     init_pose_topic_, 10,
@@ -196,8 +196,11 @@ void NavigationService::OnGoalPose(const geometry_msgs::msg::PoseStamped::Shared
     RCLCPP_WARN(node_.get_logger(), "[command] reject goal_pose: estop active");
     return;
   }
+  const uint64_t seq = topic_goal_seq_.fetch_add(1, std::memory_order_relaxed) + 1;
+  const std::string task_id = goal_pose_topic_ + "#" + std::to_string(seq);
+
   if (!task_manager_->CanBeginTask(
-      goal_pose_topic_, autonomy_msgs::msg::TaskType::NAVIGATION, true))
+      task_id, autonomy_msgs::msg::TaskType::NAVIGATION, true))
   {
     RCLCPP_WARN(node_.get_logger(), "[command] reject goal_pose: another task is running");
     return;
@@ -208,11 +211,11 @@ void NavigationService::OnGoalPose(const geometry_msgs::msg::PoseStamped::Shared
   }
   std::thread{
     &NavigationService::RunTopicGoalPose, this, std::move(goal),
-    goal_pose_topic_}
+    task_id}
     .detach();
   RCLCPP_INFO(
-    node_.get_logger(), "[command] goal_pose accepted (%.2f, %.2f)",
-    msg->pose.position.x, msg->pose.position.y);
+    node_.get_logger(), "[command] goal_pose accepted id=%s (%.2f, %.2f)",
+    task_id.c_str(), msg->pose.position.x, msg->pose.position.y);
 }
 
 void NavigationService::RunTopicGoalPose(
@@ -260,7 +263,9 @@ rclcpp_action::GoalResponse NavigationService::HandleGoal(
     RCLCPP_WARN(node_.get_logger(), "[command] reject goal %s: estop", task_id.c_str());
     return rclcpp_action::GoalResponse::REJECT;
   }
-  if (!task_manager_->CanBeginTask(task_id, task_type, false)) {
+  // Keep action behavior consistent with topic goal preemption:
+  // a newer goal should preempt current navigation.
+  if (!task_manager_->CanBeginTask(task_id, task_type, true)) {
     RCLCPP_WARN(node_.get_logger(), "[command] reject goal %s: busy", task_id.c_str());
     return rclcpp_action::GoalResponse::REJECT;
   }
@@ -307,7 +312,8 @@ void NavigationService::ExecuteNavigatePose(
     handle->abort(result);
     return;
   }
-  if (!task_manager_->BeginTask(task_id, autonomy_msgs::msg::TaskType::NAVIGATION)) {
+  if (!task_manager_->BeginTask(
+      task_id, autonomy_msgs::msg::TaskType::NAVIGATION, true)) {
     result->error = task_manager_->MakeError(
       autonomy_msgs::msg::Error::NOT_AVAILABLE, "estop or busy");
     handle->abort(result);
@@ -364,7 +370,8 @@ void NavigationService::ExecuteNavigateThrough(
     return;
   }
   const auto & task_id = goal->task_id;
-  if (!task_manager_->BeginTask(task_id, autonomy_msgs::msg::TaskType::WAYPOINTS)) {
+  if (!task_manager_->BeginTask(
+      task_id, autonomy_msgs::msg::TaskType::WAYPOINTS, true)) {
     result->error = task_manager_->MakeError(autonomy_msgs::msg::Error::NOT_AVAILABLE, "busy");
     handle->abort(result);
     return;

@@ -43,14 +43,16 @@ void Run()
 
 int main(int argc, char * argv[])
 {
-  // Keep ROS initialization ahead of glog flag parsing.
-  rclcpp::init(argc, argv);
-
   ::google::AllowCommandLineReparsing();
   ::google::InitGoogleLogging(argv[0]);
+  FLAGS_logtostderr = false;
+  FLAGS_colorlogtostderr = false;
+
+  rclcpp::init(argc, argv);
   autonomy_ros::ScopedRosLogSink ros_log_sink;
 
   autonomy_ros::Run();
   rclcpp::shutdown();
+  ::google::ShutdownGoogleLogging();
   return 0;
 }

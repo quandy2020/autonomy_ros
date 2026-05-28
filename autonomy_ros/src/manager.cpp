@@ -156,6 +156,11 @@ bool TaskManager::BeginTask(
   }
 
   if (acquire == AcquireResult::kPreemptedPrevious) {
+    if (core_) {
+      // Ensure previous navigation loop exits before new task starts.
+      core_->RequestCancelNavigation();
+    }
+    SetControllerEnabled(false);
     if (auto preempted = ConsumeLastPreempted()) {
       RCLCPP_WARN(
         node_.get_logger(), "[task] preempted task '%s' for '%s'",
