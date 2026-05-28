@@ -19,12 +19,9 @@ It combines the `autonomy` navigation core, the `autonomy_ros` ROS integration l
 
 ## 🎥 Demo
 
-- Video file: [`autonomy-sim.mp4`](autonomy_ros/docs/autonomy-sim.mp4)
+- Demo GIF: [`autonomy-sim.gif`](autonomy_ros/docs/autonomy-sim.gif)
 
-<video controls width="960">
-  <source src="autonomy_ros/docs/autonomy-sim.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![autonomy simulation demo](autonomy_ros/docs/autonomy-sim.gif)
 
 ---
 
