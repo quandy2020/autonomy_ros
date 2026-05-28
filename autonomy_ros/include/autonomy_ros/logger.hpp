@@ -15,42 +15,41 @@
  * limitations under the License.
  */
 
-#include <memory>
+#ifndef AUTONOMY_ROS__LOGGER_HPP_
+#define AUTONOMY_ROS__LOGGER_HPP_
 
-#include "autonomy_ros/options.hpp"
-#include "autonomy_ros/logger.hpp"
-#include "autonomy_ros/node.hpp"
+#include <cstddef>
+#include <ctime>
+
 #include "glog/logging.h"
 #include "rclcpp/rclcpp.hpp"
 
 namespace autonomy_ros
 {
 
-void Run()
+// Routes Google glog output to ROS logging while alive.
+class ScopedRosLogSink : public ::google::LogSink
 {
-  auto node = std::make_shared<rclcpp::Node>("autonomy_node");
-  auto system = std::make_unique<RosAutonomySystem>(*node, CreateOptions(*node));
+public:
+  ScopedRosLogSink();
+  ~ScopedRosLogSink() override;
 
-  RCLCPP_INFO(
-    node->get_logger(),
-    "autonomy_ros: core=%s",
-    system->IsRunning() ? "running" : "failed");
+  void send(
+    ::google::LogSeverity severity,
+    const char * filename,
+    const char * base_filename,
+    int line,
+    const std::tm * tm_time,
+    const char * message,
+    std::size_t message_len) override;
 
-  rclcpp::spin(node);
-}
+  void WaitTillSent() override;
+
+private:
+  bool will_die_{false};
+  rclcpp::Logger logger_{rclcpp::get_logger("autonomy_ros")};
+};
 
 }  // namespace autonomy_ros
 
-int main(int argc, char * argv[])
-{
-  // Keep ROS initialization ahead of glog flag parsing.
-  rclcpp::init(argc, argv);
-
-  ::google::AllowCommandLineReparsing();
-  ::google::InitGoogleLogging(argv[0]);
-  autonomy_ros::ScopedRosLogSink ros_log_sink;
-
-  autonomy_ros::Run();
-  rclcpp::shutdown();
-  return 0;
-}
+#endif  // AUTONOMY_ROS__LOGGER_HPP_

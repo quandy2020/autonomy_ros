@@ -1,4 +1,4 @@
-# Resume after PauseTask (service: /autonomy/resume_task).
+# Resume after PauseTask (service: /resume_task).
 
 string task_id                 # Reserved; active task is resumed
 ---

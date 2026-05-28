@@ -1,4 +1,4 @@
-# Visit waypoints in order (action: /autonomy/navigate_through).
+# Visit waypoints in order (action: /navigate_through).
 # Analogous to nav2 FollowWaypoints.
 
 # goal

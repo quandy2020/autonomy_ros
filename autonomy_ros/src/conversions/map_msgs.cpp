@@ -1,3 +1,20 @@
+/*
+ * Copyright 2024 The OpenRobotic Beginner Authors (duyongquan)
+ * email: quandy2020@126.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2026 autonomy_ros contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -10,7 +27,7 @@
 #include "autonomy_ros/conversions/geometry_msgs.hpp"
 #include "autonomy_ros/conversions/std_msgs.hpp"
 
-namespace autonomy_ros::conversions
+namespace autonomy_ros
 {
 
 namespace
@@ -92,13 +109,13 @@ void copyOccupancyDataToRos(
 GridCells fromRos(const nav_msgs::msg::GridCells & from)
 {
   GridCells to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.cell_width = static_cast<float>(from.cell_width);
   to.cell_height = static_cast<float>(from.cell_height);
   to.cells.reserve(from.cells.size());
   for (const auto & cell : from.cells) {
     ::autonomy::commsgs::geometry_msgs::Point point;
-    detail::copyPoint(cell, point);
+    copyPoint(cell, point);
     to.cells.push_back(point);
   }
   return to;
@@ -107,13 +124,13 @@ GridCells fromRos(const nav_msgs::msg::GridCells & from)
 nav_msgs::msg::GridCells toRos(const GridCells & from)
 {
   nav_msgs::msg::GridCells to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.cell_width = from.cell_width;
   to.cell_height = from.cell_height;
   to.cells.reserve(from.cells.size());
   for (const auto & cell : from.cells) {
     geometry_msgs::msg::Point ros_point;
-    detail::copyPoint(cell, ros_point);
+    copyPoint(cell, ros_point);
     to.cells.push_back(ros_point);
   }
   return to;
@@ -122,29 +139,29 @@ nav_msgs::msg::GridCells toRos(const GridCells & from)
 MapMetaData fromRos(const nav_msgs::msg::MapMetaData & from)
 {
   MapMetaData to;
-  detail::copyTime(from.map_load_time, to.map_load_time);
+  copyTime(from.map_load_time, to.map_load_time);
   to.resolution = static_cast<float>(from.resolution);
   to.width = from.width;
   to.height = from.height;
-  detail::copyPose(from.origin, to.origin);
+  copyPose(from.origin, to.origin);
   return to;
 }
 
 nav_msgs::msg::MapMetaData toRos(const MapMetaData & from)
 {
   nav_msgs::msg::MapMetaData to;
-  to.map_load_time = detail::toRosTime(from.map_load_time);
+  to.map_load_time = toRosTime(from.map_load_time);
   to.resolution = from.resolution;
   to.width = from.width;
   to.height = from.height;
-  detail::copyPose(from.origin, to.origin);
+  copyPose(from.origin, to.origin);
   return to;
 }
 
 OccupancyGrid fromRos(const nav_msgs::msg::OccupancyGrid & from)
 {
   OccupancyGrid to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.info = fromRos(from.info);
   copyOccupancyDataFromRos(from.data, to.data);
   return to;
@@ -153,7 +170,7 @@ OccupancyGrid fromRos(const nav_msgs::msg::OccupancyGrid & from)
 nav_msgs::msg::OccupancyGrid toRos(const OccupancyGrid & from)
 {
   nav_msgs::msg::OccupancyGrid to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.info = toRos(from.info);
   copyOccupancyDataToRos(from.data, to.data);
   return to;
@@ -162,7 +179,7 @@ nav_msgs::msg::OccupancyGrid toRos(const OccupancyGrid & from)
 OccupancyGridUpdate fromRos(const map_msgs::msg::OccupancyGridUpdate & from)
 {
   OccupancyGridUpdate to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.x = from.x;
   to.y = from.y;
   to.width = from.width;
@@ -174,7 +191,7 @@ OccupancyGridUpdate fromRos(const map_msgs::msg::OccupancyGridUpdate & from)
 map_msgs::msg::OccupancyGridUpdate toRos(const OccupancyGridUpdate & from)
 {
   map_msgs::msg::OccupancyGridUpdate to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.x = from.x;
   to.y = from.y;
   to.width = from.width;
@@ -186,7 +203,7 @@ map_msgs::msg::OccupancyGridUpdate toRos(const OccupancyGridUpdate & from)
 Octomap fromRos(const octomap_msgs::msg::Octomap & from)
 {
   Octomap to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.binary = from.binary;
   to.id = from.id;
   to.resolution = from.resolution;
@@ -197,7 +214,7 @@ Octomap fromRos(const octomap_msgs::msg::Octomap & from)
 octomap_msgs::msg::Octomap toRos(const Octomap & from)
 {
   octomap_msgs::msg::Octomap to;
-  detail::copyHeader(from.header, to.header);
+  copyHeader(from.header, to.header);
   to.binary = from.binary;
   to.id = from.id;
   to.resolution = from.resolution;
@@ -211,8 +228,8 @@ octomap_msgs::msg::Octomap toRos(const Octomap & from)
 OctomapWithPose fromRos(const octomap_msgs::msg::OctomapWithPose & from)
 {
   OctomapWithPose to;
-  detail::copyHeader(from.header, to.header);
-  detail::copyPose(from.origin, to.origin);
+  copyHeader(from.header, to.header);
+  copyPose(from.origin, to.origin);
   to.octomap = fromRos(from.octomap);
   return to;
 }
@@ -220,8 +237,8 @@ OctomapWithPose fromRos(const octomap_msgs::msg::OctomapWithPose & from)
 octomap_msgs::msg::OctomapWithPose toRos(const OctomapWithPose & from)
 {
   octomap_msgs::msg::OctomapWithPose to;
-  detail::copyHeader(from.header, to.header);
-  detail::copyPose(from.origin, to.origin);
+  copyHeader(from.header, to.header);
+  copyPose(from.origin, to.origin);
   to.octomap = toRos(from.octomap);
   return to;
 }
@@ -232,7 +249,7 @@ GridMapInfo fromRos(const grid_map_msgs::msg::GridMapInfo & from)
   to.resolution = static_cast<float>(from.resolution);
   to.length_x = static_cast<float>(from.length_x);
   to.length_y = static_cast<float>(from.length_y);
-  detail::copyPose(from.pose, to.pose);
+  copyPose(from.pose, to.pose);
   return to;
 }
 
@@ -242,7 +259,7 @@ grid_map_msgs::msg::GridMapInfo toRos(const GridMapInfo & from)
   to.resolution = from.resolution;
   to.length_x = from.length_x;
   to.length_y = from.length_y;
-  detail::copyPose(from.pose, to.pose);
+  copyPose(from.pose, to.pose);
   return to;
 }
 
@@ -250,7 +267,7 @@ GridMap fromRos(const grid_map_msgs::msg::GridMap & from)
 {
   GridMap to;
   to.info = fromRos(from.info);
-  detail::copyHeader(from.header, to.info.header);
+  copyHeader(from.header, to.info.header);
   to.layers = from.layers;
   to.basic_layers = from.basic_layers;
   to.data.reserve(from.data.size());
@@ -265,7 +282,7 @@ GridMap fromRos(const grid_map_msgs::msg::GridMap & from)
 grid_map_msgs::msg::GridMap toRos(const GridMap & from)
 {
   grid_map_msgs::msg::GridMap to;
-  detail::copyHeader(from.info.header, to.header);
+  copyHeader(from.info.header, to.header);
   to.info = toRos(from.info);
   to.layers = from.layers;
   to.basic_layers = from.basic_layers;
@@ -278,4 +295,4 @@ grid_map_msgs::msg::GridMap toRos(const GridMap & from)
   return to;
 }
 
-}  // namespace autonomy_ros::conversions
+}  // namespace autonomy_ros

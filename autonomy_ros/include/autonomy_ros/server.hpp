@@ -1,9 +1,22 @@
-// Copyright 2025 autonomy_ros contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
+/*
+ * Copyright 2026 The OpenRobotic Beginner Authors (duyongquan)
+ * email: quandy2020@126.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#ifndef AUTONOMY_ROS__NAVIGATION__NAVIGATION_SERVER_HPP_
-#define AUTONOMY_ROS__NAVIGATION__NAVIGATION_SERVER_HPP_
+#ifndef AUTONOMY_ROS__SERVER_HPP_
+#define AUTONOMY_ROS__SERVER_HPP_
 
 #include <functional>
 #include <memory>
@@ -11,9 +24,9 @@
 #include <thread>
 #include <vector>
 
-#include "autonomy_ros/system/constants.hpp"
-#include "autonomy_ros/system/options.hpp"
-#include "autonomy_ros/navigation/task_manager.hpp"
+#include "autonomy_ros/constants.hpp"
+#include "autonomy_ros/options.hpp"
+#include "autonomy_ros/manager.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -34,92 +47,83 @@ namespace autonomy::system
 class Autonomy;
 }
 
-namespace autonomy_ros::viz
+namespace autonomy_ros
 {
 class Visualizer;
-}
 
-namespace autonomy_ros::navigation
-{
-
-using system::AutonomyCoreOptions;
-
-/**
- * @brief ROS navigation API: single-goal and multi-waypoint actions plus RViz topics.
- */
-class NavigationServer
+/** @brief ROS navigation API: actions, services, and RViz goal topics. */
+class NavigationService
 {
 public:
-  NavigationServer(
+  NavigationService(
     rclcpp::Node & node,
     ::autonomy::system::Autonomy & core,
-    const AutonomyCoreOptions & core_options,
+    const CoreOptions & core_options,
+    const NavigationOptions & navigation_options,
     TaskManager::StopMotionFn stop_motion = {},
-    viz::Visualizer * visualizer = nullptr);
+    Visualizer * visualizer = nullptr);
 
-  void updateOdom(const nav_msgs::msg::Odometry & odom);
+  void UpdateOdom(const nav_msgs::msg::Odometry & odom);
 
-  bool hasOdometry() const;
+  bool HasOdometry() const;
 
-  bool hasActiveNavigationTask() const;
+  bool HasActiveNavigationTask() const;
 
-  bool isControllerEnabled() const;
+  bool IsControllerEnabled() const;
 
 private:
   using NavigatePose = autonomy_msgs::action::NavigatePose;
   using NavigateThrough = autonomy_msgs::action::NavigateThrough;
 
-  bool wasPreempted(const std::string & task_id) const;
+  bool WasPreempted(const std::string & task_id) const;
 
-  rclcpp_action::GoalResponse handleGoal(const std::string & task_id, uint8_t task_type) const;
+  rclcpp_action::GoalResponse HandleGoal(const std::string & task_id, uint8_t task_type) const;
 
-  rclcpp_action::CancelResponse handleCancel();
+  rclcpp_action::CancelResponse HandleCancel();
 
   template<typename SrvT, typename HandlerFn>
-  void registerService(
+  void RegisterService(
     std::shared_ptr<rclcpp::Service<SrvT>> & server,
     const char * service_name,
     HandlerFn && handler);
 
   template<typename ActionT, typename GoalFn>
-  void registerActionServer(
+  void RegisterActionServer(
     std::shared_ptr<rclcpp_action::Server<ActionT>> & server,
     const char * action_name,
     GoalFn && goal_fn,
-    void (NavigationServer::*execute)(
+    void (NavigationService::*execute)(
       const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>>));
 
-  void loadParameters();
-
-  bool navigateToGoal(
+  bool NavigateToGoal(
     const std::string & task_id,
     const geometry_msgs::msg::PoseStamped & goal_pose,
     double timeout_sec,
     const std::function<bool()> & extra_cancel = {});
 
-  void executeNavigatePose(
+  void ExecuteNavigatePose(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<NavigatePose>> handle);
 
-  void executeNavigateThrough(
+  void ExecuteNavigateThrough(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<NavigateThrough>> handle);
 
-  void onInitPose(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+  void OnInitPose(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
-  void onGoalPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  void OnGoalPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
-  void runTopicGoalPose(geometry_msgs::msg::PoseStamped goal, const std::string & task_id);
+  void RunTopicGoalPose(geometry_msgs::msg::PoseStamped goal, const std::string & task_id);
 
   rclcpp::Node & node_;
   std::unique_ptr<TaskManager> task_manager_;
-  viz::Visualizer * visualizer_{nullptr};
+  Visualizer * visualizer_{nullptr};
+
+  std::string init_pose_topic_;
+  std::string goal_pose_topic_;
+  double waypoint_timeout_sec_{120.0};
 
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr init_pose_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_pub_;
-
-  std::string init_pose_topic_{constants::topics::kInitPose};
-  std::string goal_pose_topic_{constants::topics::kGoalPose};
-  double waypoint_timeout_sec_{constants::defaults::kNavigationWaypointTimeoutSec};
 
   rclcpp_action::Server<NavigatePose>::SharedPtr navigate_pose_server_;
   rclcpp_action::Server<NavigateThrough>::SharedPtr navigate_through_server_;
@@ -132,10 +136,10 @@ private:
   rclcpp::Service<autonomy_msgs::srv::SetInitialPose>::SharedPtr set_initial_pose_srv_;
 };
 
-}  // namespace autonomy_ros::navigation
+}  // namespace autonomy_ros
 
 template<typename SrvT, typename HandlerFn>
-void autonomy_ros::navigation::NavigationServer::registerService(
+void autonomy_ros::NavigationService::RegisterService(
   std::shared_ptr<rclcpp::Service<SrvT>> & server,
   const char * service_name,
   HandlerFn && handler)
@@ -150,12 +154,12 @@ void autonomy_ros::navigation::NavigationServer::registerService(
 }
 
 template<typename ActionT, typename GoalFn>
-void autonomy_ros::navigation::NavigationServer::registerActionServer(
+void autonomy_ros::NavigationService::RegisterActionServer(
   std::shared_ptr<rclcpp_action::Server<ActionT>> & server,
   const char * action_name,
   GoalFn && goal_fn,
-  void (NavigationServer::*execute)(
-    const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> handle))
+  void (NavigationService::*execute)(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>>))
 {
   using Goal = typename ActionT::Goal;
   const auto node = node_.shared_from_this();
@@ -167,11 +171,11 @@ void autonomy_ros::navigation::NavigationServer::registerActionServer(
       return fn(goal);
     },
     [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> &) {
-      return handleCancel();
+      return HandleCancel();
     },
     [this, execute](const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> & handle) {
       std::thread{execute, this, handle}.detach();
     });
 }
 
-#endif  // AUTONOMY_ROS__NAVIGATION__NAVIGATION_SERVER_HPP_
+#endif  // AUTONOMY_ROS__SERVER_HPP_

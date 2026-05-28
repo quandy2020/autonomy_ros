@@ -12,7 +12,7 @@ Simulation assets live in **`autonomy_simulator`** (based on [nav2_minimal_tb3_s
 |------------|-------------|
 | Simulation | Gazebo TB3 Waffle with lidar and odometry; optional fake diff-drive robot |
 | Navigation | `autonomy::system::Autonomy` + optional behavior-tree `TaskScheduler` |
-| ROS integration | `autonomy_ros::system::RosAutonomySystem` wires bridge / navigation / viz |
+| ROS integration | `autonomy_ros::RosAutonomySystem` wires bridge / server / manager / viz |
 | Public API | `NavigatePose`, `NavigateThrough`, and task-control services |
 
 ---
@@ -25,11 +25,14 @@ autonomy_ros/                         # src/ root of the workspace
 ├── autonomy_simulator/               # Gazebo + fake robot
 └── autonomy_ros/                     # Main ROS package
     ├── include/autonomy_ros/
-    │   ├── system/                   # RosAutonomySystem, options, constants
-    │   ├── bridge/                   # TF, map, sensors, cmd_vel
-    │   ├── navigation/               # NavigationServer, TaskManager, TaskMuxer
-    │   ├── viz/                      # /plan, goal, robot_pose
-    │   ├── debug/                    # /diagnostics
+    │   ├── node.hpp                  # RosAutonomySystem
+    │   ├── server.hpp                # NavigationService (actions/services)
+    │   ├── manager.hpp               # TaskManager
+    │   ├── bridge.hpp                # RosBridge
+    │   ├── visualizer.hpp
+    │   ├── diagnostic.hpp
+    │   ├── logger.hpp
+    │   ├── options.hpp / constants.hpp
     │   └── conversions/              # ROS ↔ commsgs (navigation subset)
     ├── config/
     │   ├── parameters.yaml           # Default node parameters
@@ -126,31 +129,31 @@ Default parameters: `autonomy_ros/config/parameters.yaml`.
 
 ---
 
-## Public API (`/autonomy/*`)
+## Public API
 
 ### Actions
 
 | Name | Description |
 |------|-------------|
-| `/autonomy/navigate_pose` | Single-goal navigation |
-| `/autonomy/navigate_through` | Sequential multi-waypoint navigation |
+| `/navigate_pose` | Single-goal navigation |
+| `/navigate_through` | Sequential multi-waypoint navigation |
 
 ### Services
 
 | Name | Description |
 |------|-------------|
-| `/autonomy/cancel_task` | Cancel a task |
-| `/autonomy/get_task_status` | Query task status |
-| `/autonomy/pause_task` / `resume_task` | Pause / resume |
-| `/autonomy/trigger_estop` | Emergency stop |
-| `/autonomy/set_initial_pose` | Set initial pose (localization) |
+| `/cancel_task` | Cancel a task |
+| `/get_task_status` | Query task status |
+| `/pause_task` / `/resume_task` | Pause / resume |
+| `/trigger_estop` | Emergency stop |
+| `/set_initial_pose` | Set initial pose (localization) |
 
 ### Status topics
 
 | Name | Type |
 |------|------|
-| `/autonomy/status` | `autonomy_msgs/msg/TaskStatus` |
-| `/autonomy/events` | `autonomy_msgs/msg/Event` |
+| `/status` | `autonomy_msgs/msg/TaskStatus` |
+| `/events` | `autonomy_msgs/msg/Event` |
 
 ### CLI examples
 
@@ -163,7 +166,7 @@ ros2 run autonomy_ros navigation_client.py navigate-pose --x 1.0 --y 0.5 --feedb
 ### RViz
 
 - **2D Goal Pose** → `goal_pose`: triggers single-goal navigation (may preempt the current action)
-- **2D Pose Estimate** → `initialpose`: forwarded by `NavigationServer` for relocalization
+- **2D Pose Estimate** → `initialpose`: forwarded by `NavigationService` for relocalization
 
 ---
 
@@ -172,10 +175,10 @@ ros2 run autonomy_ros navigation_client.py navigate-pose --x 1.0 --y 0.5 --feedb
 ```mermaid
 flowchart TB
   Client[RViz / navigation_client]
-  NS[NavigationServer]
+  NS[NavigationService]
   TM[TaskManager]
   Core[autonomy::system::Autonomy]
-  Bridge[bridge::*Bridge]
+  Bridge[RosBridge]
   Client --> NS --> TM --> Core
   Bridge --> Core
   Core --> Bridge
@@ -183,11 +186,11 @@ flowchart TB
 
 | Module | Namespace | Role |
 |--------|-----------|------|
-| `RosAutonomySystem` | `autonomy_ros::system` | Start core; assemble bridge / navigation / viz |
-| `NavigationServer` | `autonomy_ros::navigation` | Actions, services, RViz topics |
-| `TaskManager` | `autonomy_ros::navigation` | Task state; invoke core navigation |
-| `*Bridge` | `autonomy_ros::bridge` | TF, map, sensors, cmd_vel, costmap |
-| `Visualizer` | `autonomy_ros::viz` | `/plan`, goal, and robot pose |
+| `RosAutonomySystem` | `autonomy_ros` | Start core; assemble bridge / service / viz |
+| `NavigationService` | `autonomy_ros` | Actions, services, RViz topics |
+| `TaskManager` | `autonomy_ros` | Task state and core navigation calls |
+| `RosBridge` | `autonomy_ros` | TF, map, sensors, cmd_vel, costmap |
+| `Visualizer` | `autonomy_ros` | `/plan`, goal, and robot pose |
 
 ---
 
@@ -195,7 +198,7 @@ flowchart TB
 
 | Topic | Type |
 |-------|------|
-| `/scan` | `sensor_msgs/LaserScan` |
+| `scan` (resolved under node namespace) | `sensor_msgs/LaserScan` |
 | `/odom` | `nav_msgs/Odometry` |
 | `/cmd_vel` | `geometry_msgs/TwistStamped` (subscribed) |
 

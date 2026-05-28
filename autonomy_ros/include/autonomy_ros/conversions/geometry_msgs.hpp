@@ -1,3 +1,20 @@
+/*
+ * Copyright 2024 The OpenRobotic Beginner Authors (duyongquan)
+ * email: quandy2020@126.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // Copyright 2026 autonomy_ros contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +42,8 @@
 /// @par Example
 /// @code
 /// #include "autonomy_ros/conversions/geometry_msgs.hpp"
-/// auto goal = autonomy_ros::conversions::fromRos(*ros_pose_stamped);
-/// cmd_pub->publish(autonomy_ros::conversions::toRos(core_twist_stamped));
+/// auto goal = autonomy_ros::fromRos(*ros_pose_stamped);
+/// cmd_pub->publish(autonomy_ros::toRos(core_twist_stamped));
 /// @endcode
 
 #include "autonomy/commsgs/geometry_msgs.hpp"
@@ -60,7 +77,7 @@
 #include "geometry_msgs/msg/wrench.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 
-namespace autonomy_ros::conversions
+namespace autonomy_ros
 {
 
 using Vector3 = ::autonomy::commsgs::geometry_msgs::Vector3;
@@ -512,6 +529,6 @@ geometry_msgs::msg::Wrench toRos(const Wrench & from);
 WrenchStamped fromRos(const geometry_msgs::msg::WrenchStamped & from);
 geometry_msgs::msg::WrenchStamped toRos(const WrenchStamped & from);
 
-}  // namespace autonomy_ros::conversions
+}  // namespace autonomy_ros
 
 #endif  // AUTONOMY_ROS__CONVERSIONS__GEOMETRY_MSGS_HPP_

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2026 autonomy_ros contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Navigation CLI for /autonomy/* actions and services."""
+"""Navigation CLI for autonomy_ros actions and services."""
 
 from __future__ import annotations
 
@@ -128,7 +128,7 @@ class NavigationClient(Node):
     def __init__(self, namespace: str = '') -> None:
         super().__init__('navigation_client')
         ns = (namespace or '').strip().strip('/')
-        self._prefix = '/autonomy/' if not ns or ns == 'autonomy' else f'/{ns}/'
+        self._prefix = '/' if not ns else f'/{ns}/'
         self._action_clients: dict[str, ActionClient] = {}
 
     def _action_name(self, name: str) -> str:
@@ -242,7 +242,7 @@ def print_tasks_summary(tasks_file: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Navigation client for autonomy_ros')
-    parser.add_argument('--namespace', default='', help='Action/service prefix (default: /autonomy/)')
+    parser.add_argument('--namespace', default='', help='Optional ROS namespace prefix (default: root /)')
     parser.add_argument('--feedback', action='store_true', help='Print action feedback')
     parser.add_argument('--timeout', type=float, default=0.0, help='Action timeout seconds (0 = 3600)')
 

@@ -1,4 +1,20 @@
-cmake_minimum_required(VERSION 3.8)
+# Copyright 2026 The OpenRobotic Beginner Authors (duyongquan)
+# email: quandy2020@126.com
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+cmake_minimum_required(VERSION 3.14)
 project(autonomy_ros)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -30,28 +46,11 @@ find_package(tf2_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(std_msgs REQUIRED)
 
-set(AUTONOMY_CORE_SOURCES
-  src/conversions/detail.cpp
-  src/conversions/builtin_interfaces.cpp
-  src/conversions/std_msgs.cpp
-  src/conversions/geometry_msgs.cpp
-  src/conversions/planning_msgs.cpp
-  src/conversions/map_msgs.cpp
-  src/conversions/sensor_msgs.cpp
-  src/conversions/tf2_msgs.cpp
-  src/system/ros_autonomy_system.cpp
-  src/system/options.cpp
-  src/bridge/tf_bridge.cpp
-  src/bridge/map_bridge.cpp
-  src/bridge/costmap_bridge.cpp
-  src/bridge/actuation_bridge.cpp
-  src/bridge/sensor_bridge.cpp
-  src/viz/visualizer.cpp
-  src/debug/diagnostics_publisher.cpp
-  src/navigation/task_muxer.cpp
-  src/navigation/task_manager.cpp
-  src/navigation/navigation_server.cpp
+# source
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
+list(FILTER SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
 set(DEPENDENCIES
   rclcpp
@@ -70,7 +69,7 @@ set(DEPENDENCIES
   std_msgs
 )
 
-add_library(autonomy_core ${AUTONOMY_CORE_SOURCES})
+add_library(autonomy_core ${SOURCES})
 target_include_directories(autonomy_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
@@ -88,18 +87,9 @@ install(TARGETS autonomy_core autonomy_node
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY include/
-  DESTINATION include
-)
-
-install(DIRECTORY launch rviz config docs
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(PROGRAMS
-  scripts/navigation_client.py
-  DESTINATION lib/${PROJECT_NAME}
-)
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY launch rviz config docs DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS scripts/navigation_client.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
