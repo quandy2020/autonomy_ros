@@ -21,7 +21,8 @@ It combines the `autonomy` navigation core, the `autonomy_ros` ROS integration l
 
 - Video file: [`autonomy-sim.mp4`](autonomy_ros/docs/autonomy-sim.mp4)
 
-<video src="autonomy_ros/docs/autonomy-sim.mov" controls muted playsinline width="960">
+<video controls width="960">
+  <source src="autonomy_ros/docs/autonomy-sim.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
