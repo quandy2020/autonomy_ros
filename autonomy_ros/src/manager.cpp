@@ -273,9 +273,6 @@ bool TaskManager::PauseTask(const std::string & reason)
     return false;
   }
   paused_.store(true);
-  if (core_ && core_->GetTask()) {
-    core_->GetTask()->PauseNavigation();
-  }
   SetControllerEnabled(false);
   const std::string desc = reason.empty() ? "paused" : reason;
   {
@@ -296,9 +293,6 @@ bool TaskManager::ResumeTask()
     return false;
   }
   paused_.store(false);
-  if (core_ && core_->GetTask()) {
-    core_->GetTask()->ResumeNavigation();
-  }
   SetControllerEnabled(true);
   {
     std::lock_guard<std::mutex> lock(status_mutex_);

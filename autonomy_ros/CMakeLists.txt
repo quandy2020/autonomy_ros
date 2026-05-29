@@ -70,6 +70,7 @@ set(DEPENDENCIES
 )
 
 add_library(autonomy_core ${SOURCES})
+target_compile_definitions(autonomy_core PRIVATE AUTOLINK_SKIP_GOAL_UUID_STD_HASH)
 target_include_directories(autonomy_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>

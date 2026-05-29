@@ -28,6 +28,10 @@ namespace autonomy_ros
 
 ScopedRosLogSink::ScopedRosLogSink()
 {
+  // Route all glog (autonomy/autolink AINFO/...) through ROS only; avoid duplicate stderr lines.
+  FLAGS_logtostderr = false;
+  FLAGS_alsologtostderr = false;
+  google::SetStderrLogging(google::GLOG_FATAL);
   ::google::AddLogSink(this);
 }
 

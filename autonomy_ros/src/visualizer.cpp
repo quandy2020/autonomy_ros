@@ -23,7 +23,10 @@ namespace autonomy_ros
 Visualizer::Visualizer(rclcpp::Node & node, std::string frame_id)
 : node_(node), frame_id_(std::move(frame_id))
 {
-  plan_publisher_ = node_.create_publisher<nav_msgs::msg::Path>(kPlanTopic, 10);
+  // Default QoS so `ros2 topic echo /plan` and RViz Path display match without
+  // requiring transient-local durability on the subscriber side.
+  plan_publisher_ =
+    node_.create_publisher<nav_msgs::msg::Path>(kPlanTopic, rclcpp::QoS(10));
   goal_publisher_ = node_.create_publisher<geometry_msgs::msg::PoseStamped>(
     kNavigationGoalTopic, 10);
   robot_pose_publisher_ = node_.create_publisher<geometry_msgs::msg::PoseStamped>(

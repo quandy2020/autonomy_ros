@@ -17,10 +17,10 @@
 
 #include <memory>
 
+#include "autolink/init.hpp"
 #include "autonomy_ros/options.hpp"
 #include "autonomy_ros/logger.hpp"
 #include "autonomy_ros/node.hpp"
-#include "glog/logging.h"
 #include "rclcpp/rclcpp.hpp"
 
 namespace autonomy_ros
@@ -43,16 +43,18 @@ void Run()
 
 int main(int argc, char * argv[])
 {
-  ::google::AllowCommandLineReparsing();
-  ::google::InitGoogleLogging(argv[0]);
-  FLAGS_logtostderr = false;
-  FLAGS_colorlogtostderr = false;
-
   rclcpp::init(argc, argv);
-  autonomy_ros::ScopedRosLogSink ros_log_sink;
+  if (!autolink::Init(argv[0], "autonomy_ros")) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("autonomy_node"),
+      "autolink::Init failed; BT navigation will not start.");
+    rclcpp::shutdown();
+    return 1;
+  }
 
+  autonomy_ros::ScopedRosLogSink ros_log_sink;
   autonomy_ros::Run();
+  autolink::WaitForShutdown();
   rclcpp::shutdown();
-  ::google::ShutdownGoogleLogging();
   return 0;
 }
