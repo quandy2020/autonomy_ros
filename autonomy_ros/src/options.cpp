@@ -115,6 +115,7 @@ Options CreateOptions(rclcpp::Node & node)
   opts.goal_checker_id = core.goal_checker_id;
   opts.progress_checker_id = core.progress_checker_id;
   opts.global_frame = core.global_frame;
+  opts.robot_base_frame = core.base_frame;
   opts.goal_tolerance = core.goal_tolerance;
   return opts;
 }

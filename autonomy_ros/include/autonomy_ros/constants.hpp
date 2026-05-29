@@ -24,7 +24,7 @@ namespace autonomy_ros
 // Topics
 inline constexpr const char kInitialPoseTopic[] = "initialpose";
 inline constexpr const char kGoalPoseTopic[] = "goal_pose";
-inline constexpr const char kPlanTopic[] = "plan";
+inline constexpr const char kPlanTopic[] = "/plan";
 inline constexpr const char kNavigationGoalTopic[] = "navigation_goal";
 inline constexpr const char kRobotPoseTopic[] = "robot_pose";
 inline constexpr const char kRobotFootprintTopic[] = "robot_footprint";
