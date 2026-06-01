@@ -43,6 +43,7 @@ find_package(autonomy_msgs REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(tf2_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(std_msgs REQUIRED)
 
@@ -65,6 +66,7 @@ set(DEPENDENCIES
   autonomy_msgs
   builtin_interfaces
   tf2_msgs
+  tf2_ros
   std_srvs
   std_msgs
 )
