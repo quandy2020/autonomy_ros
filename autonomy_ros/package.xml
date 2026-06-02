@@ -16,6 +16,7 @@
   <depend>octomap_msgs</depend>
   <depend>grid_map_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>diagnostic_msgs</depend>
   <depend>autonomy_msgs</depend>

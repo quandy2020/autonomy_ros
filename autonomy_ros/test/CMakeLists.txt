@@ -28,6 +28,7 @@ ament_target_dependencies(test_controller
   rclcpp
   nav_msgs
   geometry_msgs
+  visualization_msgs
 )
 install(TARGETS test_controller
   RUNTIME DESTINATION lib/${PROJECT_NAME}

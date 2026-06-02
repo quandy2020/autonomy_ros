@@ -20,7 +20,7 @@
 
 #include <string>
 
-#include "autonomy/tasks/options.hpp"
+#include "autonomy/system/autonomy.hpp"
 #include "autonomy_ros/constants.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -86,8 +86,8 @@ struct Options
 /** @brief Declare and read all autonomy_ros parameters from @p node. */
 Options CreateOptions(rclcpp::Node & node);
 
-/** @brief Map core options to autonomy task runtime options. */
-::autonomy::tasks::RuntimeOptions ToRuntimeOptions(const CoreOptions & core);
+/** @brief Map core options to system::Autonomy runtime options. */
+::autonomy::system::RuntimeOptions ToRuntimeOptions(const CoreOptions & core);
 
 }  // namespace autonomy_ros
 

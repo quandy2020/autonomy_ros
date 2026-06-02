@@ -46,6 +46,7 @@ find_package(tf2_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 # source
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
@@ -69,6 +70,7 @@ set(DEPENDENCIES
   tf2_ros
   std_srvs
   std_msgs
+  visualization_msgs
 )
 
 add_library(autonomy_core ${SOURCES})

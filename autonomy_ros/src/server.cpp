@@ -308,7 +308,7 @@ void NavigationService::ExecuteNavigatePose(
   if (!goal->behavior_tree.empty()) {
     result->error = task_manager_->MakeError(
       autonomy_msgs::msg::Error::NAV_GOAL_INVALID,
-      "per-action behavior_tree is not supported; set default BT in tasks lua");
+      "per-action behavior_tree is not supported; set default BT in navigator lua");
     handle->abort(result);
     return;
   }
@@ -359,7 +359,7 @@ void NavigationService::ExecuteNavigateThrough(
   if (!goal->behavior_tree.empty()) {
     result->error = task_manager_->MakeError(
       autonomy_msgs::msg::Error::NAV_GOAL_INVALID,
-      "per-action behavior_tree is not supported; set default BT in tasks lua");
+      "per-action behavior_tree is not supported; set default BT in navigator lua");
     handle->abort(result);
     return;
   }

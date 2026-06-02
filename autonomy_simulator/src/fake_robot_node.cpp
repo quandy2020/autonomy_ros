@@ -28,6 +28,9 @@ FakeRobotNode::FakeRobotNode()
   cmd_vel_sub_ = create_subscription<geometry_msgs::msg::TwistStamped>(
     cmd_vel_topic_, qos,
     std::bind(&FakeRobotNode::onCmdVel, this, std::placeholders::_1));
+  set_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+    "fake_robot/set_pose", qos,
+    std::bind(&FakeRobotNode::onSetPose, this, std::placeholders::_1));
 
   const auto period_ms = static_cast<int>(1000.0 / update_rate_hz_);
   update_timer_ = create_wall_timer(
@@ -89,6 +92,25 @@ void FakeRobotNode::initState()
 
   prev_update_time_ = now();
   last_cmd_vel_time_ = now();
+}
+
+void FakeRobotNode::onSetPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+{
+  if (!msg) {
+    return;
+  }
+  pose_[0] = static_cast<float>(msg->pose.position.x);
+  pose_[1] = static_cast<float>(msg->pose.position.y);
+  const auto & q = msg->pose.orientation;
+  pose_[2] = static_cast<float>(std::atan2(2.0 * (q.w * q.z + q.x * q.y),
+    1.0 - 2.0 * (q.y * q.y + q.z * q.z)));
+  vel_ = {0.0F, 0.0F, 0.0F};
+  wheel_speed_cmd_ = {0.0, 0.0};
+  goal_linear_ = 0.0;
+  goal_angular_ = 0.0;
+  RCLCPP_INFO(
+    get_logger(), "[fake_robot] pose reset to (%.3f, %.3f, %.3f)",
+    pose_[0], pose_[1], pose_[2]);
 }
 
 void FakeRobotNode::onCmdVel(const geometry_msgs::msg::TwistStamped::SharedPtr msg)

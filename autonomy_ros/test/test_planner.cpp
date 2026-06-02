@@ -32,7 +32,7 @@
 #include "autonomy/planning/constants.hpp"
 #include "autonomy/planning/planner_options.hpp"
 #include "autonomy/planning/planner_server.hpp"
-#include "autonomy/tasks/navigators/action_type.hpp"
+#include "autonomy/navigator/navigators/action_type.hpp"
 #include "autonomy_ros/conversions/geometry_msgs.hpp"
 #include "autonomy_ros/conversions/map_msgs.hpp"
 #include "autonomy_ros/conversions/planning_msgs.hpp"
@@ -148,7 +148,7 @@ public:
       throw std::runtime_error("Failed to create autolink client node");
     }
     compute_path_client_ = autolink::action::CreateClient<
-      autonomy::tasks::behavior_tree::ComputePathToPoseActionTraits>(
+      autonomy::navigator::behavior_tree::ComputePathToPoseActionTraits>(
       client_node_, autonomy::planning::kComputePathToPoseActionName);
 
     RCLCPP_INFO(
@@ -225,9 +225,9 @@ private:
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    using ActionTraits = autonomy::tasks::behavior_tree::ComputePathToPoseActionTraits;
+    using ActionTraits = autonomy::navigator::behavior_tree::ComputePathToPoseActionTraits;
     using GoalHandle = autolink::action::ClientGoalHandle<ActionTraits>;
-    namespace task_proto = autonomy::tasks::behavior_tree::task_proto;
+    namespace task_proto = autonomy::navigator::behavior_tree::task_proto;
 
     ActionTraits::Goal goal;
     goal.set_use_start(true);
@@ -352,7 +352,7 @@ private:
   std::unique_ptr<autonomy::planning::PlannerServer> planner_;
   std::shared_ptr<autolink::Node> client_node_;
   std::shared_ptr<autolink::action::Client<
-    autonomy::tasks::behavior_tree::ComputePathToPoseActionTraits>> compute_path_client_;
+    autonomy::navigator::behavior_tree::ComputePathToPoseActionTraits>> compute_path_client_;
   autonomy::map::costmap_2d::Costmap2DWrapper::SharedPtr costmap_wrapper_;
   autonomy::commsgs::map_msgs::OccupancyGrid raw_map_;
   bool has_raw_map_{false};
