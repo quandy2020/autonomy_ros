@@ -104,9 +104,9 @@ Options CreateOptions(rclcpp::Node & node)
   return options;
 }
 
-::autonomy::tasks::RuntimeOptions ToRuntimeOptions(const CoreOptions & core)
+::autonomy::system::RuntimeOptions ToRuntimeOptions(const CoreOptions & core)
 {
-  ::autonomy::tasks::RuntimeOptions opts;
+  ::autonomy::system::RuntimeOptions opts;
   opts.enable_bt_tasks = core.enable_bt_tasks;
   opts.use_bt_navigation = core.use_bt_navigation;
   opts.config_directory = core.config_directory;

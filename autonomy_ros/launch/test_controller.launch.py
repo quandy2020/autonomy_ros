@@ -5,8 +5,10 @@
 # ros2 launch autonomy_ros test_controller.launch.py \
 #   path_shape:=circle \
 #   path_center_x:=0.0 path_center_y:=0.0 path_radius:=2.0 \
-#   controller_id:=graceful_controller \
+#   controller_id:=mppi_controller \
 #   use_rviz:=true
+#
+# fake 模式请保持 use_sim_time:=false（默认）；Gazebo 再用 use_sim_time:=true。
 #
 # Shapes: circle, rectangle, figure_eight (aliases: rect, figure8, eight)
 
@@ -58,7 +60,13 @@ def generate_launch_description():
     path_height = LaunchConfiguration('path_height')
     figure_eight_scale = LaunchConfiguration('figure_eight_scale')
     path_pose_spacing = LaunchConfiguration('path_pose_spacing')
+    costmap_margin = LaunchConfiguration('costmap_margin')
     auto_start = LaunchConfiguration('auto_start')
+    snap_robot_to_path_start = LaunchConfiguration('snap_robot_to_path_start')
+    repeat_path = LaunchConfiguration('repeat_path')
+    publish_mppi_trajectories = LaunchConfiguration('publish_mppi_trajectories')
+    mppi_trajectory_step = LaunchConfiguration('mppi_trajectory_step')
+    mppi_time_step = LaunchConfiguration('mppi_time_step')
     use_rviz = LaunchConfiguration('use_rviz')
     simulator_share = get_package_share_directory('autonomy_simulator')
 
@@ -73,12 +81,14 @@ def generate_launch_description():
             description="Robot backend: 'gazebo' or 'fake'"),
         DeclareLaunchArgument(
             'use_sim_time',
-            default_value='true',
-            description='Use simulation clock'),
+            default_value='false',
+            description=(
+                'Use /clock simulation time. Must be false for fake robot '
+                '(no /clock publisher); use true with Gazebo.')),
         DeclareLaunchArgument(
             'controller_id',
-            default_value='graceful_controller',
-            description='Controller plugin id'),
+            default_value='mppi_controller',
+            description='Controller plugin id (default: mppi_controller)'),
         DeclareLaunchArgument(
             'goal_checker_id',
             default_value='goal_checker',
@@ -89,7 +99,7 @@ def generate_launch_description():
             description='Progress checker plugin id'),
         DeclareLaunchArgument(
             'path_shape',
-            default_value='circle',
+            default_value='rectangle',
             description='Reference path: circle, rectangle, figure_eight'),
         DeclareLaunchArgument(
             'path_center_x',
@@ -120,9 +130,33 @@ def generate_launch_description():
             default_value='0.05',
             description='Max spacing between path poses [m]'),
         DeclareLaunchArgument(
+            'costmap_margin',
+            default_value='3.0',
+            description='Extra margin around path for synthetic costmap [m]'),
+        DeclareLaunchArgument(
             'auto_start',
             default_value='true',
             description='Start following generated path on launch'),
+        DeclareLaunchArgument(
+            'snap_robot_to_path_start',
+            default_value='true',
+            description='Teleport fake_robot to the first path pose before follow'),
+        DeclareLaunchArgument(
+            'repeat_path',
+            default_value='true',
+            description='After reaching the path goal, snap to start and follow again'),
+        DeclareLaunchArgument(
+            'publish_mppi_trajectories',
+            default_value='true',
+            description='Publish MPPI candidate/optimal trajectory markers (mppi_controller only)'),
+        DeclareLaunchArgument(
+            'mppi_trajectory_step',
+            default_value='5',
+            description='Subsample every N-th MPPI rollout for visualization'),
+        DeclareLaunchArgument(
+            'mppi_time_step',
+            default_value='3',
+            description='Subsample every N-th time index on each rollout'),
         DeclareLaunchArgument(
             'use_rviz',
             default_value='false',
@@ -140,6 +174,10 @@ def generate_launch_description():
             executable='test_controller',
             name='test_controller',
             output='screen',
+            remappings=[
+                ('cmd_vel', '/cmd_vel'),
+                ('odom', '/odom'),
+            ],
             parameters=[{
                 'use_sim_time': ParameterValue(use_sim_time, value_type=bool),
                 'configuration_directory': configuration_directory,
@@ -155,7 +193,16 @@ def generate_launch_description():
                 'path_height': ParameterValue(path_height, value_type=float),
                 'figure_eight_scale': ParameterValue(figure_eight_scale, value_type=float),
                 'path_pose_spacing': ParameterValue(path_pose_spacing, value_type=float),
+                'costmap_margin': ParameterValue(costmap_margin, value_type=float),
                 'auto_start': ParameterValue(auto_start, value_type=bool),
+                'snap_robot_to_path_start': ParameterValue(
+                    snap_robot_to_path_start, value_type=bool),
+                'repeat_path': ParameterValue(repeat_path, value_type=bool),
+                'publish_mppi_trajectories': ParameterValue(
+                    publish_mppi_trajectories, value_type=bool),
+                'mppi_trajectory_step': ParameterValue(
+                    mppi_trajectory_step, value_type=int),
+                'mppi_time_step': ParameterValue(mppi_time_step, value_type=int),
             }],
         ),
         Node(

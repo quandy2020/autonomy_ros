@@ -21,6 +21,7 @@
 #include <array>
 #include <string>
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -48,6 +49,7 @@ private:
   void loadParameters();
   void initState();
   void onCmdVel(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
+  void onSetPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void onUpdate();
 
   bool integrateOdometry(const rclcpp::Duration & dt);
@@ -74,6 +76,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_states_pub_;
   rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr tf_pub_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr set_pose_sub_;
   rclcpp::TimerBase::SharedPtr update_timer_;
 
   nav_msgs::msg::Odometry odom_;

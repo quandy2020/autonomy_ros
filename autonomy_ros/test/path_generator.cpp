@@ -84,6 +84,13 @@ Path BuildFromPolyline(
     path.poses.back() = MakePose(last.first, last.second, yaw, frame_id);
   }
 
+  if (closed && path.poses.size() >= 2) {
+    const auto & p0 = path.poses[0].pose.position;
+    const auto & p1 = path.poses[1].pose.position;
+    const double yaw = std::atan2(p1.y - p0.y, p1.x - p0.x);
+    path.poses[0] = MakePose(p0.x, p0.y, yaw, frame_id);
+  }
+
   return path;
 }
 
@@ -159,11 +166,16 @@ Path GeneratePath(PathShape shape, const PathGeneratorParams & params)
         }
         const double hx = params.width * 0.5;
         const double hy = params.height * 0.5;
+        const double chamfer = std::min({0.3, hx * 0.45, hy * 0.45});
         const std::vector<std::pair<double, double>> corners = {
-          {cx - hx, cy - hy},
-          {cx + hx, cy - hy},
-          {cx + hx, cy + hy},
-          {cx - hx, cy + hy},
+          {cx - hx, cy - hy + chamfer},
+          {cx - hx + chamfer, cy - hy},
+          {cx + hx - chamfer, cy - hy},
+          {cx + hx, cy - hy + chamfer},
+          {cx + hx, cy + hy - chamfer},
+          {cx + hx - chamfer, cy + hy},
+          {cx - hx + chamfer, cy + hy},
+          {cx - hx, cy + hy - chamfer},
         };
         return BuildFromPolyline(corners, params.pose_spacing, frame, true);
       }
@@ -172,17 +184,25 @@ Path GeneratePath(PathShape shape, const PathGeneratorParams & params)
         if (params.figure_eight_scale <= 0.0) {
           throw std::runtime_error("figure_eight_scale must be > 0");
         }
-        const double a = params.figure_eight_scale;
-        const double approx_len = 4.0 * a;
-        const int samples = std::max(
-          16, static_cast<int>(std::ceil(approx_len / params.pose_spacing)));
+        // Two equal circles (top + bottom) tangent at the center. The crossing
+        // is visited twice with opposite headings, which MPPI can disambiguate.
+        const double r = params.figure_eight_scale * 0.5;
+        const double approx_len = 2.0 * (2.0 * M_PI * r);
+        const int per_loop = std::max(
+          16, static_cast<int>(std::ceil((M_PI * r) / params.pose_spacing)));
         std::vector<std::pair<double, double>> pts;
-        pts.reserve(static_cast<size_t>(samples) + 1);
-        for (int i = 0; i <= samples; ++i) {
-          const double t = 2.0 * M_PI * static_cast<double>(i) / samples;
+        pts.reserve(static_cast<size_t>(2 * per_loop));
+        for (int i = 0; i < per_loop; ++i) {
+          const double t = 2.0 * M_PI * static_cast<double>(i) / per_loop;
           pts.emplace_back(
-            cx + a * std::sin(t),
-            cy + a * std::sin(t) * std::cos(t));
+            cx + r * std::cos(t),
+            cy + r + r * std::sin(t));
+        }
+        for (int i = 0; i < per_loop; ++i) {
+          const double t = 2.0 * M_PI * static_cast<double>(i) / per_loop;
+          pts.emplace_back(
+            cx + r * std::cos(t),
+            cy - r + r * std::sin(t));
         }
         return BuildFromSamples(pts, params.pose_spacing, frame, true);
       }
