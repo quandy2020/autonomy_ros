@@ -21,6 +21,8 @@ def generate_launch_description():
 
     namespace = LaunchConfiguration('namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    publish_odom = LaunchConfiguration('publish_odom')
+    publish_tf = LaunchConfiguration('publish_tf')
 
     with open(urdf_file, encoding='utf-8') as infp:
         robot_description = infp.read()
@@ -31,6 +33,14 @@ def generate_launch_description():
         'use_sim_time',
         default_value='false',
         description='Use simulation clock (false for fake robot)')
+    declare_publish_odom = DeclareLaunchArgument(
+        'publish_odom',
+        default_value='true',
+        description='Publish nav_msgs/Odometry (false when habitat bridge owns odom)')
+    declare_publish_tf = DeclareLaunchArgument(
+        'publish_tf',
+        default_value='true',
+        description='Publish odom->base_footprint TF (false when habitat bridge owns TF)')
 
     fake_robot_node = Node(
         package='autonomy_simulator',
@@ -38,7 +48,14 @@ def generate_launch_description():
         name='fake_robot_node',
         namespace=namespace,
         output='screen',
-        parameters=[params_file, {'use_sim_time': use_sim_time}],
+        parameters=[
+            params_file,
+            {
+                'use_sim_time': use_sim_time,
+                'publish_odom': publish_odom,
+                'publish_tf': publish_tf,
+            },
+        ],
     )
 
     robot_state_publisher = Node(
@@ -55,6 +72,8 @@ def generate_launch_description():
     return LaunchDescription([
         declare_namespace,
         declare_use_sim_time,
+        declare_publish_odom,
+        declare_publish_tf,
         fake_robot_node,
         robot_state_publisher,
     ])

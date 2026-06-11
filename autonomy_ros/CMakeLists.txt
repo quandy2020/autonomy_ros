@@ -24,6 +24,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(autonomy REQUIRED)
 
+list(APPEND CMAKE_MODULE_PATH "${autonomy_DIR}/cmake/modules")
+find_package(glog REQUIRED)
+
 if(NOT TARGET TinyXML2::TinyXML2)
   list(APPEND CMAKE_MODULE_PATH
     "${autonomy_DIR}/modules"
@@ -82,9 +85,18 @@ target_include_directories(autonomy_core PUBLIC
 ament_target_dependencies(autonomy_core ${DEPENDENCIES})
 target_link_libraries(autonomy_core autonomy::autonomy)
 
+# autonomy_node -> install/autonomy_ros/lib/autonomy_ros/autonomy_node
+# bundled libautonomy/libautolink -> install/autonomy/lib
+set(_AUTONOMY_BUNDLED_LIB_RPATH "\$ORIGIN/../../../autonomy/lib")
+
 add_executable(autonomy_node src/main.cpp)
-target_link_libraries(autonomy_node autonomy_core)
+target_link_libraries(autonomy_node autonomy_core ${GLOG_LIBRARIES})
 ament_target_dependencies(autonomy_node rclcpp)
+set_target_properties(autonomy_node PROPERTIES
+  BUILD_RPATH "${CMAKE_BINARY_DIR}/../autonomy/lib:${CMAKE_BINARY_DIR}/lib"
+  INSTALL_RPATH "${_AUTONOMY_BUNDLED_LIB_RPATH}"
+  BUILD_WITH_INSTALL_RPATH FALSE
+)
 
 install(TARGETS autonomy_core autonomy_node
   ARCHIVE DESTINATION lib
@@ -94,7 +106,10 @@ install(TARGETS autonomy_core autonomy_node
 
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch rviz config docs DESTINATION share/${PROJECT_NAME})
-install(PROGRAMS scripts/navigation_client.py DESTINATION lib/${PROJECT_NAME})
+install(
+  PROGRAMS scripts/navigation_client.py scripts/camera_viewer.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
