@@ -3,7 +3,7 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # SPDX-License-Identifier: Apache-2.0
 
-"""Launch robot simulation backend: Gazebo (default) or fake diff-drive."""
+"""Launch robot simulation backend: Gazebo, fake diff-drive, or Habitat."""
 
 import os
 
@@ -25,14 +25,14 @@ def generate_launch_description():
     declare_sim_mode = DeclareLaunchArgument(
         'sim_mode',
         default_value='gazebo',
-        description="Simulation backend: 'gazebo' or 'fake'")
+        description="Simulation backend: 'gazebo', 'fake', or 'habitat'")
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
         default_value='true',
-        description='Use simulation clock (true for Gazebo, false for fake)')
+        description='Use simulation clock (true for Gazebo; false for fake/habitat)')
 
     is_gazebo = IfCondition(PythonExpression(["'", sim_mode, "' == 'gazebo'"]))
-    is_fake = IfCondition(PythonExpression(["'", sim_mode, "' == 'fake'"]))
+    is_habitat = IfCondition(PythonExpression(["'", sim_mode, "' == 'habitat'"]))
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -42,19 +42,43 @@ def generate_launch_description():
         condition=is_gazebo,
     )
 
-    fake_robot = IncludeLaunchDescription(
+    fake_robot_fake = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_share, 'launch', 'fake_robot.launch.py')
         ),
         launch_arguments={
             'use_sim_time': use_sim_time,
+            'publish_odom': 'true',
+            'publish_tf': 'true',
         }.items(),
-        condition=is_fake,
+        condition=IfCondition(PythonExpression(["'", sim_mode, "' == 'fake'"])),
+    )
+
+    fake_robot_habitat = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_share, 'launch', 'fake_robot.launch.py')
+        ),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'publish_odom': 'false',
+            'publish_tf': 'false',
+        }.items(),
+        condition=is_habitat,
+    )
+
+    habitat = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_share, 'launch', 'habitat.launch.py')
+        ),
+        launch_arguments={'use_sim_time': use_sim_time}.items(),
+        condition=is_habitat,
     )
 
     return LaunchDescription([
         declare_sim_mode,
         declare_use_sim_time,
         gazebo,
-        fake_robot,
+        fake_robot_fake,
+        fake_robot_habitat,
+        habitat,
     ])

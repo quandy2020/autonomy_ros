@@ -57,6 +57,8 @@ void FakeRobotNode::loadParameters()
   declare_parameter<double>("wheels.radius", wheel_radius_);
   declare_parameter<double>("cmd_vel_timeout", cmd_vel_timeout_);
   declare_parameter<double>("update_rate_hz", update_rate_hz_);
+  declare_parameter<bool>("publish_odom", publish_odom_);
+  declare_parameter<bool>("publish_tf", publish_tf_);
 
   odom_topic_ = get_parameter("odom_topic").as_string();
   cmd_vel_topic_ = get_parameter("cmd_vel_topic").as_string();
@@ -69,6 +71,8 @@ void FakeRobotNode::loadParameters()
   wheel_radius_ = get_parameter("wheels.radius").as_double();
   cmd_vel_timeout_ = get_parameter("cmd_vel_timeout").as_double();
   update_rate_hz_ = get_parameter("update_rate_hz").as_double();
+  publish_odom_ = get_parameter("publish_odom").as_bool();
+  publish_tf_ = get_parameter("publish_tf").as_bool();
 }
 
 void FakeRobotNode::initState()
@@ -138,11 +142,15 @@ void FakeRobotNode::onUpdate()
 
   integrateOdometry(duration);
 
-  odom_.header.stamp = time_now;
-  odom_pub_->publish(odom_);
-
   publishJointStates(time_now);
-  publishTf(time_now);
+
+  if (publish_odom_) {
+    odom_.header.stamp = time_now;
+    odom_pub_->publish(odom_);
+  }
+  if (publish_tf_) {
+    publishTf(time_now);
+  }
 }
 
 bool FakeRobotNode::integrateOdometry(const rclcpp::Duration & duration)

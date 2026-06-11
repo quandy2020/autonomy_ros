@@ -59,6 +59,12 @@ install(DIRECTORY include/
 install(DIRECTORY launch urdf worlds models configs param
   DESTINATION share/${PROJECT_NAME}
 )
+install(DIRECTORY scripts/habitat_bridge
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(PROGRAMS scripts/habitat_bridge_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)

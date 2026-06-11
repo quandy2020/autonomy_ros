@@ -1,0 +1,5 @@
+/**:
+  ros__parameters:
+    frame_id: "map"
+    marker_topic: "pedestrians"
+    update_rate_hz: 10.0

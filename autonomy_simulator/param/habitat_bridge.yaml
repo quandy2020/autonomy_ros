@@ -1,0 +1,51 @@
+/**:
+  ros__parameters:
+    scene_data_path: "/workspace/autonomy/src/17DRP5sb8fy"
+    scene_id: "17DRP5sb8fy"
+    mp3d_root: "/workspace/autonomy/src"
+    scene_dataset_config: ""
+    package_scene_dataset_config: ""
+
+    image_width: 640
+    image_height: 480
+    sensor_height: 0.6
+
+    agent_pose_topic: "habitat/agent_pose"
+    set_agent_pose_topic: "habitat/set_agent_pose"
+    agent_pose_frame: "map"
+    odom_frame: "odom"
+    base_footprint_frame: "base_footprint"
+    base_frame: "base_link"
+    base_link_height: 0.01
+    camera_link_frame: "camera_link"
+    rgb_camera_frame: "camera_rgb_optical_frame"
+    depth_camera_frame: "camera_depth_optical_frame"
+    semantic_camera_frame: "camera_semantic_optical_frame"
+    publish_camera_tf: true
+    odom_topic: "odom"
+    cmd_vel_topic: "cmd_vel"
+    cmd_vel_timeout: 1.0
+    wheel_separation: 0.287
+    wheel_radius: 0.033
+
+    rgb_topic: "camera/rgb/image_raw"
+    depth_topic: "camera/depth/image_raw"
+    semantic_topic: "camera/semantic/image_raw"
+    semantic_colored_topic: "camera/semantic_colored/image_raw"
+    rgb_camera_info_topic: "camera/rgb/camera_info"
+    depth_camera_info_topic: "camera/depth/camera_info"
+    semantic_camera_info_topic: "camera/semantic/camera_info"
+
+    semantic_ply_path: "/workspace/autonomy/src/17DRP5sb8fy/17DRP5sb8fy_semantic.ply"
+    semantic_pointcloud_topic: "semantic_pointcloud"
+    semantic_pointcloud_frame: "map"
+    semantic_pointcloud_downsample: 1
+    # 0 = 启动时发布一次（latched）；>0 = 按该频率（Hz）周期发布
+    semantic_pointcloud_rate_hz: 1.0
+
+    enable_rgb: true
+    enable_depth: true
+    enable_semantic: true
+    enable_semantic_colored: true
+    enable_semantic_pointcloud: true
+    update_rate_hz: 30.0

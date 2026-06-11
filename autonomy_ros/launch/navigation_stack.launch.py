@@ -46,7 +46,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'simulation_mode',
             default_value='gazebo',
-            description="Robot backend: 'gazebo' or 'fake'"),
+            description="Robot backend: 'gazebo', 'fake', or 'habitat'"),
         DeclareLaunchArgument(
             'use_sim_time',
             default_value='true',

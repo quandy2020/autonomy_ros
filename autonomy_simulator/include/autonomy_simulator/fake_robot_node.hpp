@@ -68,6 +68,8 @@ private:
   double wheel_radius_{0.033};
   double cmd_vel_timeout_{1.0};
   double update_rate_hz_{100.0};
+  bool publish_odom_{true};
+  bool publish_tf_{true};
 
   rclcpp::Time last_cmd_vel_time_;
   rclcpp::Time prev_update_time_;
