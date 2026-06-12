@@ -15,7 +15,11 @@ from rclpy.qos import qos_profile_system_default
 from habitat_bridge.bridge_config import BridgeConfig
 from habitat_bridge.camera_publishers import CameraPublishers
 from habitat_bridge.habitat_session import HabitatSession
-from habitat_bridge.pointcloud_publishers import SemanticPointcloudPublisher
+from habitat_bridge.pointcloud_publishers import (
+    SemanticOccupancyGridPublisher,
+    SemanticPointcloudPublisher,
+    _load_semantic_scene,
+)
 from habitat_bridge.tf_broadcasters import RobotTfOdomPublisher
 
 
@@ -25,11 +29,32 @@ class HabitatBridgeNode(Node):
     def __init__(self) -> None:
         super().__init__('habitat_bridge_node')
         self._config = BridgeConfig.from_node(self)
-        self._cameras = CameraPublishers(self, self._config)
-        self._semantic_cloud = SemanticPointcloudPublisher(
-            self, self._config, self.get_logger()
-        )
         self._session = HabitatSession(self._config, self.get_logger())
+        self._cameras = CameraPublishers(self, self._config)
+
+        scene = _load_semantic_scene(self._config, self.get_logger())
+        if scene is not None:
+            scene_positions = self._session.apply_map_frame_offset_to_positions(
+                scene[0],
+            )
+            scene_colors = scene[1]
+        else:
+            scene_positions = None
+            scene_colors = None
+
+        self._semantic_cloud = SemanticPointcloudPublisher(
+            self,
+            self._config,
+            self.get_logger(),
+            scene_positions,
+            scene_colors,
+        )
+        self._occupancy_grid = SemanticOccupancyGridPublisher(
+            self,
+            self._config,
+            self.get_logger(),
+            scene_positions,
+        )
         self._tf_odom = RobotTfOdomPublisher(self, self._config)
 
         self._last_cmd_time = self.get_clock().now()
@@ -58,6 +83,10 @@ class HabitatBridgeNode(Node):
         cloud_rate_hz = float(self._config.semantic_pointcloud_rate_hz)
         if cloud_rate_hz > 0.0:
             self.create_timer(1.0 / cloud_rate_hz, self._on_pointcloud_timer)
+
+        grid_rate_hz = float(self._config.occupancy_grid_rate_hz)
+        if self._config.enable_semantic_occupancy_grid and grid_rate_hz > 0.0:
+            self.create_timer(1.0 / grid_rate_hz, self._on_occupancy_grid_timer)
 
         self.get_logger().info(
             f'[habitat_bridge] scene={self._config.scene_id} '
@@ -94,6 +123,9 @@ class HabitatBridgeNode(Node):
 
     def _on_pointcloud_timer(self) -> None:
         self._semantic_cloud.publish(self.get_clock().now())
+
+    def _on_occupancy_grid_timer(self) -> None:
+        self._occupancy_grid.publish(self.get_clock().now())
 
     def destroy_node(self) -> bool:
         self._session.close()

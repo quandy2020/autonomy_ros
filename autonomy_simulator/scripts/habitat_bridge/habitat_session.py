@@ -123,25 +123,6 @@ def _ground_pose_ros(
     )
 
 
-def _habitat_state_to_pose_stamped(
-    position: np.ndarray,
-    rotation: np.quaternion,
-    frame_id: str,
-    stamp: object,
-) -> PoseStamped:
-    message = PoseStamped()
-    message.header.frame_id = frame_id
-    message.header.stamp = stamp.to_msg() if hasattr(stamp, 'to_msg') else stamp
-    position_ros = _HABITAT_TO_ROS @ np.asarray(position, dtype=np.float64)
-    message.pose.position.x = float(position_ros[0])
-    message.pose.position.y = float(position_ros[1])
-    message.pose.position.z = float(position_ros[2])
-    message.pose.orientation = _yaw_to_ros_quaternion(
-        _yaw_from_habitat_quaternion(rotation)
-    )
-    return message
-
-
 def _ensure_scene_assets(config: BridgeConfig, logger: Any) -> None:
     scene_dir = config.scene_directory()
     glb_path = os.path.join(scene_dir, f'{config.scene_id}.glb')
@@ -227,10 +208,11 @@ class HabitatSession:
         self._linear_cmd = 0.0
         self._angular_cmd = 0.0
         self._odom_origin = (0.0, 0.0, 0.0, 0.0)
+        self._map_frame_origin = (0.0, 0.0, 0.0, 0.0)
         self._sim = _create_simulator(config, logger)
         self._agent = self._sim.get_agent(0)
         self._spawn_on_navmesh()
-        self._record_odom_origin()
+        self._anchor_map_frame_to_spawn()
 
     def close(self) -> None:
         if hasattr(self, '_sim'):
@@ -256,7 +238,33 @@ class HabitatSession:
         return self._sim.get_sensor_observations()
 
     def map_to_odom_pose(self) -> tuple[float, float, float, float]:
-        return self._odom_origin
+        """map and odom share the same origin (robot spawn is map 0,0)."""
+        return (0.0, 0.0, 0.0, 0.0)
+
+    def map_frame_origin(self) -> tuple[float, float, float, float]:
+        """Habitat world pose recorded at spawn; subtract to get map-frame coords."""
+        return self._map_frame_origin
+
+    def apply_map_frame_offset_to_positions(
+        self,
+        positions: np.ndarray,
+    ) -> np.ndarray:
+        """Shift (and rotate) scene points so the spawn pose is map (0, 0)."""
+        origin_x, origin_y, origin_z, origin_yaw = self._map_frame_origin
+        shifted = positions.astype(np.float32, copy=True)
+        shifted[:, 0] -= origin_x
+        shifted[:, 1] -= origin_y
+        shifted[:, 2] -= origin_z
+        if abs(origin_yaw) <= 1e-6:
+            return shifted
+
+        cosine = math.cos(-origin_yaw)
+        sine = math.sin(-origin_yaw)
+        local_x = shifted[:, 0].copy()
+        local_y = shifted[:, 1].copy()
+        shifted[:, 0] = cosine * local_x - sine * local_y
+        shifted[:, 1] = sine * local_x + cosine * local_y
+        return shifted
 
     def odom_to_base_footprint_pose(self) -> tuple[float, float, float, float]:
         state = self.agent_state()
@@ -271,33 +279,71 @@ class HabitatSession:
         z_odom = current[2] - origin[2]
         return x_odom, y_odom, z_odom, _normalize_angle(current[3] - origin[3])
 
+    def navmesh_loaded(self) -> bool:
+        """Return whether the scene navigation mesh is available."""
+        return self._sim.pathfinder.is_loaded
+
+    def pathfinder(self) -> Any:
+        """Return the Habitat PathFinder for navmesh rasterization."""
+        return self._sim.pathfinder
+
     def agent_state(self) -> Any:
         """Return the current Habitat agent state."""
         return self._agent.get_state()
 
     def agent_pose_stamped(self, frame_id: str, stamp: object) -> PoseStamped:
-        state = self.agent_state()
-        return _habitat_state_to_pose_stamped(
-            state.position,
-            state.rotation,
-            frame_id,
-            stamp,
-        )
+        x, y, z, yaw = self.odom_to_base_footprint_pose()
+        message = PoseStamped()
+        message.header.frame_id = frame_id
+        message.header.stamp = stamp.to_msg() if hasattr(stamp, 'to_msg') else stamp
+        message.pose.position.x = x
+        message.pose.position.y = y
+        message.pose.position.z = z
+        message.pose.orientation = _yaw_to_ros_quaternion(yaw)
+        return message
 
     def set_agent_pose(self, pose: PoseStamped) -> None:
+        world_pose = self._map_pose_to_world_pose(pose.pose)
         position, rotation = _ros_pose_to_habitat(
-            pose.pose,
+            world_pose,
             self._config.sensor_height,
         )
         state = self._agent.get_state()
         state.position = position
         state.rotation = rotation
         self._agent.set_state(state, reset_sensors=True)
-        self._record_odom_origin()
 
-    def _record_odom_origin(self) -> None:
+    def _map_pose_to_world_pose(self, pose: Pose) -> Pose:
+        map_x = float(pose.position.x)
+        map_y = float(pose.position.y)
+        map_z = float(pose.position.z)
+        map_yaw = _ros_yaw_from_quaternion(pose.orientation)
+        origin_x, origin_y, origin_z, origin_yaw = self._map_frame_origin
+
+        cosine = math.cos(origin_yaw)
+        sine = math.sin(origin_yaw)
+        world_x = origin_x + cosine * map_x - sine * map_y
+        world_y = origin_y + sine * map_x + cosine * map_y
+        world_z = origin_z + map_z
+        world_yaw = origin_yaw + map_yaw
+
+        world_pose = Pose()
+        world_pose.position.x = world_x
+        world_pose.position.y = world_y
+        world_pose.position.z = world_z
+        world_pose.orientation = _yaw_to_ros_quaternion(world_yaw)
+        return world_pose
+
+    def _anchor_map_frame_to_spawn(self) -> None:
         state = self.agent_state()
-        self._odom_origin = _ground_pose_ros(state.position, state.rotation)
+        self._map_frame_origin = _ground_pose_ros(state.position, state.rotation)
+        self._odom_origin = self._map_frame_origin
+        self._logger.info(
+            '[habitat_bridge] map origin anchored to spawn '
+            f'world=({self._map_frame_origin[0]:.2f}, '
+            f'{self._map_frame_origin[1]:.2f}, '
+            f'yaw={math.degrees(self._map_frame_origin[3]):.1f}°)'
+        )
 
     def _integrate_velocity(self, linear: float, angular: float, dt: float) -> None:
         state = self._agent.get_state()

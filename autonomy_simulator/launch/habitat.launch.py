@@ -26,6 +26,8 @@ def generate_launch_description():
     scene_data_path = LaunchConfiguration('scene_data_path')
     scene_id = LaunchConfiguration('scene_id')
     mp3d_root = LaunchConfiguration('mp3d_root')
+    cmd_vel_topic = LaunchConfiguration('cmd_vel_topic')
+    occupancy_grid_rate_hz = LaunchConfiguration('occupancy_grid_rate_hz')
 
     declare_namespace = DeclareLaunchArgument(
         'namespace', default_value='', description='Top-level namespace')
@@ -41,6 +43,14 @@ def generate_launch_description():
         'mp3d_root',
         default_value='/workspace/autonomy/src',
         description='MP3D dataset root (ignored when scene_data_path is set)')
+    declare_cmd_vel_topic = DeclareLaunchArgument(
+        'cmd_vel_topic',
+        default_value='cmd_vel',
+        description='cmd_vel subscription (TwistStamped); use cmd_vel_stamped with Nav2')
+    declare_occupancy_grid_rate_hz = DeclareLaunchArgument(
+        'occupancy_grid_rate_hz',
+        default_value='1.0',
+        description='Map publish rate; 0 = latched once (Nav2)')
 
     habitat_bridge = Node(
         package='autonomy_simulator',
@@ -56,6 +66,8 @@ def generate_launch_description():
                 'scene_id': scene_id,
                 'mp3d_root': mp3d_root,
                 'package_scene_dataset_config': mp3d_dataset_config,
+                'cmd_vel_topic': cmd_vel_topic,
+                'occupancy_grid_rate_hz': occupancy_grid_rate_hz,
             },
         ],
     )
@@ -65,6 +77,8 @@ def generate_launch_description():
         declare_scene_data_path,
         declare_scene_id,
         declare_mp3d_root,
+        declare_cmd_vel_topic,
+        declare_occupancy_grid_rate_hz,
         SetEnvironmentVariable('CUDA_VISIBLE_DEVICES', '0'),
         SetEnvironmentVariable('NVIDIA_DRIVER_CAPABILITIES', 'all'),
         SetEnvironmentVariable(
