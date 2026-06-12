@@ -43,6 +43,17 @@
     # 0 = 启动时发布一次（latched）；>0 = 按该频率（Hz）周期发布
     semantic_pointcloud_rate_hz: 1.0
 
+    enable_semantic_occupancy_grid: true
+    occupancy_grid_topic: "map"
+    occupancy_grid_frame: "map"
+    occupancy_grid_resolution: 0.05
+    occupancy_grid_z_min: 0.45
+    occupancy_grid_z_max: 0.85
+    occupancy_grid_padding: 0.2
+    occupancy_grid_wall_dilate: 2
+    occupancy_grid_downsample: 1
+    occupancy_grid_rate_hz: 1.0
+
     enable_rgb: true
     enable_depth: true
     enable_semantic: true

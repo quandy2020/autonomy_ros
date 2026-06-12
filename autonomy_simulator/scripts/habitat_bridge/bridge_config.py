@@ -57,6 +57,17 @@ class BridgeConfig:
     semantic_pointcloud_downsample: int = 1
     semantic_pointcloud_rate_hz: float = 1.0
 
+    enable_semantic_occupancy_grid: bool = True
+    occupancy_grid_topic: str = 'map'
+    occupancy_grid_frame: str = 'map'
+    occupancy_grid_resolution: float = 0.05
+    occupancy_grid_z_min: float = 0.1
+    occupancy_grid_z_max: float = 2.0
+    occupancy_grid_padding: float = 0.2
+    occupancy_grid_wall_dilate: int = 2
+    occupancy_grid_downsample: int = 1
+    occupancy_grid_rate_hz: float = 1.0
+
     enable_rgb: bool = True
     enable_depth: bool = True
     enable_semantic: bool = True
@@ -110,6 +121,16 @@ class BridgeConfig:
             ('semantic_pointcloud_frame', defaults.semantic_pointcloud_frame),
             ('semantic_pointcloud_downsample', defaults.semantic_pointcloud_downsample),
             ('semantic_pointcloud_rate_hz', defaults.semantic_pointcloud_rate_hz),
+            ('enable_semantic_occupancy_grid', defaults.enable_semantic_occupancy_grid),
+            ('occupancy_grid_topic', defaults.occupancy_grid_topic),
+            ('occupancy_grid_frame', defaults.occupancy_grid_frame),
+            ('occupancy_grid_resolution', defaults.occupancy_grid_resolution),
+            ('occupancy_grid_z_min', defaults.occupancy_grid_z_min),
+            ('occupancy_grid_z_max', defaults.occupancy_grid_z_max),
+            ('occupancy_grid_padding', defaults.occupancy_grid_padding),
+            ('occupancy_grid_wall_dilate', defaults.occupancy_grid_wall_dilate),
+            ('occupancy_grid_downsample', defaults.occupancy_grid_downsample),
+            ('occupancy_grid_rate_hz', defaults.occupancy_grid_rate_hz),
             ('enable_semantic_pointcloud', defaults.enable_semantic_pointcloud),
             ('update_rate_hz', defaults.update_rate_hz),
         ]

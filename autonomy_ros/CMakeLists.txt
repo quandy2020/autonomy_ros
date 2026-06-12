@@ -107,7 +107,7 @@ install(TARGETS autonomy_core autonomy_node
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch rviz config docs DESTINATION share/${PROJECT_NAME})
 install(
-  PROGRAMS scripts/navigation_client.py scripts/camera_viewer.py
+  PROGRAMS scripts/cmd_vel_twist_stamped_relay.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
