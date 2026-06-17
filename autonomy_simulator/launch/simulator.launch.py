@@ -54,18 +54,6 @@ def generate_launch_description():
         condition=IfCondition(PythonExpression(["'", sim_mode, "' == 'fake'"])),
     )
 
-    fake_robot_habitat = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_share, 'launch', 'fake_robot.launch.py')
-        ),
-        launch_arguments={
-            'use_sim_time': use_sim_time,
-            'publish_odom': 'false',
-            'publish_tf': 'false',
-        }.items(),
-        condition=is_habitat,
-    )
-
     habitat = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_share, 'launch', 'habitat.launch.py')
@@ -79,6 +67,5 @@ def generate_launch_description():
         declare_use_sim_time,
         gazebo,
         fake_robot_fake,
-        fake_robot_habitat,
         habitat,
     ])

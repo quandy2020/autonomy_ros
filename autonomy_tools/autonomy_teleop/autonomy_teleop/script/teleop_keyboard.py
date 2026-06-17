@@ -20,8 +20,8 @@ import select
 import sys
 import rclpy
 
-from geometry_msgs.msg import TwistStamped
-from rclpy.qos import QoSProfile
+from geometry_msgs.msg import Twist
+from rclpy.qos import qos_profile_system_default
 
 if os.name == 'nt':
     import msvcrt
@@ -124,9 +124,10 @@ def main():
 
     rclpy.init()
 
-    qos = QoSProfile(depth=10)
     node = rclpy.create_node('teleop_keyboard')
-    pub = node.create_publisher(TwistStamped, 'cmd_vel', qos)
+    node.declare_parameter('cmd_vel_topic', 'cmd_vel')
+    cmd_vel_topic = node.get_parameter('cmd_vel_topic').value
+    pub = node.create_publisher(Twist, cmd_vel_topic, qos_profile_system_default)
 
     status = 0
     target_linear_velocity = 0.0
@@ -182,15 +183,9 @@ def main():
                 target_angular_velocity,
                 (ANG_VEL_STEP_SIZE / 2.0))
 
-            twist = TwistStamped()
-            twist.header.stamp = node.get_clock().now().to_msg()
-            twist.header.frame_id = 'base_link'
-            twist.twist.linear.x = control_linear_velocity
-            twist.twist.linear.y = 0.0
-            twist.twist.linear.z = 0.0
-            twist.twist.angular.x = 0.0
-            twist.twist.angular.y = 0.0
-            twist.twist.angular.z = control_angular_velocity
+            twist = Twist()
+            twist.linear.x = control_linear_velocity
+            twist.angular.z = control_angular_velocity
 
             pub.publish(twist)
             rclpy.spin_once(node, timeout_sec=0.01)
@@ -199,17 +194,7 @@ def main():
         print(e)
 
     finally:
-        twist = TwistStamped()
-        twist.header.stamp = node.get_clock().now().to_msg()
-        twist.header.frame_id = 'base_link'
-        twist.twist.linear.x = 0.0
-        twist.twist.linear.y = 0.0
-        twist.twist.linear.z = 0.0
-        twist.twist.angular.x = 0.0
-        twist.twist.angular.y = 0.0
-        twist.twist.angular.z = 0.0
-
-        pub.publish(twist)
+        pub.publish(Twist())
 
         if os.name != 'nt':
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)

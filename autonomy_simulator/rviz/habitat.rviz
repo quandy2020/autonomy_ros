@@ -1,0 +1,68 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Marker Scale: 0.3
+      Name: TF
+    - Class: rviz_default_plugins/Map
+      Enabled: true
+      Name: Map
+      Topic:
+        Value: /map
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Color Scheme: map
+      Draw Behind: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Name: RGB
+      Topic:
+        Value: /camera/rgb/image_raw
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Name: Depth
+      Topic:
+        Value: /camera/depth/image_raw
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Name: Semantic
+      Topic:
+        Value: /camera/semantic/image_raw
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+  Global Options:
+    Fixed Frame: map
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 3
+      Focal Point:
+        X: 0.5
+        Y: 0
+        Z: 0.6
+      Name: Current View
+      Pitch: 0.4
+      Yaw: 0.8
+Window Geometry:
+  Height: 900
+  Width: 1400

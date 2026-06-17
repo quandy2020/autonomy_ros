@@ -21,6 +21,7 @@
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>rosgraph_msgs</exec_depend>
