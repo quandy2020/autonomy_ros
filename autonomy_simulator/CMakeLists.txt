@@ -56,13 +56,13 @@ install(TARGETS ${PROJECT_NAME} fake_robot_node
 install(DIRECTORY include/
   DESTINATION include
 )
-install(DIRECTORY launch urdf worlds models configs param
+install(DIRECTORY launch urdf rviz worlds models configs param
   DESTINATION share/${PROJECT_NAME}
 )
-install(DIRECTORY scripts/habitat_bridge
+install(DIRECTORY scripts/habitat
   DESTINATION lib/${PROJECT_NAME}
 )
-install(PROGRAMS scripts/habitat_bridge_node.py
+install(PROGRAMS scripts/habitat_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

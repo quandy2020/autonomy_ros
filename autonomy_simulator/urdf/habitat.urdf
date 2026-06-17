@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!--
+  Habitat static TF (camera z=0.6 m matches sensor_height in param/habitat.yaml).
+  odom→base_footprint is published by the habitat bridge node.
+  Chain: base_footprint → base_link → camera_link → camera_optical_frame.
+  RGB / depth / semantic share one Habitat pinhole rig → one optical frame (REP-103).
+-->
+<robot name="habitat_robot">
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.01" rpy="0 0 0"/>
+  </joint>
+  <link name="base_link"/>
+
+  <!-- camera_link: REP-103 body frame (+X forward, +Z up), co-located with Habitat agent sensors. -->
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0 0 0.6" rpy="0 0 0"/>
+  </joint>
+  <link name="camera_link"/>
+
+  <!-- camera_optical_frame: +Z viewing axis, +X right, +Y down (standard image frame). -->
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="-1.57079632679 0 -1.57079632679"/>
+  </joint>
+  <link name="camera_optical_frame"/>
+</robot>

@@ -10,6 +10,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -23,6 +24,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     publish_odom = LaunchConfiguration('publish_odom')
     publish_tf = LaunchConfiguration('publish_tf')
+    start_fake_robot_node = LaunchConfiguration('start_fake_robot_node')
 
     with open(urdf_file, encoding='utf-8') as infp:
         robot_description = infp.read()
@@ -41,8 +43,13 @@ def generate_launch_description():
         'publish_tf',
         default_value='true',
         description='Publish odom->base_footprint TF (false when habitat bridge owns TF)')
+    declare_start_fake_robot_node = DeclareLaunchArgument(
+        'start_fake_robot_node',
+        default_value='true',
+        description='Start fake_robot_node (false when habitat bridge owns motion)')
 
     fake_robot_node = Node(
+        condition=IfCondition(start_fake_robot_node),
         package='autonomy_simulator',
         executable='fake_robot_node',
         name='fake_robot_node',
@@ -74,6 +81,7 @@ def generate_launch_description():
         declare_use_sim_time,
         declare_publish_odom,
         declare_publish_tf,
+        declare_start_fake_robot_node,
         fake_robot_node,
         robot_state_publisher,
     ])
