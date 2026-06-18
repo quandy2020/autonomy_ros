@@ -32,6 +32,7 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>autonomy_simulator</exec_depend>
+  <exec_depend>autonomy_tools</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_common</exec_depend>
   <exec_depend>nav2_mppi_controller</exec_depend>

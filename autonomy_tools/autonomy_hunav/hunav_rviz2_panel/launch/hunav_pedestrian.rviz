@@ -1,0 +1,104 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Enabled: true
+      Name: Grid
+      Plane Cell Count: 50
+      Reference Frame: <Fixed Frame>
+    - Class: rviz_default_plugins/Map
+      Enabled: true
+      Name: Map
+      Topic:
+        Value: /map
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Color Scheme: map
+      Draw Behind: false
+    - Alpha: 1
+      Class: pedsim_rviz_plugin/TrackedPersons
+      Enabled: true
+      Font scale: 1.5
+      History as line:
+        Value: true
+      History size: 15
+      Name: TrackedPersons
+      Render detection IDs: false
+      Render history: true
+      Render person visual: true
+      Render track IDs: true
+      Render velocities: true
+      Style:
+        Value: Cylinders
+      Topic:
+        Value: /pedestrian_visualizer/tracked_persons
+    - Alpha: 1
+      Class: pedsim_rviz_plugin/TrackedGroups
+      Enabled: true
+      Name: TrackedGroups
+      Topic:
+        Value: /pedestrian_visualizer/tracked_groups
+      Tracked persons topic:
+        Value: /pedestrian_visualizer/tracked_persons
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: HunavGoals
+      Topic:
+        Value: /hunav_goals
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: HunavAgents
+      Topic:
+        Value: /hunav_agent
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: PredictionPaths
+      Topic:
+        Value: /pedestrian_simulator/prediction_paths
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot
+      Topic:
+        Value: /pedestrian_simulator/robot_position
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Name: TF
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: map
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: hunav_rviz2_panel/HunavGoals
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 35
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Name: Current View
+      Pitch: 1.5697963237762451
+      Target Frame: <Fixed Frame>
+      Yaw: -1.5707963705062866
+Window Geometry:
+  Height: 900
+  Width: 1400

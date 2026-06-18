@@ -11,6 +11,24 @@ Visualization Manager:
       Frame Timeout: 15
       Marker Scale: 0.3
       Name: TF
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 50
+      Reference Frame: <Fixed Frame>
+      Value: true
     - Class: rviz_default_plugins/Map
       Enabled: true
       Name: Map
@@ -21,7 +39,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
       Color Scheme: map
-      Draw Behind: true
+      Draw Behind: false
     - Class: rviz_default_plugins/Image
       Enabled: true
       Name: RGB
@@ -46,23 +64,105 @@ Visualization Manager:
         Depth: 5
         History Policy: Keep Last
         Reliability Policy: Reliable
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: HunavAgents
+      Topic:
+        Value: /hunav_agent
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: HunavGoals
+      Topic:
+        Value: /hunav_goals
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Alpha: 1
+      Class: pedsim_rviz_plugin/TrackedPersons
+      Enabled: true
+      Font scale: 1.5
+      History as line:
+        Value: true
+      History size: 15
+      Name: TrackedPersons
+      Render detection IDs: false
+      Render history: true
+      Render person visual: true
+      Render track IDs: true
+      Render velocities: true
+      Style:
+        Value: Cylinders
+      Topic:
+        Value: /pedestrian_visualizer/tracked_persons
+    - Alpha: 1
+      Class: pedsim_rviz_plugin/TrackedGroups
+      Enabled: true
+      Name: TrackedGroups
+      Topic:
+        Value: /pedestrian_visualizer/tracked_groups
+      Tracked persons topic:
+        Value: /pedestrian_visualizer/tracked_persons
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: PredictionPaths
+      Topic:
+        Value: /pedestrian_simulator/prediction_paths
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: PedestrianVisualization
+      Topic:
+        Value: /pedestrian_simulator/visualization
+        Depth: 5
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: PedestrianRobot
+      Topic:
+        Value: /pedestrian_simulator/robot_position
   Global Options:
     Fixed Frame: map
   Name: root
   Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
     - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/PublishPoint
+      Single click: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+    - Class: hunav_rviz2_panel/HunavGoals
   Value: true
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3
+      Distance: 35
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
       Focal Point:
-        X: 0.5
+        X: 0
         Y: 0
-        Z: 0.6
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
       Name: Current View
-      Pitch: 0.4
-      Yaw: 0.8
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 1.5697963237762451
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz_default_plugins)
+      Yaw: -1.5707963705062866
 Window Geometry:
   Height: 900
   Width: 1400
