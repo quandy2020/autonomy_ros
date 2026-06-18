@@ -81,7 +81,7 @@ namespace hunav_rviz2_panel
    * - Loading/saving YAML configuration files
    * - Interactive goal assignment through map clicking
    * - Behavior tree generation and editing
-   * - Multi-simulator support (Gazebo, Isaac Sim, Webots)
+   * RViz2 panel for configuring autonomy_pedestrian scenarios in RViz.
    */
   class ActorPanel : public rviz_common::Panel, public rclcpp::Node
   {
@@ -273,14 +273,9 @@ namespace hunav_rviz2_panel
     void applyMapLoadedUi(const QString & display_name);
 
     /**
-     * @brief Toggle map UI between file browse and topic subscribe
+     * @brief Toggle map UI for autonomy_pedestrian (topic subscribe + run sim)
      */
-    void updateMapSelectionUi();
-
-    /**
-     * @brief Whether Pure RViz simulator mode is active
-     */
-    bool isPureRvizMode() const;
+    void updatePedestrianEnvironmentUi();
 
     /**
      * @brief Whether a map has been loaded (YAML file or topic)
@@ -288,9 +283,9 @@ namespace hunav_rviz2_panel
     bool hasMapLoaded() const;
 
     /**
-     * @brief Map simulator name to ROS package for scenarios/maps/BTs
+     * @brief ROS package for scenario YAML/XML output
      */
-    QString simulatorPackageName(const QString & simulatorName) const;
+    QString scenarioPackageName() const;
 
     static QString mapFrameId();
 
@@ -303,11 +298,6 @@ namespace hunav_rviz2_panel
      * @brief Enable post-load UI state (Edit mode, matching reference workflow)
      */
     void enableLoadedConfigurationUi();
-
-    /**
-     * @brief Show/hide Pure RViz specific controls (pedestrian sim, map topic)
-     */
-    void updatePureRvizUi();
 
     /**
      * @brief Convert saved HuNav YAML to autonomy_pedestrian scenario XML
@@ -329,7 +319,7 @@ namespace hunav_rviz2_panel
      * @param simulator_name Current simulator selection
      * @param select_index Skin index to select (-1 keeps first item)
      */
-    void populateSkinComboBox(const QString & simulator_name, int select_index = 0);
+    void populateSkinComboBox(int select_index = 0);
 
     // ================================ VISUALIZATION ================================
     /**
@@ -429,10 +419,8 @@ namespace hunav_rviz2_panel
     
     // Combo boxes
     QComboBox *skin_combobox;             ///< Combo box for agent skin selection
-    QComboBox *simulator_combo_{nullptr}; ///< Combo box for simulator selection
     QComboBox *behavior_type_combobox;    ///< Combo box for behavior type selection
     QComboBox *behavior_conf_combobox;    ///< Combo box for behavior configuration
-    QComboBox *simulator_in_dialog_;      ///< Simulator combo box in dialog
     
     // Buttons
     QPushButton *actor_button_ = nullptr;           ///< Main actor creation button
@@ -700,9 +688,6 @@ namespace hunav_rviz2_panel
     // BT generation
     QString generateDefaultBTForAgent(int agentIndex);
 
-    // LLM-based BT generation (future extension)
-    void launchLLMBTGenerator(); 
-    
     // ===================== UTILITIES =====================
     
     // File operations

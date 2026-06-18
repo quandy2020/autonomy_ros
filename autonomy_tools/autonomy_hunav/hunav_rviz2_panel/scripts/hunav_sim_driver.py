@@ -18,7 +18,24 @@ from geometry_msgs.msg import Pose
 from hunav_msgs.msg import Agent, AgentBehavior, Agents
 from hunav_msgs.srv import ComputeAgents
 from rclpy.node import Node
-from tf_transformations import quaternion_from_euler
+
+
+def _quaternion_from_yaw(yaw: float) -> tuple[float, float, float, float]:
+    half = yaw * 0.5
+    return 0.0, 0.0, math.sin(half), math.cos(half)
+
+
+def _pose_from_xy(x: float, y: float, yaw: float = 0.0) -> Pose:
+    pose = Pose()
+    pose.position.x = x
+    pose.position.y = y
+    pose.position.z = 0.0
+    qx, qy, qz, qw = _quaternion_from_yaw(yaw)
+    pose.orientation.x = qx
+    pose.orientation.y = qy
+    pose.orientation.z = qz
+    pose.orientation.w = qw
+    return pose
 
 
 BEHAVIOR_MAP = {
@@ -47,19 +64,6 @@ def _load_params(yaml_path: Path) -> Dict[str, Any]:
 def _global_goals(params: Dict[str, Any]) -> Dict[int, Tuple[float, float]]:
     raw = params.get('global_goals') or {}
     return {int(k): (float(v['x']), float(v['y'])) for k, v in raw.items()}
-
-
-def _pose_from_xy(x: float, y: float, yaw: float = 0.0) -> Pose:
-    pose = Pose()
-    pose.position.x = x
-    pose.position.y = y
-    pose.position.z = 0.0
-    q = quaternion_from_euler(0.0, 0.0, yaw)
-    pose.orientation.x = q[0]
-    pose.orientation.y = q[1]
-    pose.orientation.z = q[2]
-    pose.orientation.w = q[3]
-    return pose
 
 
 def _build_behavior(raw: Dict[str, Any]) -> AgentBehavior:

@@ -66,6 +66,8 @@ install(PROGRAMS scripts/habitat_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
+ament_environment_hooks("${CMAKE_CURRENT_SOURCE_DIR}/env-hooks/ros2_docker.sh")
+
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_dependencies(

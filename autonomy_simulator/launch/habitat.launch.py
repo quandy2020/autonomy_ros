@@ -9,7 +9,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -79,4 +79,10 @@ def generate_launch_description():
         ],
     )
 
-    return LaunchDescription(declares + [robot_state_publisher, habitat_node])
+    return LaunchDescription([
+        # Docker /dev/shm: avoid Fast DDS SHM port lock failures (fastrtps_port*)
+        SetEnvironmentVariable('FASTDDS_BUILTIN_TRANSPORTS', 'UDPv4'),
+        *declares,
+        robot_state_publisher,
+        habitat_node,
+    ])

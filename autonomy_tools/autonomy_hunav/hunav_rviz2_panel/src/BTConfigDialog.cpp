@@ -5512,9 +5512,9 @@ QStringList BTConfigDialog::generateBTPathsForScenario(const QString &scenarioNa
     {
         packageName = "hunav_isaac_wrapper";
     }
-    else if (simulator == "Pure RViz")
+    else if (simulator == "Pure RViz" || simulator == "autonomy_pedestrian")
     {
-        packageName = "hunav_agent_manager";
+        packageName = "autonomy_pedestrian";
     }
     else
     {

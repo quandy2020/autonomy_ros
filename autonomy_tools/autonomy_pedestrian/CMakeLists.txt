@@ -112,7 +112,7 @@ install(DIRECTORY include/
 install(DIRECTORY third_party/rapidxml/include/
   DESTINATION include/${PROJECT_NAME}/third_party/rapidxml
 )
-install(DIRECTORY launch config scenarios scripts rviz
+install(DIRECTORY launch config scenarios scripts rviz behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
 
