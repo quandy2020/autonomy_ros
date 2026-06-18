@@ -1,0 +1,80 @@
+hunav_loader:
+  ros__parameters:
+    yaml_base_name: map_agents_6
+    simulator: autonomy_pedestrian
+    map: map
+    publish_people: true
+    global_goals:
+      1:
+        x: -8.391
+        y: 1.269
+      2:
+        x: -5.783
+        y: 1.382
+      3:
+        x: -4.250
+        y: 1.624
+      4:
+        x: -1.903
+        y: 1.348
+      5:
+        x: -0.287
+        y: -0.531
+      6:
+        x: 1.599
+        y: 1.301
+    agents:
+      - agent1
+      - agent2
+    agent1:
+      id: 1
+      group_id: 1
+      skin: 4
+      max_vel: 1.5
+      radius: 0.4
+      goal_radius: 0.3
+      cyclic_goals: true
+      init_pose:
+        x: -9.267
+        y: 0.341
+        z: 0.150
+        h: 1.621
+      behavior:
+        type: Regular
+        configuration: 0
+        goal_force_factor: 2.0
+        obstacle_force_factor: 10.0
+        social_force_factor: 5.0
+        other_force_factor: 20.0
+      goals:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+    agent2:
+      id: 2
+      group_id: 2
+      skin: 1
+      max_vel: 1.5
+      radius: 0.4
+      goal_radius: 0.3
+      cyclic_goals: true
+      init_pose:
+        x: 2.064
+        y: 2.366
+        z: 0.150
+        h: -1.515
+      behavior:
+        type: Regular
+        configuration: 0
+        goal_force_factor: 2.0
+        obstacle_force_factor: 10.0
+        social_force_factor: 5.0
+        other_force_factor: 20.0
+      goals:
+        - 6
+        - 2
+        - 4
+        - 5

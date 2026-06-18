@@ -19,6 +19,7 @@
 #include <vector>
 #include <utility>
 #include <chrono>
+#include <map>
 #include "random"
 
 // ================================ QT INCLUDES ================================
@@ -81,6 +82,12 @@
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
+
+namespace {
+constexpr double kAgentZOffset = 0.15;
+constexpr char kScenarioPackage[] = "autonomy_pedestrian";
+constexpr char kSimulatorName[] = "autonomy_pedestrian";
+}  // namespace
 
 namespace hunav_rviz2_panel
 {
@@ -155,7 +162,7 @@ namespace hunav_rviz2_panel
     mode_layout->setSpacing(5);
 
     create_button_ = new QPushButton("Create New Configuration", this);
-    open_button_ = new QPushButton("Edit Existing Configuration", this);
+    open_button_ = new QPushButton("Load Scenario YAML", this);
 
     // Style the mode buttons
     QString button_style =
@@ -233,74 +240,14 @@ namespace hunav_rviz2_panel
     QVBoxLayout *map_layout_v = new QVBoxLayout;
     map_layout_v->setSpacing(2);
 
-    // Simulator selection
-    QLabel *sim_label = new QLabel("Select Simulator:");
-    sim_label->setStyleSheet("font-weight: bold; color: #2c3e50;");
-    map_layout_v->addWidget(sim_label);
+    QLabel *env_hint = new QLabel(
+        "Subscribe to <b>/map</b>, load or create a scenario YAML, then "
+        "<b>Run HuNav Simulation</b> for cyclic waypoint navigation (BT).");
+    env_hint->setWordWrap(true);
+    env_hint->setStyleSheet("color: #2c3e50; margin-bottom: 4px;");
+    map_layout_v->addWidget(env_hint);
 
-    simulator_combo_ = new QComboBox;
-    simulator_combo_->addItem("Gazebo Classic", 1.25);
-    simulator_combo_->addItem("Gazebo Fortress", 1.25);
-    simulator_combo_->addItem("Isaac Sim", 0.0);
-    simulator_combo_->addItem("Webots", 0.01);
-    simulator_combo_->addItem("Pure RViz", 0.15);
-    simulator_combo_->setCurrentIndex(-1);
-    simulator_combo_->setStyleSheet(
-        "QComboBox {"
-        "  padding: 4px 8px;"
-        "  border: 2px solid #bdc3c7;"
-        "  border-radius: 6px;"
-        "  font-size: 14px;"
-        "}"
-        "QComboBox:hover {"
-        "  background-color: rgba(247, 214, 204, 0.8);"
-        "  border: 2px solid #e74c3c;"
-        "  border-color: #e74c3c;"
-        "}");
-    map_layout_v->addWidget(simulator_combo_);
-
-    // Map selection
-    QLabel *map_label = new QLabel("Select Map:");
-    map_label->setStyleSheet("font-weight: bold; color: #2c3e50; margin-top: 8px;");
-    map_layout_v->addWidget(map_label);
-
-    QHBoxLayout *map_select_layout = new QHBoxLayout;
-    map_select_btn_ = new QPushButton("Browse Maps", this);
-    map_select_btn_->setEnabled(false);
-    map_select_btn_->setStyleSheet(
-        "QPushButton {"
-        "  padding: 4px 8px;"
-        "  border: 2px solid #e74c3c;"
-        "  border-radius: 6px;"
-        "  background-color:rgb(254, 236, 231);"
-        "  font-weight: bold;"
-        "}"
-        "QPushButton:hover:enabled {"
-        "  background-color:rgba(247, 214, 204, 0.8);"
-        "}"
-        "QPushButton:disabled {"
-        "  background-color: #f8f9fa;"
-        "  color: #aeb6bf;"
-        "  border-color: #d5dbdb;"
-        "}");
-
-    current_map_label_ = new QLabel("No map selected", this);
-    current_map_label_->setStyleSheet(
-        "QLabel {"
-        "  padding: 4px 8px;"
-        "  border: 1px solid #d5dbdb;"
-        "  border-radius: 4px;"
-        "  background-color: #f8f9fa;"
-        "  color: #5d6d7e;"
-        "  font-style: italic;"
-        "}");
-    current_map_label_->setMinimumWidth(100);
-
-    map_select_layout->addWidget(map_select_btn_);
-    map_select_layout->addWidget(current_map_label_, 1);
-    map_layout_v->addLayout(map_select_layout);
-
-    // Pure RViz: subscribe to OccupancyGrid topic (rviz_default_plugins/Map)
+    // Map topic subscription (OccupancyGrid from RViz / habitat / map_server)
     map_topic_row_ = new QWidget(this);
     QHBoxLayout *map_topic_layout = new QHBoxLayout(map_topic_row_);
     map_topic_layout->setContentsMargins(0, 0, 0, 0);
@@ -336,12 +283,26 @@ namespace hunav_rviz2_panel
     map_topic_layout->addWidget(map_topic_label);
     map_topic_layout->addWidget(map_topic_edit_, 1);
     map_topic_layout->addWidget(map_subscribe_btn_);
-    map_topic_row_->hide();
     map_layout_v->addWidget(map_topic_row_);
 
-    run_pedestrian_sim_btn_ = new QPushButton("Run Pedestrian Simulation");
+    current_map_label_ = new QLabel("No map subscribed", this);
+    current_map_label_->setStyleSheet(
+        "QLabel {"
+        "  padding: 4px 8px;"
+        "  border: 1px solid #d5dbdb;"
+        "  border-radius: 4px;"
+        "  background-color: #f8f9fa;"
+        "  color: #5d6d7e;"
+        "  font-style: italic;"
+        "}");
+    map_layout_v->addWidget(current_map_label_);
+
+    // Legacy browse-maps controls (hidden; map comes from topic in pedestrian mode)
+    map_select_btn_ = new QPushButton("Browse Maps", this);
+    map_select_btn_->hide();
+
+    run_pedestrian_sim_btn_ = new QPushButton("Run HuNav Simulation");
     run_pedestrian_sim_btn_->setEnabled(false);
-    run_pedestrian_sim_btn_->hide();
     run_pedestrian_sim_btn_->setCheckable(true);
     run_pedestrian_sim_btn_->setStyleSheet(
         "QPushButton {"
@@ -366,8 +327,9 @@ namespace hunav_rviz2_panel
         "  border-color: #d5dbdb;"
         "}");
     run_pedestrian_sim_btn_->setToolTip(
-        "<html><b>Pure RViz Simulation</b><br>"
-        "Start or stop <i>autonomy_pedestrian</i> using the saved scenario YAML.</html>");
+        "<html><b>HuNav Simulation (方式 C)</b><br>"
+        "Start or stop <i>hunav_agent_manager</i> with behavior trees.<br>"
+        "Agents follow YAML waypoints with <b>cyclic_goals</b> (逐点循环).</html>");
     map_layout_v->addWidget(run_pedestrian_sim_btn_);
 
     connect(run_pedestrian_sim_btn_, &QPushButton::clicked, this, [this](bool checked)
@@ -381,16 +343,6 @@ namespace hunav_rviz2_panel
     map_group->setLayout(map_layout_v);
     map_group->setEnabled(false);
     main_layout->addWidget(map_group);
-
-    connect(simulator_combo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int /*idx*/)
-            {
-              updateMapSelectionUi();
-              if (panel_mode_ == EDIT_MODE)
-              {
-                actor_button_->setEnabled(true);
-              }
-            });
 
     connect(map_subscribe_btn_, &QPushButton::clicked,
             this, &ActorPanel::onSubscribeMapTopic);
@@ -410,7 +362,6 @@ namespace hunav_rviz2_panel
         "  border: 2px solid #8e44ad;"
         "  border-radius: 8px;"
         "  background-color: #f4f1f8;"
-        "  align-items: center;"
         "}"
         "QGroupBox::title {"
         "  subcontrol-origin: margin;"
@@ -666,7 +617,7 @@ namespace hunav_rviz2_panel
         n_agents_label_->show();
         actor_button_->setText("Generate Agents");
         actor_button_->setEnabled(false);
-        simulator_combo_->setCurrentIndex(-1);
+        updatePedestrianEnvironmentUi();
 
         // Hide all the EDIT_MODE widgets
         edit_goals_button_->hide();
@@ -677,6 +628,7 @@ namespace hunav_rviz2_panel
         // map_group->setTitle("Select simulator and map:");
         map_group->setEnabled(true);
         map_group->setVisible(true);
+        updatePedestrianEnvironmentUi();
         map_select_btn_->show();
         map_select_btn_->setVisible(true);
         current_map_label_->show();
@@ -684,18 +636,14 @@ namespace hunav_rviz2_panel
         goal_group_->setEnabled(false);
         reset_button_->setEnabled(true); });
 
-    // Enable actor_button_ only if:
-    //  • “actors” field is a positive integer,
-    //  • a simulator is selected,
-    //  • and a map has been loaded (or we’re in CREATE_MODE and will pick a map later).
+    // Enable actor_button_ only if actors field is valid and map is loaded.
     connect(actors, &QLineEdit::textChanged, this,
             [this](const QString &txt)
             {
               bool ok;
               int v = txt.toInt(&ok);
-              bool haveSim = (simulator_combo_->currentIndex() >= 0);
               bool haveMap = hasMapLoaded();
-              actor_button_->setEnabled(ok && v > 0 && haveSim && haveMap);
+              actor_button_->setEnabled(ok && v > 0 && haveMap);
             });
 
     // When “Create agents” / “Edit agents” is clicked, delegate to onCreateOrEditAgents():
@@ -708,71 +656,17 @@ namespace hunav_rviz2_panel
 
     connect(open_button_, &QPushButton::clicked, this, [this]()
             {
-              // 1) Ask which simulator we’re editing for
-              QStringList sims = {
-                "Gazebo Classic", "Gazebo Fortress", "Isaac Sim", "Webots", "Pure RViz"};
-              QInputDialog dlg(this);
-              dlg.setWindowTitle(tr("Select Simulator"));
-              dlg.setLabelText(tr("Which simulator are you using?"));
-              dlg.setComboBoxItems(sims);
-              dlg.setOption(QInputDialog::UseListViewForComboBoxItems);  
-              dlg.setTextValue(simulator_combo_->currentText());
-              
-              dlg.setStyleSheet(R"(
-                QInputDialog {
-                  background-color: #f1f4f8ff;
-                  border: 2px solid #445cadff;
-                  border-radius: 8px;
-                }
-                QInputDialog QLabel {
-                  color: #2c3e50;
-                  font-size: 14px;
-                }
-                QComboBox {
-                  padding: 6px 10px;
-                  border: 2px solid #4457adff;
-                  border-radius: 6px;
-                  background-color: white;
-                  font-size: 14px;
-                }
-                QComboBox::drop-down {
-                  subcontrol-origin: padding;
-                  subcontrol-position: top right;
-                  width: 20px;
-                  border-left: none;
-                }
-                QComboBox QAbstractItemView {
-                  background: #ffffff;
-                  selection-background-color: #daddefff;
-                  font-size: 13px;
-                }
-                QDialogButtonBox QPushButton {
-                  padding: 6px 12px;
-                  border: 2px solid #445cadff;
-                  border-radius: 6px;
-                  background-color: #dae2efff;
-                  font-weight: bold;
-                }
-                QDialogButtonBox QPushButton:hover {
-                  background-color: #c3c9e8ff;
-                }
-                QDialogButtonBox QPushButton:disabled {
-                  background-color: #f8f9fa;
-                  color: #aeb6bf;
-                  border-color: #d5dbdb;
-                }
-              )");
-              
-              if (dlg.exec() == QDialog::Accepted) {
-                QString sim = dlg.textValue();
-                simulator_combo_->setCurrentText(sim);
-                open_button_->setDown(true);
-                create_button_->setDown(false);
-                open_button_->setChecked(true);
-                create_button_->setChecked(false);
-                parseYaml();
-                bt_group_->setEnabled(true);
-              } });
+              open_button_->setDown(true);
+              create_button_->setDown(false);
+              open_button_->setChecked(true);
+              create_button_->setChecked(false);
+              map_group->setEnabled(true);
+              map_group->setVisible(true);
+              current_map_label_->show();
+              map_topic_row_->setVisible(true);
+              parseYaml();
+              bt_group_->setEnabled(true);
+            });
 
     // ─── Goal Management Section ───
     goal_group_ = new QGroupBox("Navigation Goals");
@@ -1112,7 +1006,6 @@ namespace hunav_rviz2_panel
 
         // Check if any BT files exist for the current scenario
         QString scenarioName = panel_mode_ == EDIT_MODE ? orig_yaml_base_name_ : yaml_base_name_;
-        QString simulator = simulator_combo_->currentText();
         
         if (scenarioName.isEmpty()) {
             QMessageBox::information(this, "No Configuration", 
@@ -1122,7 +1015,7 @@ namespace hunav_rviz2_panel
         
         // Generate BT file paths to check if they exist
         QStringList btPaths = BTConfigDialog::generateBTPathsForScenario(
-            scenarioName, simulator, loaded_agent_names_.size());
+            scenarioName, QString::fromUtf8(kSimulatorName), loaded_agent_names_.size());
         
         // Check if at least one BT file exists
         bool anyBTExists = false;
@@ -1145,44 +1038,6 @@ namespace hunav_rviz2_panel
         RCLCPP_INFO(this->get_logger(), "Reset all BT customizations");
         });
 
-
-    // Info label
-    QLabel *bt_info = new QLabel("Use the option above for guided BT editing, or \nlaunch Groot2 for visual editing");
-    bt_info->setStyleSheet(
-        "QLabel {"
-        "  color: #5d6d7e;"
-        "  font-style: italic;"
-        "  padding: 4px;"
-        "  background-color: #f8f9fa;"
-        "  border-radius: 4px;"
-        "  border: 1px solid #d5dbdb;"
-        "}");
-    // bt_layout->addWidget(bt_info); // (currently not used)
-
-    // Add button to launch LLM-based BT generator
-    auto llm_bt_btn_ = new QPushButton("Generate Behaviors with LLM");
-    llm_bt_btn_->setToolTip(
-        "<html><b>LLM-based Behavior Tree Generator</b><br>"
-        "Leverage a Large Language Model to automatically generate behavior trees based on high-level descriptions.</html>");
-    llm_bt_btn_->setStyleSheet(
-        "QPushButton {"
-        "  padding: 5px 8px;"
-        "  border: 2px solid #9b59b6;"
-        "  border-radius: 6px;"
-        "  background-color: #f4f1f8;"
-        "  font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "  border-color: #7d3c98;"
-        "  background-color: #e8daef;"
-        "  color: #6c3483;"
-        "}"
-        "QPushButton:pressed {"
-        "  background-color: #9b59b6;"
-        "  color: white;"
-        "}"); 
-    bt_layout->addWidget(llm_bt_btn_);
-    connect(llm_bt_btn_, &QPushButton::clicked, this, &ActorPanel::launchLLMBTGenerator);
 
     bt_layout->addWidget(resetBTBtn);
 
@@ -1268,13 +1123,7 @@ namespace hunav_rviz2_panel
 
     setLayout(topLayout);
 
-    // Set the main layout
-    setLayout(main_layout);
-
     // // Create the “agent” publisher (for initial‐pose markers, etc.)
-    // initial_pose_publisher = this->create_publisher<visualization_msgs::msg::MarkerArray>(
-    //     "hunav_agent", rclcpp::QoS(1).transient_local());
-
     // map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>(
     //     "/map",
     //     // transient_local == latched, reliable == keep it consistent
@@ -1580,7 +1429,7 @@ namespace hunav_rviz2_panel
 
     // — 2) Determine behavior trees directory —
     QString btDir;
-    QString packageName = simulatorPackageName(simulator_combo_->currentText());
+    QString packageName = scenarioPackageName();
 
     // Try ROS2 package discovery
     try
@@ -2400,7 +2249,7 @@ namespace hunav_rviz2_panel
         "<html><b>Agent Appearance</b><br>"
         "Visual representation of the agent in simulation.</html>");
 
-    populateSkinComboBox(simulator_combo_->currentText(), 0);
+    populateSkinComboBox(0);
 
     sim_layout->addWidget(skin_label_);
     sim_layout->addWidget(skin_combobox);
@@ -2410,30 +2259,6 @@ namespace hunav_rviz2_panel
     sim_group->show();
 
     topic_layout->addWidget(sim_group);
-
-    // Store the current connection to avoid duplicates
-    static QMetaObject::Connection simulator_connection;
-
-    // Disconnect any existing connection
-    if (simulator_connection)
-    {
-      disconnect(simulator_connection);
-    }
-
-    // Update skin options when simulator changes in the main panel
-    simulator_connection = connect(simulator_combo_,
-                                   QOverload<int>::of(&QComboBox::currentIndexChanged),
-                                   this,
-                                   [this]()
-                                   {
-                                     if (!skin_combobox || !window || !window->isVisible())
-                                     {
-                                       return;
-                                     }
-
-                                     const int prev = skin_combobox->currentIndex();
-                                     populateSkinComboBox(simulator_combo_->currentText(), prev);
-                                   });
 
     // ─── Advanced Behavior Parameters ───
     QGroupBox *advanced_group = new QGroupBox("SFM parameters");
@@ -2773,10 +2598,6 @@ namespace hunav_rviz2_panel
     }
 
     // ─────────────────────── ALL AGENTS DONE ────────────────────────────────
-    if (simulator_connection) {
-      disconnect(simulator_connection);
-      simulator_connection = QMetaObject::Connection();
-    }
     window->close();
     actor_button_->setDown(false);
     actor_button_->setChecked(false);
@@ -2836,12 +2657,6 @@ namespace hunav_rviz2_panel
                   loaded_initial_marker_ids_.resize(num_agents, -1);
                 }
 
-                static QMetaObject::Connection simulator_connection;
-                if (simulator_connection) {
-                    disconnect(simulator_connection);
-                    simulator_connection = QMetaObject::Connection();
-                }
-                
                 window->close();
                 actor_button_->setDown(false);
                 actor_button_->setChecked(false);
@@ -3125,11 +2940,9 @@ namespace hunav_rviz2_panel
       m.id = loaded_initial_marker_ids_[idx];
       m.action = visualization_msgs::msg::Marker::DELETE;
 
-      // delete the mesh
       m.ns = "agent_initial";
       del->markers.push_back(m);
 
-      // delete the floating text
       m.ns = "agent_id_text";
       del->markers.push_back(m);
 
@@ -3137,7 +2950,7 @@ namespace hunav_rviz2_panel
     }
 
     // 2) Read Z offset for the selected simulator
-    double z_offset = simulator_combo_->currentData().toDouble();
+    double z_offset = kAgentZOffset;
 
     // 3) Allocate fresh ID
     int id = next_marker_id_++;
@@ -3267,16 +3080,22 @@ namespace hunav_rviz2_panel
     open_button_->setChecked(true);
     open_button_->setDown(true);
 
+    map_group->setEnabled(true);
+    map_group->setVisible(true);
+    current_map_label_->show();
+    map_topic_row_->setVisible(true);
+
     assign_goals_btn_->setEnabled(!loaded_global_goals_.empty());
     save_bt_btn_->setEnabled(true);
     bt_group_->setEnabled(true);
     checkbox->setEnabled(true);
     actor_button_->setEnabled(true);
+    updatePedestrianEnvironmentUi();
   }
 
-  bool ActorPanel::isPureRvizMode() const
+  QString ActorPanel::scenarioPackageName() const
   {
-    return simulator_combo_ && simulator_combo_->currentText() == "Pure RViz";
+    return QString::fromUtf8(kScenarioPackage);
   }
 
   bool ActorPanel::hasMapLoaded() const
@@ -3284,67 +3103,28 @@ namespace hunav_rviz2_panel
     return map_loaded_from_topic_ || !map_file_.isEmpty();
   }
 
-  QString ActorPanel::simulatorPackageName(const QString & simulatorName) const
+  void ActorPanel::updatePedestrianEnvironmentUi()
   {
-    if (simulatorName == "Gazebo Classic")
+    const bool sim_env_active =
+        map_group && map_group->isVisible() && map_group->isEnabled();
+    if (map_subscribe_btn_ && map_group)
     {
-      return "hunav_gazebo_wrapper";
-    }
-    if (simulatorName == "Gazebo Fortress")
-    {
-      return "hunav_gazebo_fortress_wrapper";
-    }
-    if (simulatorName == "Isaac Sim")
-    {
-      return "hunav_isaac_wrapper";
-    }
-    if (simulatorName == "Pure RViz")
-    {
-      return "hunav_agent_manager";
-    }
-    return "hunav_webots_wrapper";
-  }
-
-  void ActorPanel::updateMapSelectionUi()
-  {
-    const bool have_sim = simulator_combo_ && simulator_combo_->currentIndex() >= 0;
-    const bool pure = isPureRvizMode();
-
-    if (map_select_btn_)
-    {
-      map_select_btn_->setVisible(true);
-      map_select_btn_->setEnabled(have_sim);
+      map_subscribe_btn_->setEnabled(sim_env_active);
     }
     if (map_topic_row_)
     {
-      map_topic_row_->setVisible(pure);
+      map_topic_row_->setVisible(true);
     }
-    if (map_subscribe_btn_)
+    if (map_select_btn_)
     {
-      map_subscribe_btn_->setEnabled(have_sim && pure);
+      map_select_btn_->setVisible(false);
     }
-    updatePureRvizUi();
-  }
-
-  void ActorPanel::updatePureRvizUi()
-  {
-    const bool pure = isPureRvizMode();
-    if (!run_pedestrian_sim_btn_)
+    if (run_pedestrian_sim_btn_)
     {
-      return;
-    }
-
-    run_pedestrian_sim_btn_->setVisible(pure);
-    if (!pure)
-    {
-      stopPureRvizPedestrianSim();
-      run_pedestrian_sim_btn_->setChecked(false);
-      run_pedestrian_sim_btn_->setDown(false);
-      run_pedestrian_sim_btn_->setEnabled(false);
-    }
-    else if (!last_saved_yaml_path_.isEmpty())
-    {
-      run_pedestrian_sim_btn_->setEnabled(true);
+      run_pedestrian_sim_btn_->setVisible(true);
+      const bool have_yaml =
+          !last_saved_yaml_path_.isEmpty() && QFile::exists(last_saved_yaml_path_);
+      run_pedestrian_sim_btn_->setEnabled(have_yaml);
     }
   }
 
@@ -3386,16 +3166,12 @@ namespace hunav_rviz2_panel
 
   void ActorPanel::startPureRvizPedestrianSim()
   {
-    if (!isPureRvizMode())
-    {
-      return;
-    }
     if (last_saved_yaml_path_.isEmpty() || !QFile::exists(last_saved_yaml_path_))
     {
       QMessageBox::warning(
           this,
-          tr("Pure RViz Simulation"),
-          tr("Save the scenario YAML first, then run the pedestrian simulation."));
+          tr("HuNav Simulation"),
+          tr("Save the scenario YAML first, then run the HuNav simulation."));
       if (run_pedestrian_sim_btn_)
       {
         run_pedestrian_sim_btn_->setChecked(false);
@@ -3405,20 +3181,6 @@ namespace hunav_rviz2_panel
     }
 
     stopPureRvizPedestrianSim();
-
-    if (!generatePedestrianXmlFromYaml(last_saved_yaml_path_))
-    {
-      QMessageBox::critical(
-          this,
-          tr("Pure RViz Simulation"),
-          tr("Failed to convert scenario YAML to autonomy_pedestrian XML."));
-      if (run_pedestrian_sim_btn_)
-      {
-        run_pedestrian_sim_btn_->setChecked(false);
-        run_pedestrian_sim_btn_->setDown(false);
-      }
-      return;
-    }
 
     QString ws_root = "/workspace/autonomy";
     try
@@ -3438,7 +3200,7 @@ namespace hunav_rviz2_panel
     const QString shell_cmd = QString(
         "source /opt/ros/humble/setup.bash && "
         "source %1/install/setup.bash 2>/dev/null || true && "
-        "ros2 launch hunav_rviz2_panel pure_rviz_pedestrian.launch.py "
+        "ros2 launch hunav_rviz2_panel pure_rviz_hunav.launch.py "
         "scenario_yaml:=%2")
                                   .arg(ws_root)
                                   .arg(last_saved_yaml_path_);
@@ -3459,8 +3221,8 @@ namespace hunav_rviz2_panel
     {
       QMessageBox::critical(
           this,
-          tr("Pure RViz Simulation"),
-          tr("Failed to start autonomy_pedestrian launch process."));
+          tr("HuNav Simulation"),
+          tr("Failed to start hunav_agent_manager launch process."));
       stopPureRvizPedestrianSim();
       return;
     }
@@ -3475,12 +3237,12 @@ namespace hunav_rviz2_panel
           {
             RCLCPP_ERROR(
                 get_logger(),
-                "Pure RViz pedestrian simulation exited (code=%d). Check panel log.",
+                "HuNav simulation exited (code=%d). Check panel log.",
                 exit_code);
             QMessageBox::warning(
                 this,
-                tr("Pure RViz Simulation"),
-                tr("Pedestrian simulation stopped unexpectedly (exit code %1).\n"
+                tr("HuNav Simulation"),
+                tr("HuNav simulation stopped unexpectedly (exit code %1).\n"
                    "Check the terminal log for details.")
                     .arg(exit_code));
           }
@@ -3488,18 +3250,18 @@ namespace hunav_rviz2_panel
           {
             run_pedestrian_sim_btn_->setChecked(false);
             run_pedestrian_sim_btn_->setDown(false);
-            run_pedestrian_sim_btn_->setText("Run Pedestrian Simulation");
+            run_pedestrian_sim_btn_->setText("Run HuNav Simulation");
           }
         });
 
     if (run_pedestrian_sim_btn_)
     {
-      run_pedestrian_sim_btn_->setText("Stop Pedestrian Simulation");
+      run_pedestrian_sim_btn_->setText("Stop HuNav Simulation");
     }
 
     RCLCPP_INFO(
         get_logger(),
-        "Started Pure RViz pedestrian simulation with scenario: %s",
+        "Started HuNav simulation (hunav_agent_manager + BT) with scenario: %s",
         last_saved_yaml_path_.toStdString().c_str());
   }
 
@@ -3525,7 +3287,7 @@ namespace hunav_rviz2_panel
 
     if (run_pedestrian_sim_btn_)
     {
-      run_pedestrian_sim_btn_->setText("Run Pedestrian Simulation");
+      run_pedestrian_sim_btn_->setText("Run HuNav Simulation");
     }
   }
 
@@ -3623,15 +3385,15 @@ namespace hunav_rviz2_panel
 
     bool ok = false;
     const int v = actors->text().toInt(&ok);
-    const bool haveSim = simulator_combo_->currentIndex() >= 0;
-    actor_button_->setEnabled(ok && v > 0 && haveSim && hasMapLoaded());
+    actor_button_->setEnabled(ok && v > 0 && hasMapLoaded());
+    updatePedestrianEnvironmentUi();
   }
 
   void ActorPanel::onSelectMap()
   {
     removeCurrentMarkers();
 
-    QString packageName = simulatorPackageName(simulator_combo_->currentText());
+    QString packageName = scenarioPackageName();
 
       QString baseDir;
       try
@@ -4475,7 +4237,6 @@ namespace hunav_rviz2_panel
       delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
       delete_arrows->markers.push_back(delete_marker);
 
-      // Also delete goal cubes
       visualization_msgs::msg::Marker delete_cubes;
       delete_cubes.header.frame_id = mapFrameId().toStdString();
       delete_cubes.header.stamp = rclcpp::Clock().now();
@@ -4577,7 +4338,6 @@ namespace hunav_rviz2_panel
               arrows_visible = show_arrows;
               
               if (!show_arrows) {
-                // Delete all arrows
                 auto delete_arrows = std::make_unique<visualization_msgs::msg::MarkerArray>();
                 visualization_msgs::msg::Marker delete_marker;
                 delete_marker.header.frame_id = mapFrameId().toStdString();
@@ -5016,7 +4776,6 @@ namespace hunav_rviz2_panel
       initial_pose_publisher->publish(std::move(arr));
     }
 
-    // Also clear our local copy of “goal_markers_” so future onGoalPicked() starts clean:
     goal_markers_.markers.clear();
 
     // 3) Clear the QListWidget
@@ -5094,7 +4853,7 @@ namespace hunav_rviz2_panel
     removeCurrentMarkers();
 
     // Let the user pick exactly one YAML file, starting inside the correct dir
-    QString packageName = simulatorPackageName(simulator_combo_->currentText());
+    QString packageName = scenarioPackageName();
 
       QString configDir, mapDir;
       try
@@ -5159,129 +4918,23 @@ namespace hunav_rviz2_panel
     YAML::Node params = yaml_file["hunav_loader"]["ros__parameters"];
     params_ = params;
 
-    if (params_["simulator"])
-    {
-      simulator_combo_->setCurrentText(
-          QString::fromStdString(params_["simulator"].as<std::string>()));
-      updateMapSelectionUi();
-    }
-
-    // Immediately load the map named under params["map"]
+    // Map: subscribe to OccupancyGrid topic (autonomy_pedestrian has no bundled map files)
     if (params["map"])
     {
-      std::string mapName = params["map"].as<std::string>();
-      map_name_ = QString::fromStdString(mapName);
-
-      QString mapBasename = QString::fromStdString(mapName) + ".yaml";
-      QString packageName = simulatorPackageName(simulator_combo_->currentText());
-
-      QString mapDir;
-      try
-      {
-        QString shareDir = QString::fromStdString(
-            ament_index_cpp::get_package_share_directory(packageName.toStdString()));
-        std::string srcDir = this->share_to_src_path(shareDir.toStdString());
-        mapDir = QString::fromStdString(srcDir + "/maps");
-        RCLCPP_INFO(get_logger(), "Found ROS2 package '%s', maps at: %s",
-                    packageName.toStdString().c_str(), mapDir.toStdString().c_str());
-      }
-      catch (const std::exception &e)
-      {
-        RCLCPP_WARN(get_logger(), "ROS2 package '%s' not found, falling back to development paths",
-                    packageName.toStdString().c_str());
-
-        QString homePath = QDir::homePath() + "/" + packageName + "/maps";
-        QString dockerPath = "/workspace/hunav_isaac_ws/src/" + packageName + "/maps";
-
-        mapDir = QDir(dockerPath).exists() ? dockerPath : homePath;
-        RCLCPP_INFO(get_logger(), "Using fallback path: %s", mapDir.toStdString().c_str());
-      }
-
-      QString candidatePath = mapDir + "/" + mapBasename;
-      if (QFile::exists(candidatePath))
-      {
-        auto client = this->create_client<nav2_msgs::srv::LoadMap>("/map_server/load_map");
-        if (!client->wait_for_service(2s))
-        {
-          if (isPureRvizMode())
-          {
-            map_file_.clear();
-            map_loaded_from_topic_ = false;
-            map_topic_ui_applied_ = false;
-            if (map_topic_edit_)
-            {
-              map_topic_edit_->setText("/map");
-            }
-            onSubscribeMapTopic();
-          }
-          else
-          {
-            QMessageBox::warning(
-                this,
-                "Map Server",
-                "Timed out waiting for /map_server/load_map. Is map_server running?");
-            return;
-          }
-        }
-        else
-        {
-          auto req = std::make_shared<nav2_msgs::srv::LoadMap::Request>();
-          req->map_url = candidatePath.toStdString();
-
-          auto future = client->async_send_request(req);
-          if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future, 5s) !=
-              rclcpp::FutureReturnCode::SUCCESS)
-          {
-            if (isPureRvizMode())
-            {
-              onSubscribeMapTopic();
-            }
-            else
-            {
-              QMessageBox::critical(
-                  this,
-                  "Map Server",
-                  "Failed to call /map_server/load_map on:\n" + candidatePath);
-              return;
-            }
-          }
-          else
-          {
-            map_file_ = candidatePath;
-            map_loaded_from_topic_ = false;
-          }
-        }
-      }
-      else if (isPureRvizMode())
-      {
-        map_file_.clear();
-        map_loaded_from_topic_ = false;
-        map_topic_ui_applied_ = false;
-        if (map_topic_edit_)
-        {
-          map_topic_edit_->setText("/map");
-        }
-        onSubscribeMapTopic();
-      }
-      else
-      {
-        QMessageBox::critical(
-            this,
-            "Map Load Error",
-            QString("Could not locate '%1' in:\n  %2")
-                .arg(mapBasename)
-                .arg(mapDir));
-        return;
-      }
+      map_name_ = QString::fromStdString(params["map"].as<std::string>());
     }
     else
     {
-      QMessageBox::warning(
-          this,
-          "YAML Format Error",
-          "Missing 'map' key under 'ros__parameters'.");
-      return;
+      map_name_ = QStringLiteral("map");
     }
+    map_file_.clear();
+    map_loaded_from_topic_ = false;
+    map_topic_ui_applied_ = false;
+    if (map_topic_edit_)
+    {
+      map_topic_edit_->setText("/map");
+    }
+    onSubscribeMapTopic();
 
     // 6) Build a goal_map from params["global_goals"]
     loaded_global_goals_.clear();
@@ -5560,15 +5213,15 @@ namespace hunav_rviz2_panel
       add_agent_button_->setEnabled(true);
 
       n_agents_label_->hide();
-      map_group->setTitle("Edit agents or navigation goal:");
-      map_group->setEnabled(false);
-      map_group->setVisible(false);
-      // goal_group_->setTitle("");
+      map_group->setTitle("Simulation Environment");
+      map_group->setEnabled(true);
+      map_group->setVisible(true);
+      current_map_label_->show();
+      map_topic_row_->setVisible(true);
       goal_group_->setEnabled(true);
       goal_group_->show();
       goal_group_->update();
       map_select_btn_->hide();
-      current_map_label_->hide();
       map_select_btn_->setVisible(false);
 
       // *** ENABLE GOAL MANAGEMENT UI ELEMENTS ***
@@ -5586,7 +5239,7 @@ namespace hunav_rviz2_panel
       enableLoadedConfigurationUi();
     }
 
-    updatePureRvizUi();
+    updatePedestrianEnvironmentUi();
 
     // Create a rich completion message
     QString completionTitle = tr("Agents Configuration Loaded");
@@ -5611,9 +5264,9 @@ namespace hunav_rviz2_panel
 
                                 "<div class='summary'>"
                                 "<strong>Steps:</strong><br>"
-                                "• <span class='action'>Edit agent configurations</span> using the agent panel<br>"
-                                "• <span class='action'>Modify navigation goals</span> by entering goal editing mode<br>"
-                                "• <span class='action'>Save and generate</span> updated behavior trees when ready"
+                                "• Subscribe to <span class='action'>/map</span> in Simulation Environment<br>"
+                                "• <span class='action'>Edit agents/goals</span> or save when ready<br>"
+                                "• Click <span class='action'>Run HuNav Simulation</span> for cyclic waypoint BT"
                                 "</div>"
 
                                 "</body></html>")
@@ -5715,9 +5368,8 @@ namespace hunav_rviz2_panel
     
     // Try to load existing BT configuration from XML files
     QString scenarioName = panel_mode_ == EDIT_MODE ? orig_yaml_base_name_ : yaml_base_name_;
-    QString simulator = simulator_combo_->currentText();
     QStringList btPaths = BTConfigDialog::generateBTPathsForScenario(
-        scenarioName, simulator, loaded_agent_names_.size());
+        scenarioName, QString::fromUtf8(kSimulatorName), loaded_agent_names_.size());
     
     // Attempt to load existing configuration if files exist
     bool configLoaded = wizard.loadExistingConfiguration(btPaths);
@@ -5740,10 +5392,8 @@ namespace hunav_rviz2_panel
       }
 
       // Generate BT file paths using BTConfigDialog's method
-      QString scenarioName = panel_mode_ == EDIT_MODE ? orig_yaml_base_name_ : yaml_base_name_;
-      QString simulator = simulator_combo_->currentText();
       QStringList btPaths = BTConfigDialog::generateBTPathsForScenario(
-          scenarioName, simulator, loaded_agent_names_.size());
+          scenarioName, QString::fromUtf8(kSimulatorName), loaded_agent_names_.size());
 
       // Apply configuration using BTConfigDialog's method
       if (BTConfigDialog::patchAllAgentBTFiles(btPaths, config))
@@ -5759,199 +5409,6 @@ namespace hunav_rviz2_panel
       }
     }
   }
-
-  void ActorPanel::launchLLMBTGenerator()
-  {
-    // Check if agents are loaded
-    if (loaded_agent_names_.empty())
-    {
-      QMessageBox::warning(
-          this,
-          "No Agents Loaded",
-          "Please load agents from a YAML file before generating behavior trees.");
-      return;
-    }
-
-    // Determine the YAML file path based on panel mode
-    QString yamlFilePath;
-
-    if (panel_mode_ == EDIT_MODE)
-    {
-      // In EDIT mode, use the loaded file path
-      if (pkg_shared_tree_dir_.empty())
-      {
-        QMessageBox::warning(
-            this,
-            "No Scenario File",
-            "No scenario YAML file is currently loaded. Please load a scenario first.");
-        return;
-      }
-      yamlFilePath = QString::fromStdString(pkg_shared_tree_dir_);
-    }
-    else if (panel_mode_ == CREATE_MODE)
-    {
-      // In CREATE mode, construct the path from yaml_base_name_
-      if (yaml_base_name_.isEmpty())
-      {
-        QMessageBox::warning(
-            this,
-            "No Scenario Saved",
-            "Please save your scenario configuration before generating behavior trees.\n"
-            "Use the 'Save agents & generate BTs' button first.");
-        return;
-      }
-
-      // Determine the simulator wrapper package
-      QString packageName = simulatorPackageName(simulator_combo_->currentText());
-
-      // Get the config directory
-      QString configDir;
-      try
-      {
-        QString shareDir = QString::fromStdString(
-            ament_index_cpp::get_package_share_directory(packageName.toStdString()));
-        std::string srcDir = this->share_to_src_path(shareDir.toStdString());
-        configDir = QString::fromStdString(srcDir + "/scenarios");
-      }
-      catch (const std::exception &e)
-      {
-        QString homePath = QDir::homePath() + "/" + packageName;
-        QString dockerPath = "/workspace/hunav_isaac_ws/src/" + packageName;
-        QString baseDir = QDir(dockerPath).exists() ? dockerPath : homePath;
-        configDir = baseDir + "/scenarios";
-      }
-
-      yamlFilePath = configDir + "/" + yaml_base_name_ + ".yaml";
-    }
-    else
-    {
-      QMessageBox::warning(
-          this,
-          "Invalid Mode",
-          "Cannot determine panel mode. Please load or create a scenario first.");
-      return;
-    }
-
-    // Verify the YAML file exists
-    if (!QFile::exists(yamlFilePath))
-    {
-      QMessageBox::critical(
-          this,
-          "File Not Found",
-          QString("The scenario YAML file does not exist:\n%1\n\n"
-                  "Please save your scenario configuration before generating behavior trees.")
-              .arg(yamlFilePath));
-      return;
-    }
-
-    RCLCPP_INFO(get_logger(), "Launching LLM BT Generator for scenario: %s",
-                yamlFilePath.toStdString().c_str());
-
-    // Build the ROS2 command string
-    QString ros2Command = QString("ros2 run hunav_behavior_tree_generator generator_cli --mode scenario --yaml-file %1 --simulator \"%2\"")
-                              .arg(QFileInfo(yamlFilePath).fileName())
-                              .arg(simulator_combo_->currentText());
-
-    // Detect available terminal emulator and build the command to open a new terminal window
-    QString terminalCommand;
-    QStringList terminalArgs;
-
-    // Try common terminal emulators in order of preference
-    QProcess checkTerminal;
-    
-    // Check for gnome-terminal
-    checkTerminal.start("which", QStringList() << "gnome-terminal");
-    checkTerminal.waitForFinished(1000);
-    if (checkTerminal.exitCode() == 0)
-    {
-      terminalCommand = "gnome-terminal";
-      terminalArgs << "--" << "bash" << "-c" 
-                   << QString("%1; echo ''; echo 'Press Enter to close this window...'; read").arg(ros2Command);
-    }
-    else
-    {
-      // Check for xterm
-      checkTerminal.start("which", QStringList() << "xterm");
-      checkTerminal.waitForFinished(1000);
-      if (checkTerminal.exitCode() == 0)
-      {
-        terminalCommand = "xterm";
-        terminalArgs << "-hold" << "-e" << ros2Command;
-      }
-      else
-      {
-        // Check for konsole (KDE)
-        checkTerminal.start("which", QStringList() << "konsole");
-        checkTerminal.waitForFinished(1000);
-        if (checkTerminal.exitCode() == 0)
-        {
-          terminalCommand = "konsole";
-          terminalArgs << "-e" << "bash" << "-c" 
-                       << QString("%1; echo ''; echo 'Press Enter to close this window...'; read").arg(ros2Command);
-        }
-        else
-        {
-          // Check for xfce4-terminal
-          checkTerminal.start("which", QStringList() << "xfce4-terminal");
-          checkTerminal.waitForFinished(1000);
-          if (checkTerminal.exitCode() == 0)
-          {
-            terminalCommand = "xfce4-terminal";
-            terminalArgs << "-e" << "bash -c '" + ros2Command + "; echo ''; echo 'Press Enter to close...'; read'";
-          }
-          else
-          {
-            // Fallback error
-            QMessageBox::critical(
-                this,
-                "Terminal Not Found",
-                "Could not find a suitable terminal emulator (gnome-terminal, xterm, konsole, or xfce4-terminal).\n\n"
-                "Please install one of these terminal emulators to use this feature.");
-            return;
-          }
-        }
-      }
-    }
-
-    // Show information dialog before starting
-    QMessageBox::information(
-        this,
-        "Launching LLM BT Generator",
-        QString("<html>Opening a new terminal window to run LLM-based behavior tree generation for:\n\n"
-                "<b>%1</b>\n\n"
-                "The generator will run interactively in the terminal.\n"
-                "Please follow the prompts in the terminal window.</html>")
-            .arg(QFileInfo(yamlFilePath).fileName()));
-
-    // Launch the terminal with the command
-    RCLCPP_INFO(get_logger(), "Executing in terminal: %s %s",
-                terminalCommand.toStdString().c_str(),
-                terminalArgs.join(" ").toStdString().c_str());
-
-    bool success = QProcess::startDetached(terminalCommand, terminalArgs);
-
-    if (success)
-    {
-      RCLCPP_INFO(get_logger(), "Successfully launched LLM BT Generator in new terminal window");
-      QMessageBox::information(
-          this,
-          "Terminal Launched",
-          "The LLM BT Generator has been launched in a new terminal window.\n\n"
-          "Please interact with it in that terminal to generate behavior trees.");
-    }
-    else
-    {
-      QString errorMsg = QString("Failed to launch terminal command:\n%1 %2")
-                             .arg(terminalCommand)
-                             .arg(terminalArgs.join(" "));
-      RCLCPP_ERROR(get_logger(), "%s", errorMsg.toStdString().c_str());
-      QMessageBox::critical(
-          this,
-          "Launch Failed",
-          errorMsg);
-    }
-  }
-  
 
   void ActorPanel::resetBTConfiguration(const QStringList &btPaths)
   {
@@ -5990,17 +5447,14 @@ namespace hunav_rviz2_panel
       if (filePaths.isEmpty())
       {
         QString scenarioName = panel_mode_ == EDIT_MODE ? orig_yaml_base_name_ : yaml_base_name_;
-        QString simulator = simulator_combo_->currentText();
-        
         if (scenarioName.isEmpty())
         {
           QMessageBox::warning(this, "Invalid Configuration",
                                "No scenario name available. Please save your configuration first.");
           return;
         }
-        
         filePaths = BTConfigDialog::generateBTPathsForScenario(
-            scenarioName, simulator, loaded_agent_names_.size());
+            scenarioName, QString::fromUtf8(kSimulatorName), loaded_agent_names_.size());
       }
 
       // Reset each agent's BT to its predefined configuration
@@ -6190,7 +5644,7 @@ namespace hunav_rviz2_panel
     //  2a) write yaml basename, simulator and map name:
     p["yaml_base_name"] = yaml_base_name_.toStdString();
 
-    p["simulator"] = simulator_combo_->currentText().toStdString();
+    p["simulator"] = kSimulatorName;
     std::string map_str;
     if (panel_mode_ == EDIT_MODE && params_["map"])
     {
@@ -6259,7 +5713,7 @@ namespace hunav_rviz2_panel
     // 3) Write the YAML to disk:
 
     // Determine the simulator wrapper directories
-    QString packageName = simulatorPackageName(simulator_combo_->currentText());
+    QString packageName = scenarioPackageName();
 
       QString configDir, btDir;
       try
@@ -6299,14 +5753,8 @@ namespace hunav_rviz2_panel
                 fullpath.toStdString().c_str());
 
     last_saved_yaml_path_ = fullpath;
-    if (isPureRvizMode())
-    {
-      generatePedestrianXmlFromYaml(fullpath);
-      if (run_pedestrian_sim_btn_)
-      {
-        run_pedestrian_sim_btn_->setEnabled(true);
-      }
-    }
+    generatePedestrianXmlFromYaml(fullpath);
+    updatePedestrianEnvironmentUi();
 
     // Generate BT for each agent
     agentBtPaths_.clear();
@@ -6391,11 +5839,9 @@ namespace hunav_rviz2_panel
                       .arg(loaded_agent_names_.size())
                       .arg(btDir)
                       .arg(loaded_agent_names_.size())
-                      .arg(isPureRvizMode()
-                               ? tr("Click <b>Run Pedestrian Simulation</b> to start "
-                                    "autonomy_pedestrian in RViz.<br>")
-                               : QString())
-                      .arg(simulator_combo_->currentText());
+                      .arg(tr("Click <b>Run HuNav Simulation</b> to start "
+                               "hunav_agent_manager with cyclic waypoint BT in RViz.<br>"))
+                      .arg(QString::fromUtf8(kSimulatorName));
 
     // Create and style the message box
     QMessageBox msgBox(this);
@@ -6734,16 +6180,8 @@ namespace hunav_rviz2_panel
     if (conf == "Default")
     {
       // Set default values for basic force parameters (common to all behaviors)
-      if (simulator_combo_->currentText() == "Isaac Sim")
-      {
-        beh_gff->setText(QString::number(10.0));
-        beh_off->setText(QString::number(2.0));
-      }
-      else // Gazebo Classic, Gazebo Fortress, or Webots
-      {
-        beh_gff->setText(QString::number(2.0));
-        beh_off->setText(QString::number(10.0));
-      }
+      beh_gff->setText(QString::number(2.0));
+      beh_off->setText(QString::number(10.0));
       beh_gff->setEnabled(false);
       beh_off->setEnabled(false);
       beh_sff->setText(QString::number(5.0));
@@ -6794,14 +6232,7 @@ namespace hunav_rviz2_panel
       // Enable and set placeholders for basic force parameters (common to all behaviors)
       beh_gff->setEnabled(true);
       beh_gff->setText("");
-      if (simulator_combo_->currentText() == "Isaac Sim")
-      {
-        beh_gff->setPlaceholderText("[5.0 - 10.0]");
-      }
-      else
-      {
-        beh_gff->setPlaceholderText("[2.0 - 5.0]");
-      }
+      beh_gff->setPlaceholderText("[2.0 - 5.0]");
       beh_gff->setStyleSheet(R"(
                         QLineEdit::placeholder {
                           font-style: italic;
@@ -6811,14 +6242,7 @@ namespace hunav_rviz2_panel
 
       beh_off->setEnabled(true);
       beh_off->setText("");
-      if (simulator_combo_->currentText() == "Isaac Sim")
-      {
-        beh_off->setPlaceholderText("[0.5 - 5.0]");
-      }
-      else
-      {
-        beh_off->setPlaceholderText("[2.0 - 50.0]");
-      }
+      beh_off->setPlaceholderText("[2.0 - 50.0]");
       beh_off->setStyleSheet(R"(
                         QLineEdit::placeholder {
                           font-style: italic;
@@ -6984,35 +6408,17 @@ namespace hunav_rviz2_panel
       std::mt19937 gen(rd());
       
       // Set basic force parameters (common to all behaviors)
-      if (simulator_combo_->currentText() == "Isaac Sim")
-      {
-        std::normal_distribution<> dis_gff{5.0, 1.5};
-        double facGoal = dis_gff(gen);
-        facGoal = (facGoal < 5.0) ? 5.0 : facGoal;
-        beh_gff->setText(QString::number(facGoal));
-        beh_gff->setEnabled(false);
+      std::normal_distribution<> dis_gff{2.0, 1.5};
+      double facGoal = dis_gff(gen);
+      facGoal = (facGoal < 2.0) ? 2.0 : facGoal;
+      beh_gff->setText(QString::number(facGoal));
+      beh_gff->setEnabled(false);
 
-        std::normal_distribution<> dis_off{2.0, 4.0};
-        double facObstacle = dis_off(gen);
-        facObstacle = (facObstacle < 0.5) ? 0.5 : facObstacle;
-        beh_off->setText(QString::number(facObstacle));
-        beh_off->setEnabled(false);
-      }
-      else
-      {
-        // Gazebo or Webots
-        std::normal_distribution<> dis_gff{2.0, 1.5};
-        double facGoal = dis_gff(gen);
-        facGoal = (facGoal < 2.0) ? 2.0 : facGoal;
-        beh_gff->setText(QString::number(facGoal));
-        beh_gff->setEnabled(false);
-
-        std::normal_distribution<> dis_off{10.0, 4.0};
-        double facObstacle = dis_off(gen);
-        facObstacle = (facObstacle < 2.0) ? 2.0 : facObstacle;
-        beh_off->setText(QString::number(facObstacle));
-        beh_off->setEnabled(false);
-      }
+      std::normal_distribution<> dis_off{10.0, 4.0};
+      double facObstacle = dis_off(gen);
+      facObstacle = (facObstacle < 2.0) ? 2.0 : facObstacle;
+      beh_off->setText(QString::number(facObstacle));
+      beh_off->setEnabled(false);
       std::normal_distribution<> dis_sff{4.0, 3.5};
       double facSocial = dis_sff(gen);
       facSocial = (facSocial < 3.0) ? 3.0 : facSocial;
@@ -7222,7 +6628,7 @@ namespace hunav_rviz2_panel
     }
   }
 
-  void ActorPanel::populateSkinComboBox(const QString & simulator_name, int select_index)
+  void ActorPanel::populateSkinComboBox(int select_index)
   {
     if (!skin_combobox)
     {
@@ -7230,56 +6636,15 @@ namespace hunav_rviz2_panel
     }
 
     skin_combobox->clear();
-
-    if (simulator_name.contains("Gazebo", Qt::CaseInsensitive) ||
-        simulator_name == "Gazebo Classic" ||
-        simulator_name == "Gazebo Fortress" ||
-        simulator_name == "Pure RViz")
-    {
-      skin_combobox->addItems({"Elegant man",
-                               "Casual man",
-                               "Elegant woman",
-                               "Regular man",
-                               "Worker man",
-                               "Blue jeans",
-                               "Green t-shirt",
-                               "Blue t-shirt",
-                               "Red t-shirt"});
-    }
-    else if (simulator_name.contains("Isaac", Qt::CaseInsensitive) || simulator_name == "Isaac Sim")
-    {
-      skin_combobox->addItems({"Random",
-                               "F_Business_02",
-                               "F_Medical_01",
-                               "M_Medical_01",
-                               "male_adult_construction_01",
-                               "male_adult_construction_05",
-                               "female_adult_police_01",
-                               "female_adult_police_02",
-                               "female_adult_police_03",
-                               "male_adult_police_04",
-                               "female_adult_business_02",
-                               "female_adult_medical_01"});
-    }
-    else if (simulator_name.contains("Webots", Qt::CaseInsensitive) || simulator_name == "Webots")
-    {
-      skin_combobox->addItems({"Default Character",
-                               "Character Type 1",
-                               "Character Type 2",
-                               "Character Type 3"});
-    }
-    else
-    {
-      skin_combobox->addItems({"Elegant man",
-                               "Casual man",
-                               "Elegant woman",
-                               "Regular man",
-                               "Worker man",
-                               "Blue jeans",
-                               "Green t-shirt",
-                               "Blue t-shirt",
-                               "Red t-shirt"});
-    }
+    skin_combobox->addItems({"Elegant man",
+                             "Casual man",
+                             "Elegant woman",
+                             "Regular man",
+                             "Worker man",
+                             "Blue jeans",
+                             "Green t-shirt",
+                             "Blue t-shirt",
+                             "Red t-shirt"});
 
     if (select_index >= 0 && select_index < skin_combobox->count())
     {
@@ -7300,106 +6665,70 @@ namespace hunav_rviz2_panel
 
   int ActorPanel::checkComboBoxSkin()
   {
-    QString currentSim = simulator_combo_->currentText();
     std::string skinName = skin_combobox->currentText().toStdString();
-    int skinIndex = skin_combobox->currentIndex();
 
-    if (currentSim == "Gazebo Classic" || currentSim == "Gazebo Fortress" || currentSim == "Pure RViz")
+    if (skinName == "Elegant man")
     {
-      // Gazebo skin mapping (unchanged)
-      if (skinName == "Elegant man")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
-        return 0;
-      }
-      else if (skinName == "Casual man")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/casual_man.dae";
-        return 1;
-      }
-      else if (skinName == "Elegant woman")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/elegant_woman.dae";
-        return 2;
-      }
-      else if (skinName == "Regular man")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/regular_man.dae";
-        return 3;
-      }
-      else if (skinName == "Worker man")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/worker_man.dae";
-        return 4;
-      }
-      else if (skinName == "Blue jeans")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
-        return 5;
-      }
-      else if (skinName == "Green t-shirt")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
-        return 6;
-      }
-      else if (skinName == "Blue t-shirt")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
-        return 7;
-      }
-      else if (skinName == "Red t-shirt")
-      {
-        person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
-        return 8;
-      }
-    }
-    else if (currentSim == "Isaac Sim" || currentSim == "Webots")
-    {
-      person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
-      return skinIndex;
-    }
-    else
-    {
-      // Default fallback
       person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
       return 0;
     }
+    if (skinName == "Casual man")
+    {
+      person_skin = "package://hunav_rviz2_panel/meshes/casual_man.dae";
+      return 1;
+    }
+    if (skinName == "Elegant woman")
+    {
+      person_skin = "package://hunav_rviz2_panel/meshes/elegant_woman.dae";
+      return 2;
+    }
+    if (skinName == "Regular man")
+    {
+      person_skin = "package://hunav_rviz2_panel/meshes/regular_man.dae";
+      return 3;
+    }
+    if (skinName == "Worker man")
+    {
+      person_skin = "package://hunav_rviz2_panel/meshes/worker_man.dae";
+      return 4;
+    }
+    if (skinName == "Blue jeans" || skinName == "Green t-shirt" ||
+        skinName == "Blue t-shirt" || skinName == "Red t-shirt")
+    {
+      person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
+      if (skinName == "Blue jeans")
+      {
+        return 5;
+      }
+      if (skinName == "Green t-shirt")
+      {
+        return 6;
+      }
+      if (skinName == "Blue t-shirt")
+      {
+        return 7;
+      }
+      return 8;
+    }
 
-    // Default fallback when combobox text does not match (e.g. empty list)
     person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
     return 0;
   }
 
   void ActorPanel::checkParserSkin(int skin)
   {
-    QString currentSim = simulator_combo_->currentText();
-
-    if (currentSim == "Gazebo Classic" || currentSim == "Gazebo Fortress" || currentSim == "Pure RViz")
-    {
-      // Gazebo skin mapping (unchanged)
-      if (skin == 0)
-        person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
-      else if (skin == 1)
-        person_skin = "package://hunav_rviz2_panel/meshes/casual_man.dae";
-      else if (skin == 2)
-        person_skin = "package://hunav_rviz2_panel/meshes/elegant_woman.dae";
-      else if (skin == 3)
-        person_skin = "package://hunav_rviz2_panel/meshes/regular_man.dae";
-      else if (skin == 4)
-        person_skin = "package://hunav_rviz2_panel/meshes/worker_man.dae";
-      else
-        person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
-    }
-    else if (currentSim == "Isaac Sim" || currentSim == "Webots")
-    {
-      // RViz-only simulators: generic mesh for display
+    if (skin == 0)
       person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
-    }
+    else if (skin == 1)
+      person_skin = "package://hunav_rviz2_panel/meshes/casual_man.dae";
+    else if (skin == 2)
+      person_skin = "package://hunav_rviz2_panel/meshes/elegant_woman.dae";
+    else if (skin == 3)
+      person_skin = "package://hunav_rviz2_panel/meshes/regular_man.dae";
+    else if (skin == 4)
+      person_skin = "package://hunav_rviz2_panel/meshes/worker_man.dae";
     else
-    {
-      // Default fallback
-      person_skin = "package://hunav_rviz2_panel/meshes/elegant_man.dae";
-    }
+      person_skin = "package://hunav_rviz2_panel/meshes/walk.dae";
   }
 
   void ActorPanel::initAgentColors(int num_agents)
@@ -7564,37 +6893,29 @@ namespace hunav_rviz2_panel
 
   void ActorPanel::publishAgentMarkers()
   {
-    // 1) First, clear everything out
     removeCurrentMarkers();
 
-    // 2) Build a MarkerArray on the stack
     auto arr1 = std::make_unique<visualization_msgs::msg::MarkerArray>();
     int next_id = 0;
 
-    // 3) For each loaded agent…
     const size_t N = loaded_agent_nodes_.size();
     for (size_t i = 0; i < N; ++i)
     {
-      // read its stored init‐pose
       const YAML::Node &node = loaded_agent_nodes_[i];
       double ipx = node["init_pose"]["x"].as<double>();
       double ipy = node["init_pose"]["y"].as<double>();
 
-      // pull out the saved yaw ("h") if present
       double yaw = 0.0;
       if (node["init_pose"]["h"])
         yaw = node["init_pose"]["h"].as<double>();
 
-      // pick a single id for *both* mesh+text
       int this_id = next_id++;
       loaded_initial_marker_ids_[i] = this_id;
 
-      // stamp
       std_msgs::msg::Header hdr;
       hdr.frame_id = mapFrameId().toStdString();
       hdr.stamp = this->now();
 
-      // pick its color
       const QColor &c = agent_colors_[i];
       std_msgs::msg::ColorRGBA col;
       col.r = c.redF();
@@ -7602,7 +6923,6 @@ namespace hunav_rviz2_panel
       col.b = c.blueF();
       col.a = 1.0f;
 
-      // — mesh/person marker —
       auto mesh = createMarker(ipx, ipy, this_id, "person", "parser");
       mesh.header = hdr;
       mesh.ns = "agent_initial";
@@ -7614,8 +6934,7 @@ namespace hunav_rviz2_panel
 
       arr1->markers.push_back(mesh);
 
-      // — floating text label —
-      auto text = mesh; // copy header, pose, etc
+      auto text = mesh;
       text.ns = "agent_id_text";
       text.id = this_id;
       text.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
@@ -7628,7 +6947,6 @@ namespace hunav_rviz2_panel
     }
     next_marker_id_ = next_id;
 
-    // 4) Publish all at once
     initial_pose_publisher->publish(std::move(arr1));
   }
 
@@ -7674,7 +6992,6 @@ namespace hunav_rviz2_panel
       auto arr = std::make_unique<visualization_msgs::msg::MarkerArray>();
       arr->markers.push_back(m);
 
-      // publish on both topics
       initial_pose_publisher->publish(std::move(arr));
 
       auto arr2 = std::make_unique<visualization_msgs::msg::MarkerArray>();
@@ -7797,13 +7114,12 @@ namespace hunav_rviz2_panel
     // 4) Reset UI back to “fresh” state
     map_group->setEnabled(false);
     map_group->setVisible(true);
-    simulator_combo_->setCurrentIndex(-1);
-    map_select_btn_->show();
-    map_select_btn_->setVisible(true);
-    map_select_btn_->setEnabled(false);
-    updateMapSelectionUi();
-    current_map_label_->clear();
-    current_map_label_->show();
+    if (map_select_btn_)
+    {
+      map_select_btn_->hide();
+    }
+    updatePedestrianEnvironmentUi();
+    current_map_label_->setText(tr("No map subscribed"));
 
     // Reset agent creation fields
     actors->clear();
@@ -7943,7 +7259,19 @@ namespace hunav_rviz2_panel
 
     std::string package_name = install_share_path.substr(start, end - start);
 
-    // Build src path
+    static const std::map<std::string, std::string> src_overrides = {
+      {"autonomy_pedestrian", "autonomy_ros/autonomy_tools/autonomy_pedestrian"},
+      {"hunav_rviz2_panel", "autonomy_ros/autonomy_tools/autonomy_hunav/hunav_rviz2_panel"},
+      {"hunav_agent_manager", "autonomy_ros/autonomy_tools/autonomy_hunav/hunav_agent_manager"},
+      {"hunav_behavior_tree_generator",
+       "autonomy_ros/autonomy_tools/autonomy_hunav/hunav_behavior_tree_generator"},
+    };
+    auto override_it = src_overrides.find(package_name);
+    if (override_it != src_overrides.end())
+    {
+      return workspace_root + "/src/" + override_it->second;
+    }
+
     std::string src_path = workspace_root + "/src/";
 
     // Check if this package is inside the hunav_sim metapackage

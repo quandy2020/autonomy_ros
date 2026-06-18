@@ -1,6 +1,9 @@
 Panels:
   - Class: rviz_common/Displays
     Name: Displays
+  - Class: hunav_rviz2_panel/HunavPanel
+    Name: HunavPanel
+    Topic: ""
   - Class: rviz_common/Views
     Name: Views
 Visualization Manager:
@@ -38,7 +41,7 @@ Visualization Manager:
         Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Color Scheme: map
+      Color Scheme: costmap
       Draw Behind: false
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -165,4 +168,7 @@ Visualization Manager:
       Yaw: -1.5707963705062866
 Window Geometry:
   Height: 900
+  Hide Left Dock: false
+  HunavPanel:
+    collapsed: false
   Width: 1400

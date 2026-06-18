@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated from HuNav scenario YAML -->
+<tag type="gaussian"/>
+<pedestrian>
+  <start x="-9.267000" y="0.341000"/>
+  <path>
+    <point x="-8.391000" y="1.269000"/>
+    <point x="-5.783000" y="1.382000"/>
+    <point x="-4.250000" y="1.624000"/>
+    <point x="-1.903000" y="1.348000"/>
+    <point x="-0.287000" y="-0.531000"/>
+    <point x="1.599000" y="1.301000"/>
+  </path>
+</pedestrian>
+<pedestrian>
+  <start x="2.064000" y="2.366000"/>
+  <path>
+    <point x="1.599000" y="1.301000"/>
+    <point x="-5.783000" y="1.382000"/>
+    <point x="-1.903000" y="1.348000"/>
+    <point x="-0.287000" y="-0.531000"/>
+  </path>
+</pedestrian>

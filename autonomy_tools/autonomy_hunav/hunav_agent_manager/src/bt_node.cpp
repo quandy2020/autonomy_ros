@@ -7,6 +7,8 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <map>
+#include <set>
 
 // BT_REGISTER_NODES(factory) {
 //   hunav_agent_manager::registerBTNodes(factory);
@@ -19,41 +21,63 @@ namespace hunav
   using std::placeholders::_2;
   // using std::placeholders::_3;
 
-  std::string BTnode::share_to_src_path(const std::string& share_path) 
+  std::string BTnode::share_to_src_path(const std::string& share_path)
   {
-    // Example:
-    // input: /home/hunav_gz_classic_ws/install/hunav_gazebo_wrapper/share/hunav_gazebo_wrapper
-    // output: /home/hunav_gz_classic_ws/src/hunav_gazebo_wrapper
-    
-    std::vector<std::string> parts;
-    std::stringstream ss(share_path);
-    std::string item;
-    while (std::getline(ss, item, '/')) {
-        if (!item.empty()) parts.push_back(item);
+    const size_t install_pos = share_path.find("/install/");
+    if (install_pos == std::string::npos) {
+      RCLCPP_WARN(
+        this->get_logger(),
+        "The path does not have the expected structure ../install/share/package_name: %s",
+        share_path.c_str());
+      return share_path;
     }
 
-    auto it = std::find(parts.begin(), parts.end(), "install");
-    if (it == parts.end() || (it + 1) == parts.end()) {
-        RCLCPP_WARN(this->get_logger(),
-                    "The path does not have the expected structure ../install/share/package_name: %s",
-                    share_path.c_str());
-        return share_path;
+    const std::string workspace_root = share_path.substr(0, install_pos);
+    const size_t start = install_pos + 9;
+    const size_t end = share_path.find("/share/", start);
+    if (end == std::string::npos) {
+      RCLCPP_WARN(
+        this->get_logger(),
+        "The path does not have the expected structure ../install/share/package_name: %s",
+        share_path.c_str());
+      return share_path;
     }
-    
-    size_t install_idx = std::distance(parts.begin(), it);
-    std::string pkg_name = parts[install_idx + 1];
+
+    const std::string package_name = share_path.substr(start, end - start);
+    static const std::map<std::string, std::string> src_overrides = {
+      {"autonomy_pedestrian", "autonomy_ros/autonomy_tools/autonomy_pedestrian"},
+      {"hunav_rviz2_panel", "autonomy_ros/autonomy_tools/autonomy_hunav/hunav_rviz2_panel"},
+      {"hunav_agent_manager", "autonomy_ros/autonomy_tools/autonomy_hunav/hunav_agent_manager"},
+      {"hunav_behavior_tree_generator",
+       "autonomy_ros/autonomy_tools/autonomy_hunav/hunav_behavior_tree_generator"},
+    };
+
+    const auto override_it = src_overrides.find(package_name);
+    if (override_it != src_overrides.end()) {
+      return workspace_root + "/src/" + override_it->second;
+    }
+
+    static const std::set<std::string> metapackage_children = {
+      "hunav_agent_manager",
+      "hunav_behavior_tree_generator",
+      "hunav_evaluator",
+      "hunav_msgs",
+      "hunav_rviz2_panel",
+      "hunav_sim",
+    };
 
     std::ostringstream src_path;
-    for (size_t i = 0; i < install_idx; ++i) {
-        src_path << "/" << parts[i];
+    src_path << workspace_root << "/src/";
+    if (metapackage_children.count(package_name) > 0) {
+      src_path << "hunav_sim/";
     }
-    src_path << "/src/" << pkg_name;
-    // src_path << "/src/"; // Temporary for isaac
+    src_path << package_name;
 
-
-    RCLCPP_DEBUG(this->get_logger(), 
-                 "Converted share path to src: %s → %s", 
-                 share_path.c_str(), src_path.str().c_str());
+    RCLCPP_DEBUG(
+      this->get_logger(),
+      "Converted share path to src: %s -> %s",
+      share_path.c_str(),
+      src_path.str().c_str());
 
     return src_path.str();
   }
@@ -106,6 +130,9 @@ namespace hunav
       }
       else if (simulator_name_ == "Pure RViz") {
         package_name = "hunav_agent_manager";
+      }
+      else if (simulator_name_ == "autonomy_pedestrian") {
+        package_name = "autonomy_pedestrian";
       }
       else { // Webots
         package_name = "hunav_webots_wrapper";
@@ -329,9 +356,18 @@ namespace hunav
     }
 
     if (_agent.id == 1)
+    {
+      try
       {
         publisher_ = std::make_unique<BT::Groot2Publisher>(trees_[_agent.id], 5555);
       }
+      catch (const std::exception &e)
+      {
+        RCLCPP_WARN(
+            this->get_logger(),
+            "Groot2 publisher disabled (port 5555 unavailable): %s", e.what());
+      }
+    }
 
     RCLCPP_INFO(this->get_logger(), "Behavior Tree for agent %s [id:%i] loaded!", _agent.name.c_str(),
                 _agent.id);

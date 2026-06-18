@@ -12,6 +12,7 @@
   <exec_depend>autonomy_pedestrian</exec_depend>
   <exec_depend>autonomy_teleop</exec_depend>
   <exec_depend>autonomy_hunav</exec_depend>
+  <exec_depend>autonomy_lerobot</exec_depend>
 
 
   <test_depend>ament_lint_auto</test_depend>
