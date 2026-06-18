@@ -1,0 +1,42 @@
+<library path="pedsim_rviz_plugin">
+  <class
+    name="pedsim_rviz_plugin/TrackedPersons"
+    type="pedsim_rviz_plugin::TrackedPersonsDisplay"
+    base_class_type="rviz_common::Display"
+  >
+    <description>
+      Displays tracked persons from pedsim_msgs/TrackedPersons messages.
+    </description>
+    <message_type>pedsim_msgs/msg/TrackedPersons</message_type>
+  </class>
+  <class
+    name="pedsim_rviz_plugin/TrackedGroups"
+    type="pedsim_rviz_plugin::TrackedGroupsDisplay"
+    base_class_type="rviz_common::Display"
+  >
+    <description>
+      Displays tracked groups from pedsim_msgs/TrackedGroups messages.
+    </description>
+    <message_type>pedsim_msgs/msg/TrackedGroups</message_type>
+  </class>
+  <class
+    name="pedsim_rviz_plugin/SocialRelations"
+    type="pedsim_rviz_plugin::SocialRelationsDisplay"
+    base_class_type="rviz_common::Display"
+  >
+    <description>
+      Displays social relations from pedsim_msgs/SocialRelations messages.
+    </description>
+    <message_type>pedsim_msgs/msg/SocialRelations</message_type>
+  </class>
+  <class
+    name="pedsim_rviz_plugin/SocialActivities"
+    type="pedsim_rviz_plugin::SocialActivitiesDisplay"
+    base_class_type="rviz_common::Display"
+  >
+    <description>
+      Displays social activities from pedsim_msgs/SocialActivities messages.
+    </description>
+    <message_type>pedsim_msgs/msg/SocialActivities</message_type>
+  </class>
+</library>
