@@ -41,6 +41,16 @@ class OdomPublisher:
         self._static_tf = StaticTransformBroadcaster(node)
         self._odom_pub = node.create_publisher(Odometry, cfg.odom_topic, qos)
         self._pub_map_to_odom_static()
+        self._pub_initial_odom_to_base()
+
+    def _pub_initial_odom_to_base(self) -> None:
+        """Identity odom→base_footprint until the first sim tick (Session load is slow)."""
+        msg = TransformStamped()
+        msg.header.stamp = rclpy.time.Time().to_msg()
+        msg.header.frame_id = self._cfg.odom_frame
+        msg.child_frame_id = self._cfg.base_footprint_frame
+        msg.transform.rotation.w = 1.0
+        self._tf.sendTransform(msg)
 
     def publish(
         self,

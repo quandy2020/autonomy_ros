@@ -24,9 +24,15 @@ def generate_launch_description():
     cmd_vel = LaunchConfiguration('cmd_vel_topic')
     map_hz = LaunchConfiguration('occupancy_grid_rate_hz')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    spawn_mode = LaunchConfiguration('spawn_mode')
+    spawn_index = LaunchConfiguration('spawn_index')
+    spawn_count = LaunchConfiguration('spawn_count')
 
     with open(os.path.join(pkg, 'urdf', 'habitat.urdf'), encoding='utf-8') as f:
         urdf = f.read()
+
+    # Keep TF on namespaced topics when namespace is set (multi-robot isolation).
+    tf_remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
 
     declares = [
         DeclareLaunchArgument('namespace', default_value='', description='Top-level namespace'),
@@ -50,6 +56,21 @@ def generate_launch_description():
             default_value='false',
             description='Use simulation clock',
         ),
+        DeclareLaunchArgument(
+            'spawn_mode',
+            default_value='fixed',
+            description='Agent spawn: dispersed | random | fixed',
+        ),
+        DeclareLaunchArgument(
+            'spawn_index',
+            default_value='0',
+            description='0-based robot index for dispersed spawn slot',
+        ),
+        DeclareLaunchArgument(
+            'spawn_count',
+            default_value='1',
+            description='Total robots sharing the dispersed spawn layout',
+        ),
     ]
 
     robot_state_publisher = Node(
@@ -58,6 +79,7 @@ def generate_launch_description():
         name='robot_state_publisher',
         namespace=ns,
         output='screen',
+        remappings=tf_remappings,
         parameters=[{'use_sim_time': use_sim_time, 'robot_description': urdf}],
     )
 
@@ -67,6 +89,7 @@ def generate_launch_description():
         name='habitat_node',
         namespace=ns,
         output='screen',
+        remappings=tf_remappings,
         parameters=[
             params,
             {
@@ -75,6 +98,9 @@ def generate_launch_description():
                 'package_scene_dataset_config': dataset_config,
                 'cmd_vel_topic': cmd_vel,
                 'occupancy_grid_rate_hz': map_hz,
+                'spawn_mode': spawn_mode,
+                'spawn_index': spawn_index,
+                'spawn_count': spawn_count,
             },
         ],
     )

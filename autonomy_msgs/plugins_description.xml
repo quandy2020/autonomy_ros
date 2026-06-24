@@ -1,0 +1,12 @@
+<library path="autonomy_msgs_rviz">
+  <class
+    name="autonomy_msgs/Graph"
+    type="autonomy_msgs::GraphDisplay"
+    base_class_type="rviz_common::Display"
+  >
+    <description>
+      Displays nodes and edges from autonomy_msgs/Graph messages.
+    </description>
+    <message_type>autonomy_msgs/msg/Graph</message_type>
+  </class>
+</library>

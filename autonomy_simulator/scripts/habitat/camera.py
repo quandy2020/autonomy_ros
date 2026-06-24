@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import array
 import math
 from typing import Any
 
@@ -99,11 +100,11 @@ class CameraPublisher:
         self,
         stamp: rclpy.time.Time,
         frame_id: str,
-        array: np.ndarray,
+        image: np.ndarray,
         encoding: str,
         name: str,
     ) -> None:
-        arr = np.ascontiguousarray(array)
+        arr = np.ascontiguousarray(image)
         msg = Image()
         msg.header.stamp = stamp.to_msg()
         msg.header.frame_id = frame_id
@@ -115,7 +116,8 @@ class CameraPublisher:
         else:
             msg.height, msg.width = arr.shape[:2]
             msg.step = msg.width * int(np.dtype(arr.dtype).itemsize * arr.shape[2])
-        msg.data = arr.tobytes()
+        # array.array('B', ...) avoids per-byte validation in sensor_msgs Image.data.
+        msg.data = array.array('B', arr.tobytes())
         self._pubs[name].publish(msg)
 
     def _pub_rgb(self, stamp: rclpy.time.Time, obs: dict[str, Any]) -> None:

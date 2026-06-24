@@ -20,12 +20,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import rclpy
 from geometry_msgs.msg import PoseStamped, Twist
 from rclpy.node import Node
 from rclpy.qos import qos_profile_system_default
 
 from habitat.camera import CameraPublisher
 from habitat.config import load
+from habitat.navmesh import NavMeshPublisher
 from habitat.odom import OdomPublisher
 from habitat.ply import PlyPublisher
 from habitat.sim import Session
@@ -43,11 +45,16 @@ class BridgeNode(Node):
 
         self._cam = CameraPublisher(self, cfg)
         self._odom = OdomPublisher(self, cfg)
+        # Flush map→odom / odom→base_footprint before the blocking Session() load.
+        rclpy.spin_once(self, timeout_sec=0.1)
         self._ply = None
         if cfg.semantic_pointcloud_rate_hz >= 0.0 or cfg.occupancy_grid_rate_hz >= 0.0:
             self._ply = PlyPublisher(self, cfg, self.get_logger())
         # Habitat-Sim startup is slow; keep lightweight publishers above it.
         self._session = Session(cfg, self.get_logger())
+        self._navmesh = None
+        if cfg.navmesh_rate_hz >= 0.0:
+            self._navmesh = NavMeshPublisher(self, cfg, self._session)
 
         stamp = self.get_clock().now()
         self._odom.publish(stamp, self._session)
@@ -59,6 +66,10 @@ class BridgeNode(Node):
         if self._ply is not None:
             self._timer(cfg.semantic_pointcloud_rate_hz, self._on_cloud)
             self._timer(cfg.occupancy_grid_rate_hz, self._on_map)
+        if self._navmesh is not None:
+            navmesh_hz = cfg.navmesh_rate_hz
+            # rate_hz=0 latches once; still republish at 1 Hz so late RViz subscribers receive it.
+            self._timer(1.0 if navmesh_hz == 0.0 else navmesh_hz, self._on_navmesh)
 
         self.get_logger().info(
             f'[habitat] scene={cfg.scene_id} '
@@ -77,6 +88,10 @@ class BridgeNode(Node):
         if self._ply is not None:
             self._ply.publish_map(self.get_clock().now())
 
+    def _on_navmesh(self) -> None:
+        if self._navmesh is not None:
+            self._navmesh.publish(self.get_clock().now())
+
     def _on_cmd(self, msg: Twist) -> None:
         self._cmd_time = self.get_clock().now()
         self._session.set_velocity(float(msg.linear.x), float(msg.angular.z))
@@ -90,6 +105,8 @@ class BridgeNode(Node):
         return dt > self._cfg.cmd_vel_timeout
 
     def _on_tick(self) -> None:
+        if not rclpy.ok():
+            return
         stamp = self.get_clock().now()
         timed_out = self._timed_out()
         obs = self._session.step(self._dt, timed_out)

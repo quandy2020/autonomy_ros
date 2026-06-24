@@ -44,4 +44,33 @@
     occupancy_grid_downsample: 1
     occupancy_grid_rate_hz: 0.0
 
+    navmesh_topic: "habitat/graph"
+    navmesh_mesh_topic: "habitat/navmesh_mesh"
+    navmesh_frame: "map"
+    navmesh_topology: "triangle"
+    navmesh_rate_hz: 0.0
+    navmesh_meters_per_pixel: 0.4
+    navmesh_height: 0.0
+    navmesh_eps: 0.5
+    navmesh_stride: 2
+    navmesh_z: 0.05
+    navmesh_max_nodes: 20000
+    navmesh_node_scale: 0.08
+    navmesh_line_width: 0.03
+    navmesh_show_nodes: true
+    navmesh_show_edges: true
+    navmesh_show_mesh: false
+    navmesh_show_faces: true
+    navmesh_face_alpha: 0.18
+    navmesh_color_by_island: true
+    navmesh_connect_diagonal: false
+
     update_rate_hz: 30.0
+
+    spawn_mode: fixed
+    spawn_index: 0
+    spawn_count: 1
+    spawn_seed: 0
+    spawn_x: 0.0
+    spawn_y: 0.0
+    spawn_yaw: 0.0
