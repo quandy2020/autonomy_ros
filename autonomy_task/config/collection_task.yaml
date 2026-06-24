@@ -1,0 +1,75 @@
+collection_task:
+  frame_id: map
+  robot_prefix: robot
+  num_robots: 3
+  status_publish_hz: 2.0
+  coordinator_tick_hz: 2.0
+  waypoint_source: graph
+  state_file: /workspace/autonomy/data/collection/state.json
+
+  graph:
+    per_robot: true
+    topic_suffix: habitat/graph
+    wait_sec: 60.0
+    max_nodes: 0
+    use_frame: true
+
+  navigation:
+    action_timeout_sec: 120.0
+    server_wait_sec: 90.0
+    goal_tolerance_m: 0.35
+    stall_sec: 12.0
+    stall_move_m: 0.3
+    stall_goal_progress_m: 0.25
+    max_nav_sec: 40.0
+    cancel_timeout_sec: 5.0
+
+  collection:
+    target_episodes: 2000
+    allow_revisit: true
+    spacing_vs_collected: false
+    min_distance_m: 1.0
+    max_distance_m: 20.0
+    min_spacing_m: 0.5
+    dedupe_radius_m: 0.3
+    assignment_strategy: bucket
+    min_peer_spacing_m: 1.5
+    record_before_nav_sec: 0.5
+    record_after_arrival_sec: 1.0
+    max_retries: 2
+    parallel: true
+    distance_buckets:
+      - [1.0, 2.0]
+      - [2.0, 3.0]
+      - [3.0, 4.0]
+      - [4.0, 5.0]
+      - [5.0, 7.0]
+      - [7.0, 10.0]
+      - [10.0, 15.0]
+      - [15.0, 20.0]
+
+  recording:
+    enabled: true
+    bridge_basename: lerobot_bridge_node
+
+  filter:
+    require_navigable: false
+    enforce_map_bounds: true
+    map_margin_m: 0.5
+    planner_margin_m: 1.0
+    # Habitat static map (available at sim start); global_costmap needs Nav2 + inflates graph nodes.
+    use_global_costmap: false
+    costmap_topic: global_costmap/costmap
+    map_topic: map
+    occupied_threshold: 50
+    free_threshold: 0
+
+  # 可选：用网格自动生成导航点（waypoint_source: grid）
+  grid_sampling:
+    enabled: false
+    origin_x: -4.0
+    origin_y: -4.0
+    rows: 5
+    cols: 5
+    step_m: 2.0
+    yaw: 0.0

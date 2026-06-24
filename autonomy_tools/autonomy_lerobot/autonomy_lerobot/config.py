@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rclpy.node import Node
+from autonomy_lerobot.repo_id import sanitize_repo_id
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,8 @@ class Config:
 
     # Nav2 planning (nav2_bringup defaults).
     global_plan_topic: str = 'plan'
-    local_plan_topic: str = 'local_plan'
+    # MPPI (nav2_habitat_params.yaml) publishes transformed_global_plan, not local_plan.
+    local_plan_topic: str = 'transformed_global_plan'
     global_costmap_topic: str = 'global_costmap/costmap'
     local_costmap_topic: str = 'local_costmap/costmap'
 
@@ -65,6 +66,7 @@ class Config:
     video_vcodec: str = 'h264'
     streaming_encoding: bool = True
     parallel_video_encoding: bool = True
+    overwrite_dataset: bool = False
 
     @property
     def image_shape(self) -> tuple[int, int, int]:
@@ -73,7 +75,7 @@ class Config:
 
 _BOOL_FIELDS = frozenset({
     'use_depth', 'record_semantic', 'record_map', 'record_pointcloud',
-    'record_camera_info', 'record_nav2',
+    'record_camera_info', 'record_nav2', 'overwrite_dataset',
 })
 _INT_FIELDS = frozenset({
     'image_width', 'image_height', 'max_path_waypoints', 'max_pointcloud_points',
@@ -97,4 +99,5 @@ def load(node: Node) -> Config:
     for name in _INT_FIELDS:
         values[name] = int(values[name])
     values['record_fps'] = float(values['record_fps'])
+    values['dataset_repo_id'] = sanitize_repo_id(str(values['dataset_repo_id']))
     return Config(**values)

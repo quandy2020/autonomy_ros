@@ -32,6 +32,7 @@ from habitat_sim.agent import AgentConfiguration
 from habitat_sim.sensor import CameraSensorSpec, SensorSubType, SensorType
 from habitat.config import Config
 from habitat.coords import from_pose, quat, ros_yaw_from_quat, to_odom_pose, xy
+from habitat.spawn import pick_dispersed_navigable_points
 
 
 class Session:
@@ -80,6 +81,14 @@ class Session:
         state = self._agent.get_state()
         map_x, map_y = xy(state.position)
         return map_x, map_y, self._cfg.base_link_height, ros_yaw_from_quat(state.rotation)
+
+    @property
+    def pathfinder(self):
+        return self._sim.pathfinder
+
+    @property
+    def floor_height(self) -> float:
+        return self._floor_height
 
     def odom_pose(self) -> tuple[float, float, float, float]:
         """Same as map_pose; map→odom TF is identity."""
@@ -177,11 +186,47 @@ class Session:
         self._apply(self._snap(position), quat(map_yaw))
 
     def _spawn(self) -> None:
-        """Place agent on navmesh (TUTORIALS/scripts/sim_utils.place_agent_at_navmesh)."""
-        if self._sim.pathfinder.is_loaded:
-            point = self._sim.pathfinder.get_random_navigable_point()
-            point = self._snap(point)
-            self._apply(point, quat(0.0))
-        else:
+        """Place agent on navmesh (dispersed, random, or fixed pose)."""
+        if not self._sim.pathfinder.is_loaded:
             self._logger.warning('Navmesh not loaded; using default agent spawn pose')
             self._floor_height = 0.0
+            return
+
+        mode = self._cfg.spawn_mode
+        if mode == 'fixed':
+            position = np.array(
+                [self._cfg.spawn_x, self._floor_height, -self._cfg.spawn_y],
+                dtype=np.float32,
+            )
+            point = self._snap(position)
+            self._apply(point, quat(self._cfg.spawn_yaw))
+            mx, my = xy(point)
+            self._logger.info(
+                f'Fixed spawn at map ({mx:.2f}, {my:.2f}) yaw={self._cfg.spawn_yaw:.2f}')
+            return
+
+        if mode == 'dispersed':
+            seed = self._cfg.spawn_seed or (hash(self._cfg.scene_id) & 0xFFFFFFFF)
+            points = pick_dispersed_navigable_points(
+                lambda: self._snap(self._sim.pathfinder.get_random_navigable_point()),
+                self._cfg.spawn_count,
+                seed=seed,
+            )
+            if points:
+                idx = min(max(self._cfg.spawn_index, 0), len(points) - 1)
+                point = points[idx]
+                yaw = (
+                    idx * (2.0 * math.pi / self._cfg.spawn_count)
+                    if self._cfg.spawn_count > 1 else 0.0
+                )
+                self._apply(point, quat(yaw))
+                mx, my = xy(point)
+                self._logger.info(
+                    f'Dispersed spawn [{idx + 1}/{self._cfg.spawn_count}] '
+                    f'at map ({mx:.2f}, {my:.2f}) yaw={yaw:.2f} seed={seed}')
+                return
+
+        point = self._snap(self._sim.pathfinder.get_random_navigable_point())
+        self._apply(point, quat(0.0))
+        mx, my = xy(point)
+        self._logger.info(f'Random spawn at map ({mx:.2f}, {my:.2f})')

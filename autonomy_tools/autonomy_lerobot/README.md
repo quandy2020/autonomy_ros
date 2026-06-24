@@ -97,11 +97,13 @@ ros2 run autonomy_lerobot encode_dataset_videos.py \
 | 参数 | 默认话题 | 消息类型 | 含义 |
 |------|----------|----------|------|
 | `global_plan_topic` | `plan` | `nav_msgs/Path` | 全局规划路径 |
-| `local_plan_topic` | `local_plan` | `nav_msgs/Path` | 局部跟踪路径 |
+| `local_plan_topic` | `transformed_global_plan` | `nav_msgs/Path` | 局部跟踪路径（MPPI 默认；DWB/RPP 用 `local_plan`） |
 | `global_costmap_topic` | `global_costmap/costmap` | `nav_msgs/OccupancyGrid` | 全局代价地图 |
 | `local_costmap_topic` | `local_costmap/costmap` | `nav_msgs/OccupancyGrid` | 局部代价地图 |
 
 由 `record_nav2` 统一开关（默认 `true`）。Nav2 须在桥接节点启动前完成初始化。
+
+> **MPPI 说明**：`nav2_habitat_params.yaml` 使用 `nav2_mppi_controller::MPPIController`，该控制器**不发布** `local_plan`，而是发布 `transformed_global_plan`（当前正在跟踪的全局路径片段）。桥接节点会同时订阅 `local_plan` 与 `transformed_global_plan`，并只采用含路径点的消息。
 
 ---
 
@@ -247,7 +249,7 @@ ros2 run autonomy_lerobot encode_dataset_videos.py \
 
 #### `observation.local_plan` + `observation.local_plan_len`
 
-与全局路径格式相同，来源为 Nav2 `controller_server` 发布的 `local_plan`（`odom` 系）。
+与全局路径格式相同。来源为 Nav2 `controller_server` 的局部跟踪路径：`transformed_global_plan`（MPPI，本项目默认）或 `local_plan`（DWB / RegulatedPurePursuit），坐标系为 `odom`。
 
 #### `observation.global_costmap` + `observation.global_costmap_info`
 

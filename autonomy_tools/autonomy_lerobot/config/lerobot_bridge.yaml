@@ -14,7 +14,7 @@ lerobot_bridge_node:
 
     # --- Nav2 planning ---
     global_plan_topic: plan
-    local_plan_topic: local_plan
+    local_plan_topic: transformed_global_plan
     global_costmap_topic: global_costmap/costmap
     local_costmap_topic: local_costmap/costmap
 

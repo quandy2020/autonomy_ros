@@ -31,6 +31,27 @@
 | `Error.msg` | 统一错误码 |
 | `Waypoint.msg` | 多点导航路点 |
 | `WaypointStatus.msg` | 各路点结果 |
+| `Graph.msg` | 拓扑图 / visibility graph（见下方） |
+| `GraphNode.msg` | 图节点（含 start/goal/obstacle 标志） |
+| `GraphEdge.msg` | 图边（含权重、可选 path） |
+| `GraphFace.msg` | 填充面片（拓扑图专用） |
+
+### Graph / visibility graph
+
+`Graph.kind`:
+
+| 值 | 含义 |
+|----|------|
+| `KIND_TOPOLOGICAL` | NavMesh 等区域拓扑（可有 `faces`） |
+| `KIND_VISIBILITY` | 视线可达图：障碍顶点 + 起终点，边为直线段 |
+
+Visibility graph 发布约定：
+
+- `nodes[].flags`：`FLAG_START` / `FLAG_GOAL` / `FLAG_OBSTACLE_VERTEX`
+- `edges[]`：`TYPE_UNDIRECTED`，`LINK_SHAPE_LINE`，`weight`=距离，`path` 留空
+- `faces` 留空
+
+Python 辅助：`autonomy_simulator/scripts/graph_visibility.py` 中 `build_visibility_graph()`。
 
 ## 构建
 

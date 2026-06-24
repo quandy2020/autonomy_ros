@@ -76,7 +76,38 @@ class Config:
     occupancy_grid_z_max: float = 0.5
     occupancy_grid_downsample: int = 1
     occupancy_grid_rate_hz: float = 1.0  # 0 = latched once; <0 = disabled.
+
+    navmesh_topic: str = 'habitat/graph'
+    navmesh_mesh_topic: str = 'habitat/navmesh_mesh'
+    navmesh_frame: str = 'map'
+    navmesh_topology: str = 'triangle'  # triangle | polygon | grid
+    navmesh_rate_hz: float = 0.0  # 0 = latched once; <0 = disabled.
+    navmesh_meters_per_pixel: float = 0.4
+    navmesh_height: float = 0.0  # 0 = use agent floor height.
+    navmesh_eps: float = 0.5
+    navmesh_stride: int = 2
+    navmesh_z: float = 0.05
+    navmesh_max_nodes: int = 20000
+    navmesh_node_scale: float = 0.08
+    navmesh_line_width: float = 0.03
+    navmesh_show_nodes: bool = True
+    navmesh_show_edges: bool = True
+    navmesh_show_mesh: bool = False
+    navmesh_show_faces: bool = True
+    navmesh_face_alpha: float = 0.18
+    navmesh_color_by_island: bool = True
+    navmesh_connect_diagonal: bool = False
+
     update_rate_hz: float = 30.0  # Sim step + camera/odom publish rate.
+
+    # Multi-robot spawn: each Habitat instance picks a dispersed navmesh point.
+    spawn_mode: str = 'fixed'  # dispersed | random | fixed
+    spawn_index: int = 0
+    spawn_count: int = 1
+    spawn_seed: int = 0  # 0 = derive from scene_id
+    spawn_x: float = 0.0
+    spawn_y: float = 0.0
+    spawn_yaw: float = 0.0
 
     def dataset_config(self) -> str:
         if self.scene_dataset_config:
@@ -122,5 +153,13 @@ def load(node: Node) -> Config:
         raise RuntimeError(
             'Missing package_scene_dataset_config (set in launch or param/habitat.yaml)'
         )
+
+    values['spawn_index'] = int(values['spawn_index'])
+    values['spawn_count'] = max(1, int(values['spawn_count']))
+    values['spawn_seed'] = int(values['spawn_seed'])
+    values['spawn_x'] = float(values['spawn_x'])
+    values['spawn_y'] = float(values['spawn_y'])
+    values['spawn_yaw'] = float(values['spawn_yaw'])
+    values['spawn_mode'] = str(values['spawn_mode']).strip().lower() or 'fixed'
 
     return Config(**values)

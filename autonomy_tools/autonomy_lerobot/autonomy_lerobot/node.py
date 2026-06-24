@@ -21,6 +21,8 @@ from __future__ import annotations
 import rclpy
 from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import OccupancyGrid, Odometry, Path
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import (
     DurabilityPolicy,
@@ -52,6 +54,7 @@ class BridgeNode(Node):
         self._cfg = load(self)
         self._latest = Latest()
         self._recording = False
+        self._record_fatal: str | None = None
         self._subscribe_all(self._cfg)
 
         self._recorder = DatasetRecorder(
@@ -62,12 +65,18 @@ class BridgeNode(Node):
             video_vcodec=self._cfg.video_vcodec,
             streaming_encoding=self._cfg.streaming_encoding,
             parallel_video_encoding=self._cfg.parallel_video_encoding,
+            overwrite_dataset=self._cfg.overwrite_dataset,
         )
         if self._cfg.record_fps > 0.0:
             self.create_timer(1.0 / self._cfg.record_fps, self._on_record_tick)
 
-        self.create_service(SetBool, '~/set_recording', self._on_set_recording)
-        self.create_service(Trigger, '~/save_episode', self._on_save_episode)
+        service_cb = ReentrantCallbackGroup()
+        self.create_service(
+            SetBool, '~/set_recording', self._on_set_recording,
+            callback_group=service_cb)
+        self.create_service(
+            Trigger, '~/save_episode', self._on_save_episode,
+            callback_group=service_cb)
         self.get_logger().info(
             f'[lerobot] recording at {self._cfg.record_fps:.1f} Hz -> {self._cfg.dataset_repo_id}')
 
@@ -93,7 +102,12 @@ class BridgeNode(Node):
                 PointCloud2, cfg.pointcloud_topic, self._on_pointcloud, qos)
         if cfg.record_nav2:
             self.create_subscription(Path, cfg.global_plan_topic, self._on_global_plan, 10)
-            self.create_subscription(Path, cfg.local_plan_topic, self._on_local_plan, 10)
+            self._local_plan_topics: set[str] = {cfg.local_plan_topic}
+            # DWB / RegulatedPurePursuit publish local_plan; MPPI uses transformed_global_plan.
+            self._local_plan_topics.add('local_plan')
+            self._local_plan_topics.add('transformed_global_plan')
+            for topic in sorted(self._local_plan_topics):
+                self.create_subscription(Path, topic, self._on_local_plan, 10)
             self.create_subscription(
                 OccupancyGrid, cfg.global_costmap_topic, self._on_global_costmap, _MAP_QOS)
             self.create_subscription(
@@ -127,7 +141,8 @@ class BridgeNode(Node):
         self._latest.global_plan = msg
 
     def _on_local_plan(self, msg: Path) -> None:
-        self._latest.local_plan = msg
+        if msg.poses:
+            self._latest.local_plan = msg
 
     def _on_global_costmap(self, msg: OccupancyGrid) -> None:
         self._latest.global_costmap = msg
@@ -136,9 +151,26 @@ class BridgeNode(Node):
         self._latest.local_costmap = msg
 
     def _on_set_recording(self, request: SetBool.Request, response: SetBool.Response):
+        if self._recording and not request.data:
+            saved = self._recorder.save_episode()
+            if saved != 'no frames to save':
+                self.get_logger().info(f'auto-saved on stop: {saved}')
+            else:
+                self.get_logger().info('recording stopped (no buffered frames)')
+        elif request.data:
+            self._record_fatal = None
+            try:
+                self._recorder.prepare_for_recording()
+            except Exception as exc:
+                self._record_fatal = str(exc)
+                self.get_logger().error(f'recording disabled: {exc}')
+                response.success = False
+                response.message = str(exc)
+                return response
         self._recording = request.data
         state = 'started' if self._recording else 'stopped'
-        self.get_logger().info(f'recording {state}')
+        self.get_logger().info(
+            f'recording {state} (buffered={self._recorder.buffered_frames})')
         response.success = True
         response.message = f'recording {state}'
         return response
@@ -152,10 +184,17 @@ class BridgeNode(Node):
     def _on_record_tick(self) -> None:
         if not self._recording or not self._latest.ready():
             return
+        if self._record_fatal is not None:
+            return
         try:
             self._recorder.add_frame(build_frame(self._latest, self._cfg))
-        except ValueError as exc:
+        except (ValueError, KeyError) as exc:
             self.get_logger().warning(f'skip frame: {exc}')
+        except Exception as exc:
+            self._record_fatal = str(exc)
+            self.get_logger().error(f'recording disabled: {exc}')
+            self._recording = False
+            self._recorder.prepare_for_recording()
 
     def get_observation(self) -> dict:
         """Return the latest observation for policy inference."""
@@ -189,10 +228,14 @@ class BridgeNode(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = BridgeNode()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        executor.remove_node(node)
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
