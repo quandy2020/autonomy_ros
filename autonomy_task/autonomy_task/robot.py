@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-import threading
+import time
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -151,7 +151,8 @@ class Robot:
             self._node.get_logger().warning(f'{self._ns}: recording unavailable')
         return True
 
-    def start(self, wp: Waypoint) -> None:
+    def start(self, wp: Waypoint) -> bool:
+        """Begin pre-record / nav for *wp*. Returns False if recording could not start."""
         self.active = wp
         wp.status = Status.IN_PROGRESS
         wp.robot = self._ns
@@ -160,12 +161,21 @@ class Robot:
         self._last_xy = None
         self._start_pose = self._pose
         t = self._cfg.thresholds
+        if self._cfg.record.enabled and self._rec_cli is not None:
+            if not self._ensure_recording_started():
+                self._node.get_logger().error(
+                    f'{self._ns}: recording failed for {wp.id}, aborting assign')
+                wp.status = Status.PENDING
+                wp.robot = ''
+                self.active = None
+                self._episode_t0 = None
+                return False
         if t.record_before_sec > 0.0:
-            self._ensure_recording_started()
             self.phase = Phase.PRE_RECORD
             self._deadline = self._after(t.record_before_sec)
         else:
             self._send_goal(wp)
+        return True
 
     def tick(self) -> str | None:
         if self.phase == Phase.SAVING:
@@ -200,6 +210,8 @@ class Robot:
     def set_recording_sync(self, on: bool, timeout: float | None = None) -> tuple[bool, str]:
         if not self._rec_cli:
             return False, 'recording disabled'
+        if not rclpy.ok() or not self._node.context.ok:
+            return False, 'shutting down'
         if timeout is None:
             timeout = self._cfg.record.save_timeout_sec
         if not self._rec_cli.service_is_ready():
@@ -207,27 +219,20 @@ class Robot:
                 return False, 'set_recording not ready'
         req = SetBool.Request()
         req.data = on
-        done = threading.Event()
-        outcome: list[tuple[bool, str]] = []
-
-        def _worker() -> None:
-            try:
-                future = self._rec_cli.call_async(req)
-                rclpy.spin_until_future_complete(self._node, future, timeout_sec=timeout)
-                if not future.done():
-                    outcome.append((False, 'set_recording timed out'))
-                else:
-                    result = future.result()
-                    outcome.append((bool(result.success), str(result.message)))
-            except Exception as exc:
-                outcome.append((False, str(exc)))
-            finally:
-                done.set()
-
-        threading.Thread(target=_worker, daemon=True).start()
-        if not done.wait(timeout=timeout + 1.0):
+        future = self._rec_cli.call_async(req)
+        deadline = time.monotonic() + timeout
+        while rclpy.ok() and not future.done():
+            if time.monotonic() >= deadline:
+                return False, 'set_recording timed out'
+            time.sleep(0.02)
+        if not future.done():
             return False, 'set_recording timed out'
-        ok, msg = outcome[0]
+        try:
+            result = future.result()
+        except Exception as exc:
+            return False, str(exc)
+        ok = bool(result.success)
+        msg = str(result.message)
         if ok:
             self._recording_active = on
         return ok, msg
@@ -273,8 +278,12 @@ class Robot:
         self._pose = pose
 
     def _send_goal(self, wp: Waypoint) -> None:
-        if self._cfg.thresholds.record_before_sec <= 0.0:
-            self._ensure_recording_started()
+        if self._cfg.thresholds.record_before_sec <= 0.0 and self._cfg.record.enabled:
+            if not self._ensure_recording_started():
+                self._node.get_logger().error(
+                    f'{self._ns}: recording failed before nav to {wp.id}')
+                self._finish(False)
+                return
         self._try_cancel_goal()
         goal = NavigateToPose.Goal()
         pose = PoseStamped()

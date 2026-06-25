@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
+import rclpy
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 
@@ -142,6 +143,12 @@ class Coordinator:
             for robot in self._robots:
                 if self._assign(robot):
                     break
+        # Run again so robots that just entered PRE_RECORD can send nav goals
+        # in the same coordinator tick (avoids an extra 0.5s stall).
+        for robot in self._robots:
+            self._process_robot(robot)
+            if robot.phase == Phase.SAVING:
+                self._process_robot(robot)
         if self._is_done():
             self._close()
         save(self._cfg.state_file, self._state)
@@ -186,6 +193,8 @@ class Coordinator:
 
     def shutdown_recording(self) -> None:
         """Best-effort sync stop for any active recordings (e.g. on node exit)."""
+        if not rclpy.ok() or not self._node.context.ok:
+            return
         for robot in self._robots:
             if robot.recording_active:
                 ok, msg = robot.stop_recording_sync()
@@ -416,7 +425,8 @@ class Coordinator:
                     f'{ns}: skip {wp.id} ({wp.x:.2f}, {wp.y:.2f}) outside map')
                 return False
             wp.x, wp.y = clamped
-        robot.start(wp)
+        if not robot.start(wp):
+            return False
         frame = robot.goal_frame()
         self._node.get_logger().info(
             f'assign {ns}: {wp.id} -> ({wp.x:.2f}, {wp.y:.2f}) frame={frame}')

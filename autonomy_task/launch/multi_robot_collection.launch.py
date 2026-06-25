@@ -121,31 +121,42 @@ def _launch_phased_stack(context, *args, **kwargs):
         ),
     ]
 
+    lerobot_stagger = float(LaunchConfiguration('lerobot_stagger_sec').perform(context))
     lerobot_nodes = []
     if recording_enabled:
         for index in range(1, num_robots + 1):
             name = f'{prefix}{index}'
             lerobot_nodes.append(
-                Node(
-                    package='autonomy_lerobot',
-                    executable='lerobot_bridge_node',
-                    name='lerobot_bridge_node',
-                    namespace=name,
-                    output='screen',
-                    parameters=[
-                        lerobot_config,
-                        {
-                            'dataset_root': f'{dataset_root}/{name}',
-                            'dataset_repo_id': per_robot_repo_id(dataset_repo_id, name),
-                            'overwrite_dataset': clean_datasets,
-                        },
+                TimerAction(
+                    period=phases['lerobot_delay'] + (index - 1) * lerobot_stagger,
+                    actions=[
+                        Node(
+                            package='autonomy_lerobot',
+                            executable='lerobot_bridge_node',
+                            name='lerobot_bridge_node',
+                            namespace=name,
+                            output='screen',
+                            parameters=[
+                                lerobot_config,
+                                {
+                                    'dataset_root': f'{dataset_root}/{name}',
+                                    'dataset_repo_id': per_robot_repo_id(
+                                        dataset_repo_id, name),
+                                    'overwrite_dataset': clean_datasets,
+                                },
+                            ],
+                        ),
                     ],
                 ),
             )
     if lerobot_nodes:
-        actions.append(
-            TimerAction(period=phases['lerobot_delay'], actions=lerobot_nodes))
+        actions.extend(lerobot_nodes)
 
+    # First Nav2 stack may need (n-1)*stagger + nav_ready_sec to activate; add slack.
+    server_wait_sec = (
+        nav_ready_sec
+        + max(90.0, (num_robots - 1) * nav2_stagger + 60.0)
+    )
     coordinator_nodes = [
         Node(
             package='autonomy_task',
@@ -158,6 +169,7 @@ def _launch_phased_stack(context, *args, **kwargs):
                 'graph_topic': graph_topic,
                 'dataset_root': dataset_root,
                 'dataset_repo_id': dataset_repo_id,
+                'server_wait_sec': server_wait_sec,
             }],
         ),
     ]
@@ -210,17 +222,22 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             'nav2_stagger_sec',
-            default_value='5.0',
+            default_value='8.0',
             description='Delay between each robot Nav2 start (phase 2)',
         ),
         DeclareLaunchArgument(
             'lerobot_gap_sec',
             default_value='1.0',
-            description='Gap after Habitat before LeRobot bridge (phase 3)',
+            description='Gap after Habitat before first LeRobot bridge (phase 3)',
+        ),
+        DeclareLaunchArgument(
+            'lerobot_stagger_sec',
+            default_value='4.0',
+            description='Delay between each robot LeRobot bridge start (reduces DDS load)',
         ),
         DeclareLaunchArgument(
             'nav_ready_sec',
-            default_value='12.0',
+            default_value='25.0',
             description='Extra delay after last Nav2 start before coordinator assigns goals',
         ),
     ]
