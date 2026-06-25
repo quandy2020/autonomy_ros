@@ -41,6 +41,7 @@ class Phase(str, Enum):
     PRE_RECORD = 'pre_record'
     NAV = 'nav'
     POST_RECORD = 'post_record'
+    SAVING = 'saving'
 
 
 def _quat_yaw(yaw: float) -> Quaternion:
@@ -94,6 +95,12 @@ class Robot:
         self.active: Waypoint | None = None
         self.done: Waypoint | None = None
         self._goal_frame = cfg.nav_goal_frame(ns)
+        self._recording_active = False
+        self._nav_ok = False
+
+    @property
+    def recording_active(self) -> bool:
+        return self._recording_active
 
     @property
     def namespace(self) -> str:
@@ -154,13 +161,15 @@ class Robot:
         self._start_pose = self._pose
         t = self._cfg.thresholds
         if t.record_before_sec > 0.0:
-            self._record(True)
+            self._ensure_recording_started()
             self.phase = Phase.PRE_RECORD
             self._deadline = self._after(t.record_before_sec)
         else:
             self._send_goal(wp)
 
     def tick(self) -> str | None:
+        if self.phase == Phase.SAVING:
+            return self._flush_save()
         if self.phase == Phase.IDLE:
             return None
         now = self._now()
@@ -188,9 +197,11 @@ class Robot:
             'duration_sec': duration,
         }
 
-    def set_recording_sync(self, on: bool, timeout: float = 10.0) -> tuple[bool, str]:
+    def set_recording_sync(self, on: bool, timeout: float | None = None) -> tuple[bool, str]:
         if not self._rec_cli:
             return False, 'recording disabled'
+        if timeout is None:
+            timeout = self._cfg.record.save_timeout_sec
         if not self._rec_cli.service_is_ready():
             if not self._rec_cli.wait_for_service(timeout_sec=timeout):
                 return False, 'set_recording not ready'
@@ -216,7 +227,32 @@ class Robot:
         threading.Thread(target=_worker, daemon=True).start()
         if not done.wait(timeout=timeout + 1.0):
             return False, 'set_recording timed out'
-        return outcome[0]
+        ok, msg = outcome[0]
+        if ok:
+            self._recording_active = on
+        return ok, msg
+
+    def stop_recording_sync(self) -> tuple[bool, str]:
+        """Stop recording and wait for lerobot_bridge to finish save_episode."""
+        if not self._recording_active:
+            return True, ''
+        return self.set_recording_sync(False)
+
+    def _ensure_recording_started(self) -> bool:
+        if not self._rec_cli or not self._cfg.record.enabled or self._recording_active:
+            return True
+        ok, msg = self.set_recording_sync(True)
+        if not ok:
+            self._node.get_logger().warning(f'{self._ns}: recording start failed: {msg}')
+        return ok
+
+    def _stop_recording(self) -> tuple[bool, str]:
+        if not self._recording_active:
+            return True, ''
+        ok, msg = self.set_recording_sync(False)
+        if not ok:
+            self._node.get_logger().error(f'{self._ns}: recording stop/save failed: {msg}')
+        return ok, msg
 
     def _now(self) -> Time:
         return self._node.get_clock().now()
@@ -237,6 +273,8 @@ class Robot:
         self._pose = pose
 
     def _send_goal(self, wp: Waypoint) -> None:
+        if self._cfg.thresholds.record_before_sec <= 0.0:
+            self._ensure_recording_started()
         self._try_cancel_goal()
         goal = NavigateToPose.Goal()
         pose = PoseStamped()
@@ -442,21 +480,21 @@ class Robot:
             return self._complete_nav(int(self._result_fut.result().status))
         return None
 
-    def _finish(self, ok: bool) -> str:
+    def _finish(self, ok: bool) -> str | None:
         self.done = self.active
-        self._clear_nav()
-        if self._rec_cli and self._cfg.record.enabled:
-            self._record(False)
-        self.phase = Phase.IDLE
         self.active = None
-        return 'collected' if ok else 'failed'
+        self._clear_nav()
+        self._nav_ok = ok
+        self.phase = Phase.SAVING
+        return None
 
-    def _record(self, on: bool) -> None:
-        if not self._rec_cli:
-            return
-        if not self._rec_cli.service_is_ready():
-            self._node.get_logger().warning(f'{self._ns}: set_recording service not ready')
-            return
-        req = SetBool.Request()
-        req.data = on
-        self._rec_cli.call_async(req)
+    def _flush_save(self) -> str:
+        had_recording = self._recording_active
+        save_ok = True
+        if had_recording:
+            save_ok, _ = self._stop_recording()
+        self.phase = Phase.IDLE
+        if self._nav_ok and self._cfg.record.enabled and self._rec_cli:
+            if not had_recording or not save_ok:
+                return 'save_failed'
+        return 'collected' if self._nav_ok else 'failed'

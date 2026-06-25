@@ -3,7 +3,7 @@
 <package format="3">
   <name>autonomy_lerobot</name>
   <version>0.1.0</version>
-  <description>ROS2 bridge for Hugging Face LeRobot: dataset recording and policy deployment</description>
+  <description>ROS2 bridge for LeRobot (pre-installed in Docker): Habitat/Nav2 dataset recording</description>
   <maintainer email="duyongquan3@jd.com">q</maintainer>
   <license>Apache-2.0</license>
 

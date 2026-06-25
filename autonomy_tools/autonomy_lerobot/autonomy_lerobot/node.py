@@ -153,6 +153,12 @@ class BridgeNode(Node):
     def _on_set_recording(self, request: SetBool.Request, response: SetBool.Response):
         if self._recording and not request.data:
             saved = self._recorder.save_episode()
+            if saved.startswith('save failed'):
+                self._recording = False
+                self.get_logger().error(f'recording stop failed: {saved}')
+                response.success = False
+                response.message = saved
+                return response
             if saved != 'no frames to save':
                 self.get_logger().info(f'auto-saved on stop: {saved}')
             else:

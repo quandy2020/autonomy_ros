@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from autonomy_msgs.msg import Graph
 
 from autonomy_task.config import TaskConfig, load_config, load_waypoints, resolve_graph_topic, sample_grid
+from autonomy_task.dataset_cleanup import cleanup_dataset_roots
 from autonomy_task.graph_source import from_graph, merge_waypoints
 from autonomy_task.robot import Phase, Robot
 from autonomy_task.robot_context import RobotContext
@@ -48,6 +49,7 @@ class Coordinator:
         self._done = False
         self._graph_ready = cfg.waypoint_source != 'graph'
         self._assign_log_tick = 0
+        self._assign_fail_ticks: dict[str, int] = {name: 0 for name in cfg.robot_names()}
         if self._wps:
             self._init_waypoints()
 
@@ -128,21 +130,15 @@ class Coordinator:
         if not any(r.pose() is not None for r in self._robots):
             return
         for robot in self._robots:
-            event = robot.tick()
-            if event == 'collected':
-                self._collect(robot)
-            elif event == 'failed':
-                self._fail(robot)
-            elif robot.phase == Phase.NAV:
-                limit = self._cfg.nav.max_nav_sec + self._cfg.nav.cancel_timeout_sec + 10.0
-                if limit > 0.0 and robot.nav_elapsed_sec() > limit:
-                    if robot.force_fail_nav('watchdog') == 'failed':
-                        self._fail(robot)
+            self._process_robot(robot)
+            if robot.phase == Phase.SAVING:
+                self._process_robot(robot)
         if self._cfg.thresholds.parallel:
-            for robot in self._robots:
-                if robot.idle():
-                    self._assign(robot)
-        elif all(r.idle() for r in self._robots):
+            if not self._target_reached():
+                for robot in self._robots:
+                    if robot.idle():
+                        self._assign(robot)
+        elif all(r.idle() for r in self._robots) and not self._target_reached():
             for robot in self._robots:
                 if self._assign(robot):
                     break
@@ -152,16 +148,62 @@ class Coordinator:
         if self._on_update:
             self._on_update()
 
+    def _process_robot(self, robot: Robot) -> None:
+        event = robot.tick()
+        if event == 'collected':
+            self._collect(robot)
+        elif event == 'save_failed':
+            self._fail(robot, reason='lerobot_save_failed')
+        elif event == 'failed':
+            self._fail(robot)
+        elif robot.phase == Phase.NAV:
+            limit = self._cfg.nav.max_nav_sec + self._cfg.nav.cancel_timeout_sec + 10.0
+            if limit > 0.0 and robot.nav_elapsed_sec() > limit:
+                robot.force_fail_nav('watchdog')
+                if robot.phase == Phase.SAVING:
+                    self._process_robot(robot)
+
+    def _target_reached(self) -> bool:
+        target = self._cfg.thresholds.target_episodes
+        return target > 0 and len(self._state.collected) >= target
+
+    def _assign_level(self, ns: str) -> int:
+        ticks = self._assign_fail_ticks.get(ns, 0)
+        t = self._cfg.thresholds
+        hz = self._cfg.tick_hz
+        if ticks >= max(1, int(t.stuck_reposition_sec * hz)):
+            return 2
+        if ticks >= max(1, int(t.stuck_assign_sec * hz)):
+            return 1
+        return 0
+
+    def cleanup_datasets(self) -> dict[str, tuple[int, int]]:
+        """Remove orphaned LeRobot tmp* dirs under configured dataset roots."""
+        if not self._cfg.record.cleanup_tmp_on_start:
+            return {}
+        roots = self._cfg.dataset_roots(self._cfg.robot_names())
+        return cleanup_dataset_roots(roots)
+
+    def shutdown_recording(self) -> None:
+        """Best-effort sync stop for any active recordings (e.g. on node exit)."""
+        for robot in self._robots:
+            if robot.recording_active:
+                ok, msg = robot.stop_recording_sync()
+                level = self._node.get_logger().info if ok else self._node.get_logger().warning
+                level(f'{robot.namespace}: shutdown recording ({msg or "stopped"})')
+
     def trajectory_summary(self) -> dict:
         return self._state.trajectory_summary()
 
     def summary(self) -> dict:
         return self._state.summary(self._wps)
 
-    def start_recording(self, timeout: float = 10.0) -> tuple[bool, str]:
+    def start_recording(self, timeout: float | None = None) -> tuple[bool, str]:
+        timeout = timeout if timeout is not None else self._cfg.record.save_timeout_sec
         return self._sync_recording(True, timeout)
 
-    def stop_recording(self, timeout: float = 10.0) -> tuple[bool, str]:
+    def stop_recording(self, timeout: float | None = None) -> tuple[bool, str]:
+        timeout = timeout if timeout is not None else self._cfg.record.save_timeout_sec
         return self._sync_recording(False, timeout)
 
     def pending_graph_robots(self) -> list[str]:
@@ -313,32 +355,57 @@ class Coordinator:
         return False
 
     def _assign(self, robot: Robot, *, exclude: set[str] | None = None) -> bool:
-        if not robot.idle():
+        if not robot.idle() or self._target_reached():
+            return False
+        if robot.pose() is None:
             return False
         ns = robot.namespace
         peer_poses, peer_targets = self._peers(ns)
-        wp, reason = self._filter.select_with_reason(
-            self._wps,
-            robot.pose(),
-            self._spacing_ref(),
-            self._assigned(exclude),
-            self._grid_for(ns),
-            valid_graph_ids=self._graph_ids_for(ns),
-            peer_poses=peer_poses,
-            peer_targets=peer_targets,
-            bucket_counts=bucket_counts_from_records(
-                self._state.collected, self._cfg.thresholds.distance_buckets),
-        )
+        level = self._assign_level(ns)
+        relax_peer = level >= 1
+        bucket_counts = bucket_counts_from_records(
+            self._state.collected, self._cfg.thresholds.distance_buckets)
+        if level >= 2:
+            wp, reason = self._filter.select_reposition(
+                self._wps,
+                robot.pose(),
+                self._spacing_ref(),
+                self._assigned(exclude),
+                self._grid_for(ns),
+                valid_graph_ids=self._graph_ids_for(ns),
+                peer_poses=peer_poses,
+                peer_targets=peer_targets,
+            )
+        else:
+            wp, reason = self._filter.select_with_reason(
+                self._wps,
+                robot.pose(),
+                self._spacing_ref(),
+                self._assigned(exclude),
+                self._grid_for(ns),
+                valid_graph_ids=self._graph_ids_for(ns),
+                peer_poses=peer_poses,
+                peer_targets=peer_targets,
+                bucket_counts=bucket_counts,
+                relax_peer=relax_peer,
+            )
         if wp is None:
+            self._assign_fail_ticks[ns] = self._assign_fail_ticks.get(ns, 0) + 1
             self._assign_log_tick += 1
             if self._assign_log_tick % max(1, int(self._cfg.tick_hz * 5)) == 1:
                 pose = robot.pose()
                 pose_s = f'({pose.x:.2f},{pose.y:.2f})' if pose is not None else 'none'
+                level_s = ('reposition' if level >= 2
+                           else 'relax_peer' if level >= 1 else 'normal')
                 self._node.get_logger().info(
-                    f'{ns}: no waypoint ({reason}), pose={pose_s}, '
+                    f'{ns}: no waypoint ({reason}, mode={level_s}), pose={pose_s}, '
                     f'graph_nodes={len(self._graph_ids_for(ns) or ())}, '
                     f'costmap={"yes" if self._grid_for(ns) else "no"}')
             return False
+        self._assign_fail_ticks[ns] = 0
+        if reason in ('bucket_fallback', 'reposition') or relax_peer:
+            self._node.get_logger().info(
+                f'{ns}: assign via {reason or "relax_peer"} -> {wp.id}')
         grid = self._grid_for(ns)
         if grid is not None and self._cfg.filter.enforce_map_bounds:
             clamped = self._filter.clamp_to_map(wp.x, wp.y, grid)
@@ -384,47 +451,56 @@ class Coordinator:
             f'duration={stats["duration_sec"]:.1f}s')
         if target > 0:
             self._node.get_logger().info(f'progress: {collected_n}/{target} episodes')
-        if self._cfg.thresholds.parallel:
+        if self._cfg.thresholds.parallel and not self._target_reached():
             self._assign(robot)
 
-    def _fail(self, robot: Robot) -> None:
+    def _fail(self, robot: Robot, *, reason: str = '') -> None:
         wp = robot.done
         if wp is None:
-            self._assign(robot)
+            if not self._target_reached():
+                self._assign(robot)
             return
         wp.attempts += 1
         wp.robot = ''
         exclude = {wp.id}
         t = self._cfg.thresholds
+        if reason:
+            wp.skip_reason = reason
         if t.allow_revisit and wp.attempts <= t.max_retries:
             wp.status = Status.PENDING
-            wp.skip_reason = ''
+            if not reason:
+                wp.skip_reason = ''
+            label = reason or 'nav failed'
             self._node.get_logger().warning(
-                f'{robot.namespace}: nav failed {wp.id} '
+                f'{robot.namespace}: {label} {wp.id} '
                 f'(attempt {wp.attempts}/{t.max_retries}), reassigning')
         else:
-            reason = 'nav_unreachable'
+            skip = reason or 'nav_unreachable'
             grid = self._grid_for(robot.namespace)
-            if (grid is not None and self._cfg.filter.enforce_map_bounds
-                    and not self._filter.is_planner_reachable(wp.x, wp.y, grid)):
-                reason = 'planner_unreachable'
-            self._state.add_skipped(wp.id, reason)
+            if (
+                skip == 'nav_unreachable'
+                and grid is not None
+                and self._cfg.filter.enforce_map_bounds
+                and not self._filter.is_planner_reachable(wp.x, wp.y, grid)
+            ):
+                skip = 'planner_unreachable'
+            self._state.add_skipped(wp.id, skip)
             wp.status = Status.SKIPPED
-            wp.skip_reason = reason
+            wp.skip_reason = skip
             self._node.get_logger().warning(
-                f'{robot.namespace}: skip {wp.id} ({reason}), reassigning next')
+                f'{robot.namespace}: skip {wp.id} ({skip}), reassigning next')
         robot.done = None
-        self._assign(robot, exclude=exclude)
+        if not self._target_reached():
+            self._assign(robot, exclude=exclude)
 
     def _is_done(self) -> bool:
         if any(not r.idle() for r in self._robots):
             return False
         if not any(r.pose() is not None for r in self._robots):
             return False
-        target = self._cfg.thresholds.target_episodes
-        if target > 0 and len(self._state.collected) >= target:
+        if self._target_reached():
             return True
-        if target > 0 and self._cfg.thresholds.allow_revisit:
+        if self._cfg.thresholds.target_episodes > 0 and self._cfg.thresholds.allow_revisit:
             return False
         pending = self._pending()
         if not pending:
@@ -496,7 +572,12 @@ class Coordinator:
         lines: list[str] = []
         ok_all = True
         for robot in self._robots:
-            ok, msg = robot.set_recording_sync(on, timeout=timeout)
+            if on:
+                ok, msg = robot.set_recording_sync(True, timeout=timeout)
+            elif robot.recording_active:
+                ok, msg = robot.stop_recording_sync()
+            else:
+                ok, msg = True, 'not recording'
             ok_all = ok_all and ok
             level = self._node.get_logger().info if ok else self._node.get_logger().warning
             level(f'{robot.namespace}: {msg}')

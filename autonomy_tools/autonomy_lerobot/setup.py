@@ -27,5 +27,9 @@ setup(
             'executable': '/usr/bin/env python3',
         },
     },
-    scripts=['scripts/lerobot_bridge_node', 'scripts/encode_dataset_videos.py'],
+    scripts=[
+        'scripts/lerobot_bridge_node',
+        'scripts/encode_dataset_videos.py',
+        'scripts/cleanup_lerobot_dataset.py',
+    ],
 )
