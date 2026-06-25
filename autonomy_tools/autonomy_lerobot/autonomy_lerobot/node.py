@@ -55,6 +55,7 @@ class BridgeNode(Node):
         self._latest = Latest()
         self._recording = False
         self._record_fatal: str | None = None
+        self._wait_ticks = 0
         self._subscribe_all(self._cfg)
 
         self._recorder = DatasetRecorder(
@@ -164,6 +165,11 @@ class BridgeNode(Node):
             else:
                 self.get_logger().info('recording stopped (no buffered frames)')
         elif request.data:
+            if self._recording:
+                response.success = True
+                response.message = (
+                    f'already recording (buffered={self._recorder.buffered_frames})')
+                return response
             self._record_fatal = None
             try:
                 self._recorder.prepare_for_recording()
@@ -188,8 +194,21 @@ class BridgeNode(Node):
         return response
 
     def _on_record_tick(self) -> None:
-        if not self._recording or not self._latest.ready():
+        if not self._recording:
+            self._wait_ticks = 0
             return
+        if not self._latest.ready():
+            self._wait_ticks += 1
+            if self._wait_ticks == 1 or self._wait_ticks % 50 == 0:
+                missing = []
+                if self._latest.rgb is None:
+                    missing.append('rgb')
+                if self._latest.odom is None:
+                    missing.append('odom')
+                self.get_logger().warning(
+                    f'recording but no frames yet (missing {", ".join(missing)})')
+            return
+        self._wait_ticks = 0
         if self._record_fatal is not None:
             return
         try:

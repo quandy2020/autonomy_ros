@@ -314,6 +314,6 @@ velocity_smoother:
 lifecycle_manager_navigation:
   ros__parameters:
     use_sim_time: False
-    service_timeout: 20.0
-    bond_timeout: 10.0
+    service_timeout: 30.0
+    bond_timeout: 15.0
     bond_respawn_max_duration: 30.0

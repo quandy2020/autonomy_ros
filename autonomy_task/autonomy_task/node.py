@@ -82,6 +82,7 @@ class CoordinatorNode(Node):
         self.declare_parameter('graph_topic', '')
         self.declare_parameter('dataset_root', '')
         self.declare_parameter('dataset_repo_id', '')
+        self.declare_parameter('server_wait_sec', 0.0)
         cfg_path = self.get_parameter('config_file').get_parameter_value().string_value
         if not cfg_path:
             raise RuntimeError('config_file is required')
@@ -100,6 +101,10 @@ class CoordinatorNode(Node):
             dataset_root=self.get_parameter('dataset_root').get_parameter_value().string_value,
             dataset_repo_id=self.get_parameter('dataset_repo_id').get_parameter_value().string_value,
         )
+        server_wait = float(self.get_parameter('server_wait_sec').value)
+        if server_wait > 0.0:
+            self._cfg.nav.server_wait_sec = server_wait
+            self.get_logger().info(f'server_wait_sec={server_wait:.0f} (from launch)')
         robots = self._cfg.robot_names()
         self._cfg.ensure_output_dirs(robots)
         for path, (count, freed) in self._coord.cleanup_datasets().items():
@@ -118,6 +123,8 @@ class CoordinatorNode(Node):
         self._costmap_wait_logged = False
         self._servers_wait_logged = False
         self._servers_wait_last_log = 0.0
+        self._servers_timeout_logged = False
+        self._odom_wait_logged = False
 
         self._status_pub = self.create_publisher(String, '~/collection_status', 10)
         self._marker_pub = self.create_publisher(MarkerArray, '~/waypoint_markers', 10)
@@ -240,9 +247,18 @@ class CoordinatorNode(Node):
                     f'({elapsed:.0f}s)')
                 self._servers_wait_last_log = now
             if elapsed > self._cfg.nav.server_wait_sec:
-                self.get_logger().error(
-                    f'robot servers not ready within {self._cfg.nav.server_wait_sec}s: '
-                    f'{", ".join(pending)}; collection disabled')
+                if not self._servers_timeout_logged:
+                    self.get_logger().error(
+                        f'robot servers not ready within '
+                        f'{self._cfg.nav.server_wait_sec}s: '
+                        f'{", ".join(pending)}; still waiting')
+                    self._servers_timeout_logged = True
+            return
+
+        if not any(r.pose() is not None for r in self._coord.robots):
+            if not self._odom_wait_logged:
+                self.get_logger().info('waiting for robot odom ...')
+                self._odom_wait_logged = True
             return
 
         self._collection_ready = True
@@ -265,6 +281,10 @@ class CoordinatorNode(Node):
             response.success = False
             response.message = 'recording disabled in config'
             return response
+        if not self._collection_ready:
+            self.get_logger().warning(
+                'start_recording: collection not ready yet (waiting for nav/services); '
+                'recording only — auto navigation starts after ready')
         ok, message = self._coord.start_recording()
         response.success = ok
         response.message = message
@@ -322,14 +342,15 @@ class CoordinatorNode(Node):
             _markers(self._cfg.marker_frame, stamp, self._coord.waypoints))
 
     def destroy_node(self) -> bool:
-        self._coord.shutdown_recording()
+        if rclpy.ok() and self.context.ok:
+            self._coord.shutdown_recording()
         return super().destroy_node()
 
 
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = CoordinatorNode()
-    executor = MultiThreadedExecutor()
+    executor = MultiThreadedExecutor(num_threads=8)
     executor.add_node(node)
     try:
         executor.spin()
@@ -337,7 +358,8 @@ def main(args=None) -> None:
         pass
     finally:
         executor.remove_node(node)
-        node.destroy_node()
+        if rclpy.ok() and node.context.ok:
+            node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
 
