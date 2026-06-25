@@ -248,6 +248,72 @@ def test_bucket_assignment() -> None:
     assert picked and picked.id == 'mid'
 
 
+def test_bucket_fallback_when_priority_bucket_empty() -> None:
+    f = Filter(
+        Thresholds(
+            min_distance_m=0.5,
+            max_distance_m=20.0,
+            min_spacing_m=1.0,
+            spacing_vs_collected=False,
+            assignment_strategy='bucket',
+            target_episodes=8,
+            distance_buckets=[(1.0, 2.0), (5.0, 7.0)],
+        ),
+        FilterConfig(enforce_map_bounds=False),
+    )
+    # 3.5 m is outside both configured buckets but within global distance limits.
+    wps = [Waypoint(id='mid', x=3.5, y=0.0)]
+    picked, reason = f.select_with_reason(
+        wps, Pose(0, 0), [], set(), None, bucket_counts={'1-2': 0, '5-7': 0})
+    assert picked and picked.id == 'mid'
+    assert reason == 'bucket_fallback'
+
+
+def test_relax_peer_spacing() -> None:
+    f = Filter(
+        Thresholds(min_distance_m=1.0, max_distance_m=50.0, min_peer_spacing_m=3.0),
+        FilterConfig(enforce_map_bounds=False),
+    )
+    wp = Waypoint(id='close', x=10.5, y=0.0)
+    peer_target = Waypoint(id='peer', x=10.0, y=0.0)
+    ok, reason = f.can_assign(
+        wp, Pose(0, 0), [], set(), None, peer_targets=[peer_target])
+    assert not ok
+    assert reason.startswith('near_peer_goal')
+    ok, _ = f.can_assign(
+        wp, Pose(0, 0), [], set(), None, peer_targets=[peer_target], relax_peer=True)
+    assert ok
+
+
+def test_no_waypoint_reason_summary() -> None:
+    f = Filter(
+        Thresholds(min_distance_m=1.0, max_distance_m=5.0),
+        FilterConfig(),
+    )
+    wps = [
+        Waypoint(id='near', x=0.2, y=0.0),
+        Waypoint(id='far', x=20.0, y=0.0),
+    ]
+    picked, reason = f.select_with_reason(wps, Pose(0, 0), [], set(), None)
+    assert picked is None
+    assert 'too_close' in reason
+    assert 'too_far' in reason
+
+
+def test_select_reposition_picks_farthest() -> None:
+    f = Filter(
+        Thresholds(min_distance_m=1.0, max_distance_m=50.0, min_peer_spacing_m=3.0),
+        FilterConfig(enforce_map_bounds=False),
+    )
+    wps = [
+        Waypoint(id='near', x=3.0, y=0.0),
+        Waypoint(id='far', x=12.0, y=0.0),
+    ]
+    picked, reason = f.select_reposition(wps, Pose(0, 0), [], set(), None)
+    assert picked and picked.id == 'far'
+    assert reason == 'reposition'
+
+
 def test_spacing_vs_collected_disabled() -> None:
     f = Filter(
         Thresholds(min_distance_m=0.5, max_distance_m=10.0, min_spacing_m=2.0, spacing_vs_collected=False),

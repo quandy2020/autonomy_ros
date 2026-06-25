@@ -2,15 +2,43 @@
 
 ROS2 Python 包：将 **Habitat 仿真** + **Nav2 导航** 数据对接 [Hugging Face LeRobot](https://github.com/huggingface/lerobot)。
 
+## 环境依赖
+
+**Docker / 工作区镜像已预装 LeRobot**（当前 `0.4.4`），无需再执行 `pip install lerobot`。
+`autonomy_lerobot` 直接 `import lerobot` 写入 v3 本地数据集；回放与训练使用系统自带的 CLI：
+
+| 命令 | 用途 |
+|------|------|
+| `lerobot-dataset-viz` | 按 episode 可视化 RGB / 语义 / 向量字段（Rerun） |
+| `lerobot-train` | 模仿学习训练 |
+| `lerobot-replay` | 在真实机械臂上重放 `action`（非 Habitat） |
+| `lerobot-edit-dataset` | 编辑 / 合并数据集 |
+| `lerobot-info` | 查看环境与版本 |
+
+验证安装：
+
+```bash
+python3 -c "import lerobot; print(lerobot.__version__)"
+lerobot-info
+```
+
+本地数据集读写建议离线模式（避免误连 HuggingFace Hub）：
+
+```bash
+export HF_HUB_OFFLINE=1
+```
+
 ## 包结构
 
 ```
 autonomy_lerobot/
-├── config.py        # ROS 参数
-├── conversions.py   # ROS 消息 → numpy
-├── observation.py   # 帧组装与字段常量
-├── recorder.py      # LeRobot / npz 写入
-└── node.py          # BridgeNode
+├── config.py           # ROS 参数
+├── conversions.py      # ROS 消息 → numpy
+├── observation.py      # 帧组装与字段常量
+├── recorder.py         # LeRobot / npz 写入与 meta 修复
+├── repo_id.py          # repo_id 规范化（namespace/repo_name）
+├── dataset_cleanup.py  # 离线清理无效 episode / tmp 目录
+└── node.py             # BridgeNode
 ```
 
 ## 构建与运行
@@ -263,14 +291,19 @@ ros2 run autonomy_lerobot encode_dataset_videos.py \
 
 ## 存储格式
 
-### LeRobot 数据集（`pip install lerobot`）
+### LeRobot 数据集（默认）
 
-- 路径：`dataset_root`（默认 `~/.cache/lerobot/habitat_nav2`）
-- ID：`dataset_repo_id`（默认 `local/habitat_nav2`）
+- 路径：`dataset_root`（单机默认 `~/.cache/lerobot/habitat_nav2`；多机采集见 [多机采集数据集](#多机采集数据集dataleobotcollection)）
+- ID：`dataset_repo_id`（单机 `local/habitat_nav2`；多机 `local/habitat_collection_robotN`）
+- 格式：LeRobot **v3.0**（`meta/` + `data/*.parquet` + `videos/*.mp4`）
 - 首帧自动推断各字段的 feature schema（视频 / 图像 / 向量）
 - 节点退出时调用 `finalize()` 关闭写入器
+- 打开已有数据集时自动修复 `meta/info.json` 与 `meta/episodes` 不一致（见 `recorder.py`）
 
-### npz 回退（未安装 lerobot）
+### npz 回退（仅 `import lerobot` 失败时）
+
+若 Python 环境未装 LeRobot，`recorder.py` 会退化为 `dataset_root/episode_XXXX_*/episode.npz`。
+**本仓库 Docker 环境不会走此路径。**
 
 路径：`dataset_root/episode_XXXX_YYYYMMDD_HHMMSS/`
 
@@ -312,6 +345,182 @@ plan_len = data["observation_global_plan_len"]  # (T, 1)
 
 ---
 
+## 多机采集数据集（`data/lerobot/collection`）
+
+`multi_robot_collection.launch.py` 将每台机器人数据写入独立子目录；`repo_id` 为
+`local/habitat_collection_robot{N}`（LeRobot 要求恰好一个 `/`）。
+
+### 目录结构
+
+以 `robot1` 为例（LeRobot v3.0 本地格式）：
+
+```
+data/lerobot/collection/
+├── robot1/
+│   ├── meta/
+│   │   ├── info.json          # 特征 schema、fps、total_episodes
+│   │   ├── episodes/          # 每条 episode 的帧数、视频时间戳
+│   │   └── tasks.parquet
+│   ├── data/chunk-000/        # 向量字段 parquet（state、action、plan…）
+│   │   └── file-000.parquet
+│   └── videos/
+│       ├── observation.images.rgb/chunk-000/file-*.mp4
+│       └── observation.images.semantic/chunk-000/file-*.mp4
+├── robot2/
+...
+```
+
+| 机器人 | 本地路径 | `repo_id` |
+|--------|----------|-----------|
+| robot1 | `data/lerobot/collection/robot1` | `local/habitat_collection_robot1` |
+| robot2 | `data/lerobot/collection/robot2` | `local/habitat_collection_robot2` |
+| … | `.../robotN` | `local/habitat_collection_robotN` |
+
+当前采集配置（`lerobot_collection.yaml`）主要录制 **RGB + semantic + camera_info + state/action**；
+较早 episode 可能仍含 map / plan 等字段（取决于录制时的 `record_*` 开关）。
+
+### 查看统计
+
+```bash
+source install/setup.bash
+python3 -m autonomy_task.collection_stats_cli \
+  --state /workspace/autonomy/data/collection/state.json \
+  --dataset-root /workspace/autonomy/data/lerobot/collection
+```
+
+输出协调器 `state.json` 轨迹条数与各机器人 LeRobot `meta/info.json` 帧数。
+
+### 清理无效数据
+
+删除 `tmp*` 临时目录、帧数异常 episode（默认 <5 或 >600 帧），并重编号为连续 `0..N-1`：
+
+```bash
+# 预览
+ros2 run autonomy_lerobot cleanup_lerobot_dataset.py --dry-run
+
+# 执行（默认根目录 data/lerobot/collection）
+ros2 run autonomy_lerobot cleanup_lerobot_dataset.py
+```
+
+或直接：
+
+```bash
+python3 -m autonomy_lerobot.dataset_cleanup --dry-run
+python3 -m autonomy_lerobot.dataset_cleanup
+```
+
+---
+
+## 数据回放与使用
+
+以下命令在 Docker / 工作区内可直接运行（LeRobot 已预装）。
+本地数据集**不会**从 HuggingFace 拉取，请先：
+
+```bash
+export HF_HUB_OFFLINE=1
+```
+
+### 1. Rerun 可视化（推荐：RGB + 语义）
+
+按 episode 回放相机视频与向量字段，支持本地窗口或导出 `.rrd`：
+
+```bash
+# 交互查看 robot1 的第 0 条 episode
+lerobot-dataset-viz \
+  --repo-id local/habitat_collection_robot1 \
+  --root /workspace/autonomy/data/lerobot/collection/robot1 \
+  --episode-index 0
+
+# 无显示器时导出 Rerun 文件，拷贝到本机用 rerun 打开
+lerobot-dataset-viz \
+  --repo-id local/habitat_collection_robot1 \
+  --root /workspace/autonomy/data/lerobot/collection/robot1 \
+  --episode-index 0 \
+  --save 1 \
+  --output-dir /tmp/lerobot_viz
+# 本机: rerun /tmp/lerobot_viz/local_habitat_collection_robot1_episode_0.rrd
+```
+
+远程机器有数据、本机只有显示器时，可用 `--mode distant`（见 `lerobot-dataset-viz --help`）。
+
+### 2. Python API 按帧读取
+
+适合自定义分析、画图或导出：
+
+```python
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+root = "/workspace/autonomy/data/lerobot/collection/robot1"
+repo_id = "local/habitat_collection_robot1"
+
+ds = LeRobotDataset(repo_id=repo_id, root=root)
+print(f"episodes={ds.num_episodes} fps={ds.fps}")
+
+# 单条 episode
+ds_ep0 = LeRobotDataset(repo_id=repo_id, root=root, episodes=[0])
+for i in range(len(ds_ep0)):
+    frame = ds_ep0[i]
+    rgb = frame["observation.images.rgb"]       # (C, H, W) float tensor
+    action = frame["action"]                    # (2,) linear_x, angular_z
+    state = frame["observation.state"]          # (5,) x, y, yaw, vx, wz
+    ep = int(frame["episode_index"])
+    t = float(frame["timestamp"])
+```
+
+合并多机数据训练时，分别构造多个 `LeRobotDataset`，或使用 LeRobot 的多数据集加载接口（见官方文档）。
+
+### 3. 直接播放 MP4
+
+视频路径见 `meta/episodes` 中 `videos/<key>/chunk_index` 与 `file_index`，或直接查看：
+
+```bash
+ffplay -autoexit /workspace/autonomy/data/lerobot/collection/robot1/videos/observation.images.rgb/chunk-000/file-000.mp4
+ffplay -autoexit /workspace/autonomy/data/lerobot/collection/robot1/videos/observation.images.semantic/chunk-000/file-000.mp4
+```
+
+部分机器人将多条 episode 合并在同一 MP4 中，时间范围由 `meta/episodes` 的
+`from_timestamp` / `to_timestamp` 指定；精确对齐请用 **§1 Rerun** 或 **§2 API**。
+
+### 4. 用于模仿学习训练
+
+LeRobot 训练入口（示例，按官方 CLI 调整 policy / batch）：
+
+```bash
+export HF_HUB_OFFLINE=1
+
+lerobot-train \
+  --dataset.repo_id=local/habitat_collection_robot1 \
+  --dataset.root=/workspace/autonomy/data/lerobot/collection/robot1 \
+  --policy.type=act \
+  --output_dir=/tmp/lerobot_train_robot1
+```
+
+多机合并训练可为每台机器人指定多个 `--dataset.repo_id` / `--dataset.root`（以当前 `lerobot` 版本 CLI 为准，运行 `lerobot-train --help` 查看）。
+
+### 5. 与仿真的关系
+
+| 工具 | 用途 |
+|------|------|
+| `lerobot-dataset-viz` | **离线回放**已录制的图像与状态 |
+| `lerobot-replay` | 在**真实机械臂**上重放数据集中的 `action`（非 Habitat） |
+| `lerobot_bridge_node` | 仿真运行时**录制**新数据 |
+
+本仓库采集的是 Nav2 导航轨迹（`action` = `cmd_vel`），**不能**直接用 `lerobot-replay` 在 Habitat 里“一键复现”整条 episode；若要在仿真中复现，需自行读取 `action` 序列并发布到 `/robotN/cmd_vel`，或训练策略后在线推理。
+
+### 6. 离线补编码
+
+若磁盘上仍有 `images/.../frame-*.png` 未转 MP4：
+
+```bash
+ros2 run autonomy_lerobot encode_dataset_videos.py \
+  /workspace/autonomy/data/lerobot/collection/robot1 --delete-png
+```
+
+---
+
 ## 数据流
 
 ```
@@ -328,7 +537,7 @@ Habitat                          Nav2
          lerobot_bridge_node
          (record_fps 采样对齐)
                 │
-        LeRobot Dataset / episode.npz
+           LeRobot Dataset v3
 ```
 
 ---

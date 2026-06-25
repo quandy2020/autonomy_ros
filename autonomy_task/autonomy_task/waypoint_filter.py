@@ -23,6 +23,13 @@ def _bucket_label(lo: float, hi: float) -> str:
     return f'{lo:g}-{hi:g}'
 
 
+def _summarize_reasons(reasons: dict[str, int]) -> str:
+    if not reasons:
+        return 'no_pending'
+    top = sorted(reasons.items(), key=lambda item: -item[1])[:3]
+    return ', '.join(f'{k}={v}' for k, v in top)
+
+
 def bucket_counts_from_records(
     records: Iterable[Any],
     buckets: list[tuple[float, float]],
@@ -121,6 +128,7 @@ class Filter:
         peer_poses: Iterable[Pose] | None = None,
         peer_targets: Iterable[Waypoint] | None = None,
         bucket_range: tuple[float, float] | None = None,
+        relax_peer: bool = False,
     ) -> tuple[bool, str]:
         if wp.status in (
             Status.COLLECTED, Status.SKIPPED, Status.BLOCKED,
@@ -146,7 +154,7 @@ class Filter:
             if self._t.min_spacing_m > 0.0 and self._t.spacing_vs_collected:
                 if wp.dist_to(c.x, c.y) < self._t.min_spacing_m:
                     return False, f'near_done:{c.id}'
-        peer_gap = self._t.min_peer_spacing_m
+        peer_gap = 0.0 if relax_peer else self._t.min_peer_spacing_m
         if peer_gap > 0.0:
             for peer in peer_poses or ():
                 d = wp.dist_to(peer.x, peer.y)
@@ -206,6 +214,7 @@ class Filter:
         peer_poses: Iterable[Pose] | None = None,
         peer_targets: Iterable[Waypoint] | None = None,
         bucket_counts: dict[str, int] | None = None,
+        relax_peer: bool = False,
     ) -> tuple[Waypoint | None, str]:
         bucket_ranges: list[tuple[float, float] | None]
         if self._t.assignment_strategy == 'bucket' and self._t.distance_buckets:
@@ -213,33 +222,128 @@ class Filter:
         else:
             bucket_ranges = [None]
 
-        last_reason = 'no_pending'
+        merged_reasons: dict[str, int] = {}
         for bucket_range in bucket_ranges:
-            best: tuple[float, Waypoint] | None = None
-            for wp in waypoints:
-                ok, reason = self.can_assign(
-                    wp,
-                    pose,
-                    done,
-                    assigned,
-                    grid,
-                    valid_graph_ids=valid_graph_ids,
-                    peer_poses=peer_poses,
-                    peer_targets=peer_targets,
-                    bucket_range=bucket_range,
-                )
-                if wp.status == Status.PENDING:
-                    last_reason = reason or 'eligible'
-                if ok and pose is not None:
-                    score = self._assignment_score(
-                        wp, pose, peer_poses=peer_poses, peer_targets=peer_targets)
-                    if best is None or score > best[0]:
-                        best = (score, wp)
-            if best is not None:
-                return best[1], ''
+            wp, reasons = self._pick_best(
+                waypoints,
+                pose,
+                done,
+                assigned,
+                grid,
+                valid_graph_ids=valid_graph_ids,
+                peer_poses=peer_poses,
+                peer_targets=peer_targets,
+                bucket_range=bucket_range,
+                relax_peer=relax_peer,
+            )
+            for key, count in reasons.items():
+                merged_reasons[key] = merged_reasons.get(key, 0) + count
+            if wp is not None:
+                return wp, ''
+
+        if bucket_ranges != [None]:
+            wp, reasons = self._pick_best(
+                waypoints,
+                pose,
+                done,
+                assigned,
+                grid,
+                valid_graph_ids=valid_graph_ids,
+                peer_poses=peer_poses,
+                peer_targets=peer_targets,
+                bucket_range=None,
+                relax_peer=relax_peer,
+            )
+            for key, count in reasons.items():
+                merged_reasons[key] = merged_reasons.get(key, 0) + count
+            if wp is not None:
+                return wp, 'bucket_fallback'
+
         if pose is None:
             return None, 'no_pose'
-        return None, last_reason
+        return None, _summarize_reasons(merged_reasons)
+
+    def select_reposition(
+        self,
+        waypoints: list[Waypoint],
+        pose: Pose | None,
+        done: Iterable[Waypoint],
+        assigned: set[str],
+        grid: OccupancyGrid | None,
+        *,
+        valid_graph_ids: set[str] | None = None,
+        peer_poses: Iterable[Pose] | None = None,
+        peer_targets: Iterable[Waypoint] | None = None,
+    ) -> tuple[Waypoint | None, str]:
+        """Pick the farthest reachable waypoint to spread idle robots through the scene."""
+        if pose is None:
+            return None, 'no_pose'
+        best: tuple[float, Waypoint] | None = None
+        reasons: dict[str, int] = {}
+        for wp in waypoints:
+            ok, reason = self.can_assign(
+                wp,
+                pose,
+                done,
+                assigned,
+                grid,
+                valid_graph_ids=valid_graph_ids,
+                peer_poses=peer_poses,
+                peer_targets=peer_targets,
+                bucket_range=None,
+                relax_peer=True,
+            )
+            if wp.status == Status.PENDING:
+                key = reason or 'eligible'
+                reasons[key] = reasons.get(key, 0) + 1
+            if ok:
+                dist = wp.dist_to(pose.x, pose.y)
+                if best is None or dist > best[0]:
+                    best = (dist, wp)
+        if best is not None:
+            return best[1], 'reposition'
+        return None, _summarize_reasons(reasons)
+
+    def _pick_best(
+        self,
+        waypoints: list[Waypoint],
+        pose: Pose | None,
+        done: Iterable[Waypoint],
+        assigned: set[str],
+        grid: OccupancyGrid | None,
+        *,
+        valid_graph_ids: set[str] | None = None,
+        peer_poses: Iterable[Pose] | None = None,
+        peer_targets: Iterable[Waypoint] | None = None,
+        bucket_range: tuple[float, float] | None = None,
+        relax_peer: bool = False,
+    ) -> tuple[Waypoint | None, dict[str, int]]:
+        reasons: dict[str, int] = {}
+        best: tuple[float, Waypoint] | None = None
+        for wp in waypoints:
+            ok, reason = self.can_assign(
+                wp,
+                pose,
+                done,
+                assigned,
+                grid,
+                valid_graph_ids=valid_graph_ids,
+                peer_poses=peer_poses,
+                peer_targets=peer_targets,
+                bucket_range=bucket_range,
+                relax_peer=relax_peer,
+            )
+            if wp.status == Status.PENDING:
+                key = reason or 'eligible'
+                reasons[key] = reasons.get(key, 0) + 1
+            if ok and pose is not None:
+                score = self._assignment_score(
+                    wp, pose, peer_poses=peer_poses, peer_targets=peer_targets)
+                if best is None or score > best[0]:
+                    best = (score, wp)
+        if best is None:
+            return None, reasons
+        return best[1], reasons
 
     def _bucket_try_order(
         self, bucket_counts: dict[str, int],

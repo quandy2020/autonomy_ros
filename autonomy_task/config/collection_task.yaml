@@ -33,11 +33,13 @@ collection_task:
     min_spacing_m: 0.5
     dedupe_radius_m: 0.3
     assignment_strategy: bucket
-    min_peer_spacing_m: 1.5
+    min_peer_spacing_m: 1.0
     record_before_nav_sec: 0.5
     record_after_arrival_sec: 1.0
     max_retries: 2
     parallel: true
+    stuck_assign_sec: 15.0
+    stuck_reposition_sec: 30.0
     distance_buckets:
       - [1.0, 2.0]
       - [2.0, 3.0]
@@ -51,6 +53,8 @@ collection_task:
   recording:
     enabled: true
     bridge_basename: lerobot_bridge_node
+    save_timeout_sec: 120.0
+    cleanup_tmp_on_start: true
 
   filter:
     require_navigable: false

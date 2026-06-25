@@ -95,7 +95,7 @@ def _normalize_frame_for_lerobot(frame: dict[str, Any]) -> dict[str, Any]:
 
 
 class DatasetRecorder:
-    """Write frames to LeRobot when installed, otherwise save .npz episodes."""
+    """Write frames to LeRobot v3 datasets (default); npz fallback if import fails."""
 
     def __init__(
         self,
@@ -548,9 +548,10 @@ class DatasetRecorder:
         try:
             import lerobot.datasets.lerobot_dataset  # noqa: F401
             return True
-        except ImportError:
-            self._logger.warning(
-                f'lerobot not installed; saving episodes as .npz under {self._root}')
+        except ImportError as exc:
+            self._logger.error(
+                f'cannot import lerobot ({exc}); falling back to .npz under {self._root}. '
+                'Docker image should include lerobot — check PYTHONPATH / venv.')
             return False
 
     def _archive_unopenable_dataset(self, root: Path) -> None:

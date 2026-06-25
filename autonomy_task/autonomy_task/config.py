@@ -45,6 +45,12 @@ class Thresholds:
     allow_revisit: bool = False
     spacing_vs_collected: bool = True
     distance_buckets: list[tuple[float, float]] = field(default_factory=list)
+    # After this many seconds without a waypoint, relax peer spacing so idle robots
+    # can still navigate (e.g. when the priority distance bucket has no local nodes).
+    stuck_assign_sec: float = 15.0
+    # After this many seconds still unassigned, send the robot to the farthest
+    # reachable waypoint (reposition) to unlock new distance buckets.
+    stuck_reposition_sec: float = 30.0
 
     def per_bucket_target(self) -> float:
         n = len(self.distance_buckets)
@@ -57,6 +63,9 @@ class Thresholds:
 class RecordConfig:
     enabled: bool = True
     bridge: str = 'lerobot_bridge_node'
+    # Wait for lerobot_bridge set_recording(false) + save_episode (video encode).
+    save_timeout_sec: float = 120.0
+    cleanup_tmp_on_start: bool = True
 
 
 # Defaults aligned with autonomy_lerobot/config/lerobot_collection.yaml; override via launch.
@@ -149,6 +158,12 @@ class TaskConfig:
         if self.per_robot_dataset:
             return str(root / robot)
         return str(root)
+
+    def dataset_roots(self, robots: list[str]) -> list[Path]:
+        root = Path(self.dataset_root).expanduser()
+        if self.per_robot_dataset:
+            return [root / name for name in robots]
+        return [root]
 
     def ensure_output_dirs(self, robots: list[str]) -> None:
         Path(self.state_file).expanduser().parent.mkdir(parents=True, exist_ok=True)
@@ -252,6 +267,8 @@ def _thresholds(data: dict[str, Any]) -> Thresholds:
         allow_revisit=bool(data.get('allow_revisit', False)),
         spacing_vs_collected=bool(data.get('spacing_vs_collected', True)),
         distance_buckets=_parse_distance_buckets(data.get('distance_buckets')),
+        stuck_assign_sec=float(data.get('stuck_assign_sec', 15.0)),
+        stuck_reposition_sec=float(data.get('stuck_reposition_sec', 30.0)),
     )
 
 
@@ -296,6 +313,8 @@ def load_config(path: str | Path) -> TaskConfig:
         record=RecordConfig(
             enabled=bool(rec.get('enabled', True)),
             bridge=str(rec.get('bridge_basename', rec.get('bridge', 'lerobot_bridge_node'))),
+            save_timeout_sec=float(rec.get('save_timeout_sec', 120.0)),
+            cleanup_tmp_on_start=bool(rec.get('cleanup_tmp_on_start', True)),
         ),
         state_file=str(
             task.get('state_file', out.get('state_file', '/workspace/autonomy/data/collection/state.json'))

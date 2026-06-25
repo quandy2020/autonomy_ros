@@ -102,6 +102,10 @@ class CoordinatorNode(Node):
         )
         robots = self._cfg.robot_names()
         self._cfg.ensure_output_dirs(robots)
+        for path, (count, freed) in self._coord.cleanup_datasets().items():
+            if count:
+                self.get_logger().info(
+                    f'cleaned {count} LeRobot temp dirs ({freed / 1e6:.1f} MB) under {path}')
         self.get_logger().info(f'state file: {self._cfg.state_file}')
         for name in robots:
             self.get_logger().info(
@@ -316,6 +320,10 @@ class CoordinatorNode(Node):
         stamp = self.get_clock().now().to_msg()
         self._marker_pub.publish(
             _markers(self._cfg.marker_frame, stamp, self._coord.waypoints))
+
+    def destroy_node(self) -> bool:
+        self._coord.shutdown_recording()
+        return super().destroy_node()
 
 
 def main(args=None) -> None:
