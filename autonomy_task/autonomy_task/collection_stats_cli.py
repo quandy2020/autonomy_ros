@@ -7,16 +7,9 @@ import json
 import sys
 from pathlib import Path
 
+from autonomy_lerobot.data_paths import collection_state_file, lerobot_collection_root
 from autonomy_task.state import load
 from autonomy_task.trajectory_stats import format_report, lerobot_dataset_stats
-
-
-def _default_state_path() -> Path:
-    return Path('/workspace/autonomy/data/collection/state.json')
-
-
-def _default_dataset_root() -> Path:
-    return Path('/workspace/autonomy/data/lerobot/collection')
 
 
 def _discover_dataset_roots(root: Path) -> dict[str, str]:
@@ -33,10 +26,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description='统计采集轨迹条数、路径长度、耗时（state.json + LeRobot meta）')
     parser.add_argument(
-        '--state', type=Path, default=_default_state_path(),
+        '--state', type=Path, default=collection_state_file(),
         help='collection state.json 路径')
     parser.add_argument(
-        '--dataset-root', type=Path, default=_default_dataset_root(),
+        '--dataset-root', type=Path, default=lerobot_collection_root(),
         help='LeRobot 多机数据集根目录（含 robot1/ robot2/ 子目录）')
     parser.add_argument(
         '--json', action='store_true', help='输出 JSON 而非可读报告')

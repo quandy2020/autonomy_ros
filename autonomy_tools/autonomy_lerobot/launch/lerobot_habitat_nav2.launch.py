@@ -6,6 +6,7 @@
 import os
 
 from ament_index_python.packages import get_package_share_directory
+from autonomy_lerobot.data_paths import lerobot_habitat_nav2_root
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -54,7 +55,10 @@ def generate_launch_description() -> LaunchDescription:
                     package='autonomy_lerobot',
                     executable='lerobot_bridge_node',
                     output='screen',
-                    parameters=[LaunchConfiguration('config_file')],
+                    parameters=[
+                        LaunchConfiguration('config_file'),
+                        {'dataset_root': str(lerobot_habitat_nav2_root())},
+                    ],
                 ),
             ],
         ),

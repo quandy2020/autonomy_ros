@@ -13,7 +13,10 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from autonomy_lerobot.data_paths import default_mp3d_scene
 from launch_ros.actions import Node
+
+DEFAULT_MP3D_SCENE = str(default_mp3d_scene())
 
 
 def generate_launch_description():
@@ -30,7 +33,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rviz_config', default_value=default_rviz),
         DeclareLaunchArgument(
             'scene_data_path',
-            default_value='/workspace/autonomy/src/17DRP5sb8fy',
+            default_value=DEFAULT_MP3D_SCENE,
             description='MP3D scene directory',
         ),
         IncludeLaunchDescription(

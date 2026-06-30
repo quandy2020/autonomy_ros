@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from autonomy_lerobot.data_paths import lerobot_root
 from autonomy_lerobot.repo_id import sanitize_repo_id
 
 
@@ -58,7 +59,7 @@ class Config:
     max_pointcloud_points: int = 4096
 
     dataset_repo_id: str = 'local/habitat_nav2'
-    dataset_root: str = '~/.cache/lerobot/habitat_nav2'
+    dataset_root: str = ''
     record_fps: float = 10.0
     task: str = 'navigate to goal'
 
@@ -100,4 +101,6 @@ def load(node: Node) -> Config:
         values[name] = int(values[name])
     values['record_fps'] = float(values['record_fps'])
     values['dataset_repo_id'] = sanitize_repo_id(str(values['dataset_repo_id']))
+    if not str(values['dataset_root']).strip():
+        values['dataset_root'] = str(lerobot_root())
     return Config(**values)

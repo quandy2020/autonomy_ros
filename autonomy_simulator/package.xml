@@ -17,6 +17,7 @@
   <depend>tf2_msgs</depend>
 
   <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>autonomy_lerobot</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>rclpy</exec_depend>

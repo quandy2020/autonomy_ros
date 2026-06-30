@@ -29,6 +29,7 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+from autonomy_lerobot.data_paths import collection_repo_id, default_mp3d_scene, lerobot_collection_root
 from autonomy_lerobot.repo_id import per_robot_repo_id
 
 
@@ -201,8 +202,8 @@ def generate_launch_description() -> LaunchDescription:
         autonomy_ros_share, 'config', 'nav2_habitat_params.yaml')
     default_task_config = os.path.join(
         autonomy_task_share, 'config', 'collection_task.yaml')
-    default_scene = '/workspace/autonomy/src/17DRP5sb8fy'
-    default_dataset_root = '/workspace/autonomy/data/lerobot/collection'
+    default_scene = str(default_mp3d_scene())
+    default_dataset_root = str(lerobot_collection_root())
 
     timing_declares = [
         DeclareLaunchArgument(
@@ -257,7 +258,8 @@ def generate_launch_description() -> LaunchDescription:
             description='Override shared graph topic (empty = per-robot habitat/graph)',
         ),
         DeclareLaunchArgument('dataset_root', default_value=default_dataset_root),
-        DeclareLaunchArgument('dataset_repo_id', default_value='local/habitat_collection'),
+        DeclareLaunchArgument(
+            'dataset_repo_id', default_value=collection_repo_id()),
         DeclareLaunchArgument('recording_enabled', default_value='true'),
         DeclareLaunchArgument(
             'clean_datasets_on_start',

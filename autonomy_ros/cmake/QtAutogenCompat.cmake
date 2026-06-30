@@ -1,0 +1,12 @@
+# Qt5 AUTOMOC compatibility for CMake 3.29+ (e.g. Isaac Lab base images).
+# Stale AutogenInfo.json or CMAKE_CROSS_CONFIGS can trigger:
+#   CROSS_CONFIG is not a boolean.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
+  set(CMAKE_AUTOGEN_BETTER_GRAPH_MULTI_CONFIG OFF CACHE BOOL "" FORCE)
+endif()
+if(DEFINED CACHE{CMAKE_CROSS_CONFIGS})
+  unset(CMAKE_CROSS_CONFIGS CACHE)
+endif()
+if(DEFINED CACHE{CMAKE_DEFAULT_CONFIGS})
+  unset(CMAKE_DEFAULT_CONFIGS CACHE)
+endif()

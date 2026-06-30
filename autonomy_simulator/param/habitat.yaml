@@ -1,8 +1,8 @@
 /**:
   ros__parameters:
-    scene_data_path: "/workspace/autonomy/src/17DRP5sb8fy"
-    scene_id: "17DRP5sb8fy"
-    mp3d_root: "/workspace/autonomy/src"
+    scene_data_path: ""
+    scene_id: ""
+    mp3d_root: ""
     scene_dataset_config: ""
     package_scene_dataset_config: ""
 
@@ -30,7 +30,7 @@
     depth_topic: "camera/depth/image_raw"
     semantic_topic: "camera/semantic/image_raw"
 
-    semantic_ply_path: "/workspace/autonomy/src/17DRP5sb8fy/17DRP5sb8fy_semantic.ply"
+    semantic_ply_path: ""
     semantic_pointcloud_topic: "semantic_pointcloud"
     semantic_pointcloud_frame: "map"
     semantic_pointcloud_downsample: 1

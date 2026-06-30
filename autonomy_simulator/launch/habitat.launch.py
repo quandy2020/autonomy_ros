@@ -8,10 +8,13 @@
 import os
 
 from ament_index_python.packages import get_package_share_directory
+from autonomy_lerobot.data_paths import default_mp3d_scene
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+DEFAULT_MP3D_SCENE = str(default_mp3d_scene())
 
 
 def generate_launch_description():
@@ -38,7 +41,7 @@ def generate_launch_description():
         DeclareLaunchArgument('namespace', default_value='', description='Top-level namespace'),
         DeclareLaunchArgument(
             'scene_data_path',
-            default_value='/workspace/autonomy/src/17DRP5sb8fy',
+            default_value=DEFAULT_MP3D_SCENE,
             description='MP3D scene directory containing .glb assets',
         ),
         DeclareLaunchArgument(
