@@ -30,6 +30,11 @@ class NavConfig:
     max_nav_sec: float = 45.0
     # Force fail if cancel_goal does not complete (avoids blocking reassignment).
     cancel_timeout_sec: float = 5.0
+    # Long idle in map frame (TF map→base) triggers habitat/lerobot reset.
+    idle_reset_sec: float = 90.0
+    idle_move_m: float = 0.25
+    map_frame: str = 'map'
+    base_frame: str = 'base_footprint'
 
 
 @dataclass
@@ -308,6 +313,10 @@ def load_config(path: str | Path) -> TaskConfig:
             stall_goal_progress_m=float(nav.get('stall_goal_progress_m', 0.25)),
             max_nav_sec=float(nav.get('max_nav_sec', 45.0)),
             cancel_timeout_sec=float(nav.get('cancel_timeout_sec', 5.0)),
+            idle_reset_sec=float(nav.get('idle_reset_sec', 90.0)),
+            idle_move_m=float(nav.get('idle_move_m', 0.25)),
+            map_frame=str(nav.get('map_frame', 'map')),
+            base_frame=str(nav.get('base_frame', 'base_footprint')),
         ),
         thresholds=_thresholds(_dict(task.get('collection'))),
         record=RecordConfig(

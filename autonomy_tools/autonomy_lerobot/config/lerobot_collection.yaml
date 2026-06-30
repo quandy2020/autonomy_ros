@@ -1,4 +1,4 @@
-# LeRobot bridge for multi-robot collection (RGB + semantic only).
+# LeRobot bridge for multi-robot collection (RGB + depth + semantic).
 # Map/plan/costmap are single-channel grids; skip them to avoid PNG write errors.
 lerobot_bridge_node:
   ros__parameters:
@@ -17,7 +17,8 @@ lerobot_bridge_node:
     global_costmap_topic: global_costmap/costmap
     local_costmap_topic: local_costmap/costmap
 
-    use_depth: false
+    use_depth: true
+    record_depth: true
     record_semantic: true
     record_map: false
     record_pointcloud: false
@@ -32,6 +33,10 @@ lerobot_bridge_node:
     dataset_repo_id: local/habitat_collection
     record_fps: 10.0
     task: navigate to goal
+
+    map_frame: map
+    base_frame: base_footprint
+    set_agent_pose_topic: habitat/set_agent_pose
 
     video_vcodec: h264
     streaming_encoding: true

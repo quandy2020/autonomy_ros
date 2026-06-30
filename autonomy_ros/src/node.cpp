@@ -25,8 +25,7 @@
 #include "autonomy_ros/diagnostic.hpp"
 #include "autonomy_ros/visualizer.hpp"
 
-#include "autonomy/sensor/internal/dispatchable.hpp"
-#include "autonomy/sensor/internal/sensor_collator.hpp"
+#include "autonomy/sensor/dispatchable.hpp"
 #include "autonomy/system/options.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"

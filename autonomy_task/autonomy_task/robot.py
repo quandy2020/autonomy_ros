@@ -16,9 +16,10 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.time import Time
-from std_srvs.srv import SetBool
+from std_srvs.srv import SetBool, Trigger
 
 from autonomy_task.config import TaskConfig
+from autonomy_task.pose_monitor import MapPoseMonitor
 from autonomy_task.waypoint import Status, Waypoint
 from autonomy_task.waypoint_filter import Pose
 
@@ -84,12 +85,22 @@ class Robot:
         self._nav_t0: Time | None = None
         self._cancel_reason: str | None = None
         self._cancel_deadline: Time | None = None
+        self._idle_map_xy: tuple[float, float] | None = None
+        self._idle_reset_deadline: Time | None = None
+        self._map_monitor = MapPoseMonitor(
+            node,
+            map_frame=cfg.nav.map_frame,
+            base_frame=cfg.nav.base_frame,
+            namespace=ns,
+        )
 
         node.create_subscription(Odometry, f'/{ns}/odom', self._on_odom, 10)
         self._rec_cli = None
+        self._reset_cli = None
         if cfg.record.enabled:
             base = f'/{ns}/{cfg.record.bridge}'
             self._rec_cli = node.create_client(SetBool, f'{base}/set_recording', callback_group=cb)
+            self._reset_cli = node.create_client(Trigger, f'{base}/reset_robot', callback_group=cb)
 
         self.phase = Phase.IDLE
         self.active: Waypoint | None = None
@@ -138,6 +149,8 @@ class Robot:
             pending.append('navigate_to_pose')
         if self._rec_cli is not None and not self._rec_cli.service_is_ready():
             pending.append('set_recording')
+        if self._reset_cli is not None and not self._reset_cli.service_is_ready():
+            pending.append('reset_robot')
         return pending
 
     def servers_ready(self) -> bool:
@@ -149,6 +162,8 @@ class Robot:
             return False
         if self._rec_cli and not self._rec_cli.wait_for_service(timeout_sec=timeout):
             self._node.get_logger().warning(f'{self._ns}: recording unavailable')
+        if self._reset_cli and not self._reset_cli.wait_for_service(timeout_sec=timeout):
+            self._node.get_logger().warning(f'{self._ns}: reset_robot unavailable')
         return True
 
     def start(self, wp: Waypoint) -> bool:
@@ -206,6 +221,29 @@ class Robot:
             'straight_line_m': straight,
             'duration_sec': duration,
         }
+
+    def reset_robot_sync(self, timeout: float = 10.0) -> tuple[bool, str]:
+        """Ask lerobot_bridge to resync habitat pose / TF and clear recording cache."""
+        if not self._reset_cli:
+            return False, 'reset_robot disabled'
+        if not rclpy.ok() or not self._node.context.ok:
+            return False, 'shutting down'
+        if not self._reset_cli.service_is_ready():
+            if not self._reset_cli.wait_for_service(timeout_sec=timeout):
+                return False, 'reset_robot not ready'
+        future = self._reset_cli.call_async(Trigger.Request())
+        deadline = time.monotonic() + timeout
+        while rclpy.ok() and not future.done():
+            if time.monotonic() >= deadline:
+                return False, 'reset_robot timed out'
+            time.sleep(0.02)
+        if not future.done():
+            return False, 'reset_robot timed out'
+        try:
+            result = future.result()
+        except Exception as exc:
+            return False, str(exc)
+        return bool(result.success), str(result.message)
 
     def set_recording_sync(self, on: bool, timeout: float | None = None) -> tuple[bool, str]:
         if not self._rec_cli:
@@ -302,6 +340,7 @@ class Robot:
         self._cancel_deadline = None
         self._nav_t0 = self._now()
         self._arm_stall()
+        self._arm_idle_tracking()
         self.phase = Phase.NAV
         timeout = self._cfg.nav.action_timeout_sec
         self._nav_deadline = self._after(timeout) if timeout > 0.0 else None
@@ -331,6 +370,44 @@ class Robot:
         except Exception:
             pass
 
+    def _reset_idle_tracking(self) -> None:
+        self._idle_map_xy = None
+        self._idle_reset_deadline = None
+
+    def _arm_idle_tracking(self) -> None:
+        nav = self._cfg.nav
+        if nav.idle_reset_sec <= 0.0:
+            self._reset_idle_tracking()
+            return
+        map_pose = self._map_monitor.pose()
+        if map_pose is None:
+            return
+        self._idle_map_xy = (map_pose.x, map_pose.y)
+        self._idle_reset_deadline = self._after(nav.idle_reset_sec)
+
+    def _idle_reset_needed(self, now: Time) -> bool:
+        nav = self._cfg.nav
+        if nav.idle_reset_sec <= 0.0 or self._idle_reset_deadline is None:
+            return False
+        map_pose = self._map_monitor.pose()
+        if map_pose is None:
+            return False
+        xy = (map_pose.x, map_pose.y)
+        if self._idle_map_xy is None:
+            self._arm_idle_tracking()
+            return False
+        moved = math.hypot(xy[0] - self._idle_map_xy[0], xy[1] - self._idle_map_xy[1])
+        if moved >= nav.idle_move_m:
+            self._idle_map_xy = xy
+            self._idle_reset_deadline = self._after(nav.idle_reset_sec)
+            return False
+        if now < self._idle_reset_deadline:
+            return False
+        self._node.get_logger().warning(
+            f'{self._ns}: map→{nav.base_frame} idle '
+            f'(<{nav.idle_move_m:.2f}m in {nav.idle_reset_sec:.0f}s)')
+        return True
+
     def _reset_stall(self) -> None:
         self._stall_xy = None
         self._stall_deadline = None
@@ -355,6 +432,7 @@ class Robot:
         self._cancel_reason = None
         self._cancel_deadline = None
         self._reset_stall()
+        self._reset_idle_tracking()
 
     def _abort_nav(self, reason: str, *, force: bool = False) -> str | None:
         if not force and self._cancel_reason is not None:
@@ -438,6 +516,13 @@ class Robot:
             if self._stall_detected(now):
                 return self._abort_nav('stall')
             self._stall_deadline = self._after(nav.stall_sec)
+        if self._cancel_reason is None and self._idle_reset_needed(now):
+            ok, msg = self.reset_robot_sync()
+            if ok:
+                self._node.get_logger().info(f'{self._ns}: reset_robot ok ({msg})')
+            else:
+                self._node.get_logger().warning(f'{self._ns}: reset_robot failed: {msg}')
+            return self._abort_nav('idle_reset')
         if self._cancel_reason is None and self._nav_deadline is not None and now >= self._nav_deadline:
             self._node.get_logger().warning(
                 f'{self._ns}: nav timeout ({nav.action_timeout_sec:.0f}s)')
