@@ -8,6 +8,11 @@ from typing import Any
 
 import yaml
 
+from autonomy_lerobot.data_paths import (
+    collection_state_file,
+    collection_repo_id,
+    lerobot_collection_root,
+)
 from autonomy_task.waypoint import Waypoint
 
 
@@ -66,11 +71,6 @@ class RecordConfig:
     # Wait for lerobot_bridge set_recording(false) + save_episode (video encode).
     save_timeout_sec: float = 120.0
     cleanup_tmp_on_start: bool = True
-
-
-# Defaults aligned with autonomy_lerobot/config/lerobot_collection.yaml; override via launch.
-_DEFAULT_DATASET_ROOT = '/workspace/autonomy/data/lerobot/collection'
-_DEFAULT_DATASET_REPO_ID = 'local/habitat_collection'
 
 
 @dataclass
@@ -148,9 +148,9 @@ class TaskConfig:
     waypoints_file: str = ''
     status_hz: float = 2.0
     tick_hz: float = 2.0
-    state_file: str = '/workspace/autonomy/data/collection/state.json'
-    dataset_root: str = _DEFAULT_DATASET_ROOT
-    dataset_repo_id: str = _DEFAULT_DATASET_REPO_ID
+    state_file: str = field(default_factory=lambda: str(collection_state_file()))
+    dataset_root: str = field(default_factory=lambda: str(lerobot_collection_root()))
+    dataset_repo_id: str = field(default_factory=collection_repo_id)
     per_robot_dataset: bool = True
 
     def dataset_root_for(self, robot: str) -> str:
@@ -317,10 +317,10 @@ def load_config(path: str | Path) -> TaskConfig:
             cleanup_tmp_on_start=bool(rec.get('cleanup_tmp_on_start', True)),
         ),
         state_file=str(
-            task.get('state_file', out.get('state_file', '/workspace/autonomy/data/collection/state.json'))
+            task.get('state_file', out.get('state_file', str(collection_state_file())))
         ),
-        dataset_root=str(out.get('dataset_root', _DEFAULT_DATASET_ROOT)),
-        dataset_repo_id=str(out.get('dataset_repo_id', _DEFAULT_DATASET_REPO_ID)),
+        dataset_root=str(out.get('dataset_root', str(lerobot_collection_root()))),
+        dataset_repo_id=str(out.get('dataset_repo_id', collection_repo_id())),
         per_robot_dataset=bool(out.get('per_robot_dataset', True)),
         filter=FilterConfig(
             require_navigable=bool(filt.get('require_navigable', False)),

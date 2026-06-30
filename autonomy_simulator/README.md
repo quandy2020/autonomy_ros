@@ -46,7 +46,7 @@ ros2 launch autonomy_simulator habitat.launch.py
 
 # 指定场景数据目录
 ros2 launch autonomy_simulator habitat.launch.py \
-  scene_data_path:=/workspace/autonomy/src/17DRP5sb8fy
+  scene_data_path:=/mnt/data4t/mp3d/17DRP5sb8fy
 ```
 
 代码位于 `scripts/habitat/`（Google Python 风格 + ROS 2 节点规范）：

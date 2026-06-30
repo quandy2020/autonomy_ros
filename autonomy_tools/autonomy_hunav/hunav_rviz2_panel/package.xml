@@ -39,6 +39,7 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>autonomy_lerobot</exec_depend>
   <exec_depend>autonomy_pedestrian</exec_depend>
   <exec_depend>pedsim_rviz_plugin</exec_depend>
   <exec_depend>derived_object_msgs</exec_depend>

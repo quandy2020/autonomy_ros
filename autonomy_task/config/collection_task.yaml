@@ -5,7 +5,7 @@ collection_task:
   status_publish_hz: 2.0
   coordinator_tick_hz: 2.0
   waypoint_source: graph
-  state_file: /workspace/autonomy/data/collection/state.json
+  # state_file / dataset_root: see autonomy_lerobot/config/data_paths.yaml
 
   graph:
     per_robot: true

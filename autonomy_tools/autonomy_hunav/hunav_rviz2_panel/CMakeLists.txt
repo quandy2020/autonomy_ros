@@ -12,6 +12,7 @@ endif()
 
 # Qt5 boilerplate options from http://doc.qt.io/qt-5/cmake-manual.html
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../../autonomy_ros/cmake/QtAutogenCompat.cmake")
 set(CMAKE_AUTOMOC ON)
 
 find_package(ament_cmake REQUIRED)

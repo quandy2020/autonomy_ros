@@ -4,8 +4,27 @@ ROS2 Python 包：将 **Habitat 仿真** + **Nav2 导航** 数据对接 [Hugging
 
 ## 环境依赖
 
-**Docker / 工作区镜像已预装 LeRobot**（当前 `0.4.4`），无需再执行 `pip install lerobot`。
-`autonomy_lerobot` 直接 `import lerobot` 写入 v3 本地数据集；回放与训练使用系统自带的 CLI：
+**Docker 镜像默认未预装 LeRobot**，需在进入容器后执行一次安装脚本（约 10–15 分钟，含 PyTorch 等依赖）：
+
+```bash
+bash /workspace/autonomy/src/autonomy/docker/install/install_lerobot.sh
+```
+
+或手动安装：
+
+```bash
+pip3 install "lerobot==0.4.4"
+pip3 install 'setuptools>=61,<80'   # 保持与 colcon 兼容
+```
+
+验证：
+
+```bash
+python3 -c "import lerobot; print(lerobot.__version__)"
+lerobot-info
+```
+
+`autonomy_lerobot` 使用 `import lerobot` 写入 v3 本地数据集；未安装时会回退为 `.npz` 格式。回放与训练 CLI：
 
 | 命令 | 用途 |
 |------|------|
@@ -15,18 +34,13 @@ ROS2 Python 包：将 **Habitat 仿真** + **Nav2 导航** 数据对接 [Hugging
 | `lerobot-edit-dataset` | 编辑 / 合并数据集 |
 | `lerobot-info` | 查看环境与版本 |
 
-验证安装：
-
-```bash
-python3 -c "import lerobot; print(lerobot.__version__)"
-lerobot-info
-```
-
 本地数据集读写建议离线模式（避免误连 HuggingFace Hub）：
 
 ```bash
 export HF_HUB_OFFLINE=1
 ```
+
+> 已采集的 `.npz` 数据在安装 LeRobot 后不会自动转换；新录制的 episode 将写入标准 LeRobot 数据集格式。
 
 ## 包结构
 

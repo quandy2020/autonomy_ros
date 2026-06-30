@@ -138,6 +138,11 @@ def load(node: Node) -> Config:
 
     values = {name: node.get_parameter(name).value for name in fields}
     path = str(values['scene_data_path']).rstrip('/')
+    if not path:
+        from autonomy_lerobot.data_paths import default_mp3d_scene
+
+        path = str(default_mp3d_scene())
+        values['scene_data_path'] = path
     if path:
         # scene_data_path overrides scene_id and mp3d_root from launch/yaml.
         values['scene_id'] = os.path.basename(path)

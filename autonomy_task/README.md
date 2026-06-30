@@ -165,8 +165,10 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 
 ## 构建与启动
 
+**数据盘**：MP3D 场景默认路径为 `/mnt/data4t/mp3d/17DRP5sb8fy`（与 Docker `AUTONOMY_DATA_VOLUMES=/mnt/data4t` 挂载一致）。可通过环境变量 `AUTONOMY_MP3D_SCENE` 或 launch 参数 `scene_data_path` 覆盖。场景目录需包含 `{scene_id}.glb`、`.house`、`.navmesh` 及 `{scene_id}_semantic.ply`（语义点云未下载完成时仅影响地图/点云发布，不影响 GLB 加载）。
+
 ```bash
-colcon build --packages-select autonomy_task autonomy_lerobot --symlink-install
+colcon build --packages-select autonomy_simulator autonomy_ros autonomy_task --symlink-install
 source install/setup.bash
 ```
 
@@ -183,6 +185,7 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 | 参数 | 默认 | 说明 |
 |------|------|------|
 | `num_robots` | `3` | 机器人数量 |
+| `scene_data_path` | `/mnt/data4t/mp3d/17DRP5sb8fy` | MP3D 场景目录（可用 `AUTONOMY_MP3D_SCENE` 覆盖） |
 | `dataset_root` | `/workspace/autonomy/data/lerobot/collection` | LeRobot 根目录 |
 | `dataset_repo_id` | `local/habitat_collection` | 数据集 repo id |
 | `recording_enabled` | `true` | 是否启动 bridge |

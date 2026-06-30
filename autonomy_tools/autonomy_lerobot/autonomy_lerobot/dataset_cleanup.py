@@ -8,6 +8,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from autonomy_lerobot.data_paths import lerobot_collection_root
+
 DEFAULT_MIN_FRAMES = 5
 DEFAULT_MAX_FRAMES = 600
 
@@ -430,7 +432,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description='Clean invalid LeRobot collection datasets')
     parser.add_argument(
         '--root', type=Path,
-        default=Path('/workspace/autonomy/data/lerobot/collection'),
+        default=lerobot_collection_root(),
         help='Collection root with robot1/ robot2/ ...',
     )
     parser.add_argument('--min-frames', type=int, default=DEFAULT_MIN_FRAMES)

@@ -14,7 +14,10 @@ from launch.actions import (
     TimerAction,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from autonomy_lerobot.data_paths import default_mp3d_scene
 from launch.substitutions import LaunchConfiguration
+
+DEFAULT_MP3D_SCENE = str(default_mp3d_scene())
 
 
 def _launch_robot(context, *args, **kwargs):
@@ -79,7 +82,7 @@ def generate_launch_description() -> LaunchDescription:
     default_params = os.path.join(
         autonomy_ros_share, 'config', 'nav2_habitat_params.yaml'
     )
-    default_scene = '/workspace/autonomy/src/17DRP5sb8fy'
+    default_scene = DEFAULT_MP3D_SCENE
 
     return LaunchDescription([
         DeclareLaunchArgument(

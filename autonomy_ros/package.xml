@@ -30,6 +30,7 @@
   <exec_depend>nav2_msgs</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>autonomy_lerobot</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>autonomy_simulator</exec_depend>

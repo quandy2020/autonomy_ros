@@ -30,7 +30,6 @@ lerobot_bridge_node:
     max_pointcloud_points: 4096
 
     dataset_repo_id: local/habitat_collection
-    dataset_root: /workspace/autonomy/data/lerobot/collection
     record_fps: 10.0
     task: navigate to goal
 

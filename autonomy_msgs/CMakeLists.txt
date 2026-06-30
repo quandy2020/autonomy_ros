@@ -16,6 +16,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/../autonomy_ros/cmake/QtAutogenCompat.cmake")
+
 set(msg_files
   msg/TaskType.msg
   msg/TaskState.msg

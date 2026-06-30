@@ -3,6 +3,7 @@
 
 """Launch the LeRobot bridge node."""
 
+from autonomy_lerobot.data_paths import lerobot_habitat_nav2_root
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -27,6 +28,9 @@ def generate_launch_description() -> LaunchDescription:
             package='autonomy_lerobot',
             executable='lerobot_bridge_node',
             output='screen',
-            parameters=[config_file],
+            parameters=[
+                config_file,
+                {'dataset_root': str(lerobot_habitat_nav2_root())},
+            ],
         ),
     ])
