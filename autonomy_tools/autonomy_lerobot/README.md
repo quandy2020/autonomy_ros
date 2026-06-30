@@ -126,7 +126,7 @@ ros2 run autonomy_lerobot encode_dataset_videos.py \
 | `rgb_topic` | `camera/rgb/image_raw` | `sensor_msgs/Image` | 始终 |
 | `odom_topic` | `odom` | `nav_msgs/Odometry` | 始终 |
 | `cmd_vel_topic` | `cmd_vel` | `geometry_msgs/Twist` | 始终 |
-| `depth_topic` | `camera/depth/image_raw` | `sensor_msgs/Image` | `use_depth` |
+| `depth_topic` | `camera/depth/image_raw` | `sensor_msgs/Image` | `use_depth` 或 `record_depth` |
 | `semantic_topic` | `camera/semantic/image_raw` | `sensor_msgs/Image` | `record_semantic` |
 | `camera_info_topic` | `camera/rgb/camera_info` | `sensor_msgs/CameraInfo` | `record_camera_info` |
 | `map_topic` | `map` | `nav_msgs/OccupancyGrid` | `record_map` |
@@ -209,13 +209,13 @@ ros2 run autonomy_lerobot encode_dataset_videos.py \
 | shape | `(480, 640, 3)` |
 | 说明 | Habitat 语义 ID 着色后的 RGB 可视化图 |
 
-#### `observation.images.depth`（`use_depth:=true`）
+#### `observation.images.depth`（`record_depth:=true` 或 `use_depth:=true`）
 
 | 属性 | 值 |
 |------|-----|
 | dtype | `float32` |
 | shape | `(480, 640)` |
-| 说明 | 深度图，单位米（`32FC1`） |
+| 说明 | 深度图，单位米（Habitat `32FC1`） |
 
 #### `observation.camera_info`（`record_camera_info:=true`）
 
@@ -390,7 +390,7 @@ data/lerobot/collection/
 | robot2 | `data/lerobot/collection/robot2` | `local/habitat_collection_robot2` |
 | … | `.../robotN` | `local/habitat_collection_robotN` |
 
-当前采集配置（`lerobot_collection.yaml`）主要录制 **RGB + semantic + camera_info + state/action**；
+当前采集配置（`lerobot_collection.yaml`）主要录制 **RGB + depth + semantic + camera_info + state/action**；
 较早 episode 可能仍含 map / plan 等字段（取决于录制时的 `record_*` 开关）。
 
 ### 查看统计
@@ -561,12 +561,13 @@ Habitat                          Nav2
 见 `config/lerobot_bridge.yaml`。可用 `record_*` 开关按需关闭不需要的字段以减小数据量：
 
 ```yaml
+use_depth: true          # 订阅 depth 话题（推理/观测）
+record_depth: true       # 写入 observation.images.depth
 record_semantic: true
 record_map: true
 record_pointcloud: true
 record_camera_info: true
 record_nav2: true
-use_depth: false
 max_path_waypoints: 512
 max_pointcloud_points: 4096
 ```

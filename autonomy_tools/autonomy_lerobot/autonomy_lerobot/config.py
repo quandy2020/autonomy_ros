@@ -47,6 +47,7 @@ class Config:
     local_costmap_topic: str = 'local_costmap/costmap'
 
     use_depth: bool = False
+    record_depth: bool = False
     record_semantic: bool = True
     record_map: bool = True
     record_pointcloud: bool = True
@@ -69,13 +70,18 @@ class Config:
     parallel_video_encoding: bool = True
     overwrite_dataset: bool = False
 
+    # Robot reset (map→base TF resync via habitat/set_agent_pose).
+    set_agent_pose_topic: str = 'habitat/set_agent_pose'
+    map_frame: str = 'map'
+    base_frame: str = 'base_footprint'
+
     @property
     def image_shape(self) -> tuple[int, int, int]:
         return (self.image_height, self.image_width, 3)
 
 
 _BOOL_FIELDS = frozenset({
-    'use_depth', 'record_semantic', 'record_map', 'record_pointcloud',
+    'use_depth', 'record_depth', 'record_semantic', 'record_map', 'record_pointcloud',
     'record_camera_info', 'record_nav2', 'overwrite_dataset',
 })
 _INT_FIELDS = frozenset({

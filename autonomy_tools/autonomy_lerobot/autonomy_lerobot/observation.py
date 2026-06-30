@@ -88,6 +88,21 @@ class Latest:
     def ready(self) -> bool:
         return self.rgb is not None and self.odom is not None
 
+    def clear(self) -> None:
+        self.rgb = None
+        self.depth = None
+        self.semantic = None
+        self.odom = None
+        self.agent_pose = None
+        self.cmd_vel = None
+        self.camera_info = None
+        self.map_grid = None
+        self.pointcloud = None
+        self.global_plan = None
+        self.local_plan = None
+        self.global_costmap = None
+        self.local_costmap = None
+
 
 def _empty_path(max_len: int) -> tuple[np.ndarray, np.ndarray]:
     return (
@@ -116,7 +131,7 @@ def build_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
         KEY_ACTION: cmd_vel_to_action(cmd_vel),
         KEY_TASK: cfg.task,
     }
-    if cfg.use_depth and latest.depth is not None:
+    if (cfg.record_depth or cfg.use_depth) and latest.depth is not None:
         frame[KEY_DEPTH] = image_to_numpy(latest.depth)
     if cfg.record_semantic and latest.semantic is not None:
         frame[KEY_SEMANTIC] = image_to_numpy(latest.semantic)

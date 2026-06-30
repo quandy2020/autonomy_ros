@@ -19,7 +19,8 @@ lerobot_bridge_node:
     local_costmap_topic: local_costmap/costmap
 
     # --- Recording toggles ---
-    use_depth: false
+    use_depth: true
+    record_depth: true
     record_semantic: true
     record_map: true
     record_pointcloud: true

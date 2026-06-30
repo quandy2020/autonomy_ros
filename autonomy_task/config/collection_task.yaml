@@ -23,6 +23,10 @@ collection_task:
     stall_goal_progress_m: 0.25
     max_nav_sec: 40.0
     cancel_timeout_sec: 5.0
+    idle_reset_sec: 90.0
+    idle_move_m: 0.25
+    map_frame: map
+    base_frame: base_footprint
 
   collection:
     target_episodes: 2000

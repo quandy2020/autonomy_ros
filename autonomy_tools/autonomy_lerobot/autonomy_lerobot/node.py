@@ -38,6 +38,7 @@ from autonomy_lerobot.config import Config, load
 from autonomy_lerobot.conversions import odom_to_state, pose_to_state
 from autonomy_lerobot.observation import Latest, build_frame
 from autonomy_lerobot.recorder import DatasetRecorder
+from autonomy_lerobot.tf_utils import MapBaseTransform
 
 _MAP_QOS = QoSProfile(
     depth=1,
@@ -57,6 +58,10 @@ class BridgeNode(Node):
         self._record_fatal: str | None = None
         self._wait_ticks = 0
         self._subscribe_all(self._cfg)
+        self._tf_pose = MapBaseTransform(
+            self, map_frame=self._cfg.map_frame, base_frame=self._cfg.base_frame)
+        self._set_pose_pub = self.create_publisher(
+            PoseStamped, self._cfg.set_agent_pose_topic, 10)
 
         self._recorder = DatasetRecorder(
             repo_id=self._cfg.dataset_repo_id,
@@ -78,6 +83,9 @@ class BridgeNode(Node):
         self.create_service(
             Trigger, '~/save_episode', self._on_save_episode,
             callback_group=service_cb)
+        self.create_service(
+            Trigger, '~/reset_robot', self._on_reset_robot,
+            callback_group=service_cb)
         self.get_logger().info(
             f'[lerobot] recording at {self._cfg.record_fps:.1f} Hz -> {self._cfg.dataset_repo_id}')
 
@@ -85,10 +93,11 @@ class BridgeNode(Node):
         qos = qos_profile_sensor_data
         self.create_subscription(Image, cfg.rgb_topic, self._on_rgb, qos)
         self.create_subscription(Odometry, cfg.odom_topic, self._on_odom, 10)
+        self.create_subscription(PoseStamped, cfg.agent_pose_topic, self._on_agent_pose, 10)
         self.create_subscription(Twist, cfg.cmd_vel_topic, self._on_cmd_vel, 10)
         self._cmd_vel_pub = self.create_publisher(Twist, cfg.cmd_vel_topic, 10)
 
-        if cfg.use_depth:
+        if cfg.use_depth or cfg.record_depth:
             self.create_subscription(Image, cfg.depth_topic, self._on_depth, qos)
         if cfg.record_semantic:
             self.create_subscription(Image, cfg.semantic_topic, self._on_semantic, qos)
@@ -125,6 +134,9 @@ class BridgeNode(Node):
 
     def _on_odom(self, msg: Odometry) -> None:
         self._latest.odom = msg
+
+    def _on_agent_pose(self, msg: PoseStamped) -> None:
+        self._latest.agent_pose = msg
 
     def _on_cmd_vel(self, msg: Twist) -> None:
         self._latest.cmd_vel = msg
@@ -192,6 +204,47 @@ class BridgeNode(Node):
         response.message = f'saved episode to {self._recorder.save_episode()}'
         self.get_logger().info(response.message)
         return response
+
+    def _on_reset_robot(self, _request: Trigger.Request, response: Trigger.Response):
+        ok, message = self._reset_robot_state()
+        response.success = ok
+        response.message = message
+        if ok:
+            self.get_logger().info(f'reset_robot: {message}')
+        else:
+            self.get_logger().warning(f'reset_robot failed: {message}')
+        return response
+
+    def _reset_robot_state(self) -> tuple[bool, str]:
+        """Resync habitat agent pose / TF and clear LeRobot frame cache."""
+        if self._recording:
+            saved = self._recorder.save_episode()
+            if saved.startswith('save failed'):
+                self.get_logger().error(f'reset: recording save failed: {saved}')
+            self._recording = False
+
+        zero = Twist()
+        self._cmd_vel_pub.publish(zero)
+        self._latest.cmd_vel = zero
+
+        pose = self._tf_pose.lookup_pose()
+        if pose is None and self._latest.agent_pose is not None:
+            pose = self._latest.agent_pose
+        if pose is None:
+            return False, f'TF {self._cfg.map_frame}→{self._cfg.base_frame} unavailable'
+
+        self._set_pose_pub.publish(pose)
+        self._latest.clear()
+        self._record_fatal = None
+        self._wait_ticks = 0
+        try:
+            self._recorder.prepare_for_recording()
+        except Exception as exc:
+            return False, f'recorder reset failed: {exc}'
+        return True, (
+            f'pose ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f}) '
+            f'frame={pose.header.frame_id}'
+        )
 
     def _on_record_tick(self) -> None:
         if not self._recording:
