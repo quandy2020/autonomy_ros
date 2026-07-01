@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-from autonomy_lerobot.node import main
-
-if __name__ == '__main__':
-    main()
+#!/bin/sh
+# ROS2 entry point — avoid setuptools #!python shebang in Docker.
+exec /usr/bin/python3 -m autonomy_lerobot.node "$@"

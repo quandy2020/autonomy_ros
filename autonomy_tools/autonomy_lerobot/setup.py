@@ -16,20 +16,18 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
-    install_requires=[],
+    install_requires=['setuptools'],
     zip_safe=True,
     maintainer='q',
     maintainer_email='duyongquan3@jd.com',
     description='ROS2 bridge for Hugging Face LeRobot',
     license='Apache-2.0',
-    options={
-        'build_scripts': {
-            'executable': '/usr/bin/env python3',
-        },
+    entry_points={
+        'console_scripts': [
+            'cleanup_lerobot_dataset = autonomy_lerobot.dataset_cleanup:main',
+        ],
     },
     scripts=[
-        'scripts/lerobot_bridge_node',
         'scripts/encode_dataset_videos.py',
-        'scripts/cleanup_lerobot_dataset.py',
     ],
 )

@@ -105,7 +105,7 @@ install(TARGETS autonomy_core autonomy_node
 )
 
 install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY launch rviz config docs DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch rviz config docs behavior_trees DESTINATION share/${PROJECT_NAME})
 install(
   PROGRAMS
     scripts/cmd_vel_twist_stamped_relay.py

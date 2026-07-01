@@ -26,6 +26,7 @@ def generate_launch_description():
     scene = LaunchConfiguration('scene_data_path')
     cmd_vel = LaunchConfiguration('cmd_vel_topic')
     map_hz = LaunchConfiguration('occupancy_grid_rate_hz')
+    semantic_ply = LaunchConfiguration('semantic_ply_path')
     use_sim_time = LaunchConfiguration('use_sim_time')
     spawn_mode = LaunchConfiguration('spawn_mode')
     spawn_index = LaunchConfiguration('spawn_index')
@@ -53,6 +54,11 @@ def generate_launch_description():
             'occupancy_grid_rate_hz',
             default_value='1.0',
             description='Map publish rate; 0 = latched once',
+        ),
+        DeclareLaunchArgument(
+            'semantic_ply_path',
+            default_value='',
+            description='Override PLY path; empty = pointcloud.ply then *_semantic.ply',
         ),
         DeclareLaunchArgument(
             'use_sim_time',
@@ -101,6 +107,7 @@ def generate_launch_description():
                 'package_scene_dataset_config': dataset_config,
                 'cmd_vel_topic': cmd_vel,
                 'occupancy_grid_rate_hz': map_hz,
+                'semantic_ply_path': semantic_ply,
                 'spawn_mode': spawn_mode,
                 'spawn_index': spawn_index,
                 'spawn_count': spawn_count,

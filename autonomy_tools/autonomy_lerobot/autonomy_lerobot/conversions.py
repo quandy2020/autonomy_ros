@@ -67,6 +67,60 @@ def cmd_vel_to_action(msg: Twist) -> np.ndarray:
     return np.array([msg.linear.x, msg.angular.z], dtype=np.float32)
 
 
+def quaternion_to_rotation_matrix(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
+    """Return 3x3 rotation matrix from a unit quaternion."""
+    return np.array(
+        [
+            [1.0 - 2.0 * (qy * qy + qz * qz), 2.0 * (qx * qy - qz * qw), 2.0 * (qx * qz + qy * qw)],
+            [2.0 * (qx * qy + qz * qw), 1.0 - 2.0 * (qx * qx + qz * qz), 2.0 * (qy * qz - qx * qw)],
+            [2.0 * (qx * qz - qy * qw), 2.0 * (qy * qz + qx * qw), 1.0 - 2.0 * (qx * qx + qy * qy)],
+        ],
+        dtype=np.float32,
+    )
+
+
+def pose_to_action_matrix(
+    x: float, y: float, z: float,
+    qx: float, qy: float, qz: float, qw: float,
+) -> np.ndarray:
+    """Return 4x4 pose as row-major flatten (jdrobot action schema)."""
+    rot = quaternion_to_rotation_matrix(qx, qy, qz, qw)
+    mat = np.eye(4, dtype=np.float32)
+    mat[:3, :3] = rot
+    mat[0, 3] = x
+    mat[1, 3] = y
+    mat[2, 3] = z
+    return mat.reshape(-1)
+
+
+def odom_to_action_matrix(msg: Odometry) -> np.ndarray:
+    """Return jdrobot-style action from odometry pose."""
+    pose = msg.pose.pose
+    return pose_to_action_matrix(
+        pose.position.x, pose.position.y, pose.position.z,
+        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w,
+    )
+
+
+def identity_extrinsic() -> np.ndarray:
+    """Return 4x4 identity extrinsic (row-major flatten), matching kujiale datasets."""
+    return np.eye(4, dtype=np.float32).reshape(-1)
+
+
+def camera_info_to_intrinsic(msg: CameraInfo) -> np.ndarray:
+    """Return 3x3 camera matrix K flattened row-major (jdrobot schema)."""
+    return np.array(msg.k[:9], dtype=np.float32)
+
+
+def depth_to_video_rgb(depth: np.ndarray, depth_min: float, depth_max: float) -> np.ndarray:
+    """Encode float depth (H, W) meters as uint8 RGB video frames (kujiale style)."""
+    safe = np.nan_to_num(depth, nan=depth_min, posinf=depth_max, neginf=depth_min)
+    denom = max(float(depth_max - depth_min), 1e-6)
+    norm = np.clip((safe - depth_min) / denom, 0.0, 1.0)
+    gray = (norm * 255.0).astype(np.uint8)
+    return np.stack([gray, gray, gray], axis=-1)
+
+
 def camera_info_to_array(msg: CameraInfo) -> np.ndarray:
     """Return [fx, fy, cx, cy, width, height, d0..d4]."""
     k = msg.k

@@ -30,11 +30,6 @@ setup(
     maintainer_email='duyongquan3@jd.com',
     description='Multi-robot navigation and data collection orchestration',
     license='Apache-2.0',
-    options={
-        'build_scripts': {
-            'executable': '/usr/bin/env python3',
-        },
-    },
     scripts=[
         'scripts/collection_coordinator_node',
         'scripts/collection_stats',

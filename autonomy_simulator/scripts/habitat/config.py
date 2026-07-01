@@ -64,6 +64,10 @@ class Config:
     semantic_topic: str = 'camera/semantic/image_raw'
 
     semantic_ply_path: str = ''  # Empty: use {scene_dir}/{scene_id}_semantic.ply.
+    kujiale_auto_convert: bool = True  # Build pointcloud.ply from scene .navmesh when needed.
+    kujiale_force_convert: bool = False  # Always overwrite pointcloud.ply on startup.
+    kujiale_reference_ply: str = ''  # Optional kujiale ref for /map stats logging.
+    kujiale_map_connect_close_cells: int = 0  # 0 = no morphological close on free space.
     semantic_pointcloud_topic: str = 'semantic_pointcloud'
     semantic_pointcloud_frame: str = 'map'
     semantic_pointcloud_downsample: int = 1
@@ -73,7 +77,7 @@ class Config:
     occupancy_grid_frame: str = 'map'
     occupancy_grid_resolution: float = 0.05
     occupancy_grid_z_min: float = 0.0  # PLY Z-up floor slice (m).
-    occupancy_grid_z_max: float = 0.5
+    occupancy_grid_z_max: float = 0.55
     occupancy_grid_downsample: int = 1
     occupancy_grid_rate_hz: float = 1.0  # 0 = latched once; <0 = disabled.
 

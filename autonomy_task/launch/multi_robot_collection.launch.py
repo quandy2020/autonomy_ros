@@ -25,10 +25,24 @@ from launch.actions import (
 )
 
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+from autonomy_task.launch_utils import collection_coordinator_node
+
+
+def _lerobot_bridge_node(**kwargs) -> Node:
+    """Start LeRobot bridge via python3 -m (avoids stale/broken ament scripts in install)."""
+    return Node(
+        executable=FindExecutable(name='python3'),
+        arguments=['-m', 'autonomy_lerobot.node'],
+        respawn=True,
+        respawn_delay=3.0,
+        **kwargs,
+    )
+
+from autonomy_lerobot.collection_params import jdrobot_collection_parameters
 from autonomy_lerobot.data_paths import collection_repo_id, default_mp3d_scene, lerobot_collection_root
 from autonomy_lerobot.repo_id import per_robot_repo_id
 
@@ -123,6 +137,10 @@ def _launch_phased_stack(context, *args, **kwargs):
     ]
 
     lerobot_stagger = float(LaunchConfiguration('lerobot_stagger_sec').perform(context))
+    last_lerobot = phases['lerobot_delay'] + max(0, num_robots - 1) * lerobot_stagger
+    coordinator_delay = max(phases['last_nav2'] + nav_ready_sec, last_lerobot + 15.0)
+    phases['coordinator_delay'] = coordinator_delay
+
     lerobot_nodes = []
     if recording_enabled:
         for index in range(1, num_robots + 1):
@@ -131,20 +149,18 @@ def _launch_phased_stack(context, *args, **kwargs):
                 TimerAction(
                     period=phases['lerobot_delay'] + (index - 1) * lerobot_stagger,
                     actions=[
-                        Node(
-                            package='autonomy_lerobot',
-                            executable='lerobot_bridge_node',
+                        _lerobot_bridge_node(
                             name='lerobot_bridge_node',
                             namespace=name,
                             output='screen',
                             parameters=[
                                 lerobot_config,
-                                {
-                                    'dataset_root': f'{dataset_root}/{name}',
-                                    'dataset_repo_id': per_robot_repo_id(
+                                jdrobot_collection_parameters(
+                                    dataset_root=f'{dataset_root}/{name}',
+                                    dataset_repo_id=per_robot_repo_id(
                                         dataset_repo_id, name),
-                                    'overwrite_dataset': clean_datasets,
-                                },
+                                    overwrite_dataset=clean_datasets,
+                                ),
                             ],
                         ),
                     ],
@@ -159,9 +175,7 @@ def _launch_phased_stack(context, *args, **kwargs):
         + max(90.0, (num_robots - 1) * nav2_stagger + 60.0)
     )
     coordinator_nodes = [
-        Node(
-            package='autonomy_task',
-            executable='collection_coordinator_node',
+        collection_coordinator_node(
             name='collection_coordinator',
             output='screen',
             parameters=[{
@@ -263,8 +277,8 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('recording_enabled', default_value='true'),
         DeclareLaunchArgument(
             'clean_datasets_on_start',
-            default_value='false',
-            description='When true, remove per-robot dataset dirs before LeRobot bridge starts',
+            default_value='true',
+            description='When true, remove per-robot dataset dirs before LeRobot bridge starts (required when switching to jdrobot/kujiale schema)',
         ),
         DeclareLaunchArgument(
             'lerobot_config',
