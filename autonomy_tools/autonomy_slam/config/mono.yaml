@@ -9,7 +9,7 @@ run_slam:
     publish_keyframes: true
     publish_tracking_image: true
     publish_map_points: true
-    publish_feature_matches: true
+    publish_frame_match_image: true
     map_points_skip: 2
     odom2d: false
     transform_tolerance: 0.1

@@ -171,9 +171,10 @@ system::system(const std::shared_ptr<atlas::system>& slam,
       tracking_image_pub_(node_->create_publisher<sensor_msgs::msg::Image>("~/tracking_image", kVizQosDepth)),
       map_points_pub_(node_->create_publisher<sensor_msgs::msg::PointCloud2>("~/map_points", kVizQosDepth)),
       local_map_points_pub_(node_->create_publisher<sensor_msgs::msg::PointCloud2>("~/local_map_points", kVizQosDepth)),
-      feature_match_marker_pub_(node_->create_publisher<visualization_msgs::msg::Marker>("~/feature_matches", kVizQosDepth)),
+      frame_match_image_pub_(node_->create_publisher<sensor_msgs::msg::Image>("~/frame_match_image", kVizQosDepth)),
       keyframe_frustums_pub_(node_->create_publisher<visualization_msgs::msg::MarkerArray>("~/keyframe_frustums", kVizQosDepth)),
       pose_graph_pub_(node_->create_publisher<visualization_msgs::msg::Marker>("~/pose_graph", kVizQosDepth)),
+      loop_edges_pub_(node_->create_publisher<visualization_msgs::msg::Marker>("~/loop_edges", kVizQosDepth)),
       current_camera_frustum_pub_(node_->create_publisher<visualization_msgs::msg::Marker>("~/current_camera_frustum", kVizQosDepth)),
       frame_processed_pub_(node_->create_publisher<std_msgs::msg::Empty>(
           "~/frame_processed", rclcpp::QoS(10).reliable())),
@@ -397,14 +398,62 @@ void system::publish_pose_graph(const rclcpp::Time& stamp) {
         for (const auto& child : keyfrm->graph_node_->get_spanning_children()) {
             add_edge(keyfrm, child);
         }
-        for (const auto& loop_kf : keyfrm->graph_node_->get_loop_edges()) {
-            add_edge(keyfrm, loop_kf);
-        }
     }
 
     if (!marker.points.empty()) {
         pose_graph_pub_->publish(marker);
     }
+}
+
+void system::publish_loop_edges(const rclcpp::Time& stamp) {
+    if (!publish_keyframes_ || !publish_loop_edges_) {
+        return;
+    }
+    std::vector<std::shared_ptr<atlas::data::keyframe>> all_keyfrms;
+    if (slam_->get_map_publisher()->get_keyframes(all_keyfrms) == 0) {
+        return;
+    }
+
+    std::map<std::pair<unsigned int, unsigned int>, bool> drawn_edges;
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = stamp;
+    marker.header.frame_id = map_frame_;
+    marker.ns = "loop_edges";
+    marker.id = 0;
+    marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.02;
+    marker.color.r = 1.0f;
+    marker.color.g = 0.85f;
+    marker.color.b = 0.0f;
+    marker.color.a = 0.95f;
+
+    const auto add_loop_edge = [&](const std::shared_ptr<atlas::data::keyframe>& a,
+                                   const std::shared_ptr<atlas::data::keyframe>& b) {
+        if (!a || !b || a->id_ == b->id_) {
+            return;
+        }
+        const auto edge = std::minmax(a->id_, b->id_);
+        if (drawn_edges.count(edge) > 0) {
+            return;
+        }
+        drawn_edges[edge] = true;
+        const Eigen::Vector3d pa = cam_pose_wc_to_ros(a->get_pose_wc(), rot_ros_to_cv_map_frame_).translation();
+        const Eigen::Vector3d pb = cam_pose_wc_to_ros(b->get_pose_wc(), rot_ros_to_cv_map_frame_).translation();
+        append_graph_edge(marker.points, pa, pb);
+    };
+
+    for (const auto& keyfrm : all_keyfrms) {
+        if (!keyfrm || keyfrm->will_be_erased() || !keyfrm->graph_node_) {
+            continue;
+        }
+        for (const auto& loop_kf : keyfrm->graph_node_->get_loop_edges()) {
+            add_loop_edge(keyfrm, loop_kf);
+        }
+    }
+
+    loop_edges_pub_->publish(marker);
 }
 
 void system::publish_current_camera_frustum(const rclcpp::Time& stamp, const Eigen::Matrix4d& cam_pose_wc) {
@@ -537,63 +586,41 @@ void system::publish_map_points(const rclcpp::Time& stamp) {
     }
 }
 
-void system::publish_feature_matches(const rclcpp::Time& stamp, const Eigen::Matrix4d& cam_pose_wc) {
-    if (!publish_feature_matches_) {
+void system::publish_frame_match_image(const rclcpp::Time& stamp) {
+    if (!publish_frame_match_image_) {
         return;
     }
     const auto frame_publisher = slam_->get_frame_publisher();
     if (!frame_publisher) {
         return;
     }
-    const auto keypoints_landmarks = frame_publisher->get_keypoints_and_landmarks();
-    const auto& landmarks = keypoints_landmarks.second;
-
-    const Eigen::Affine3d cam_to_world_ros = cam_pose_wc_to_ros(cam_pose_wc, rot_ros_to_cv_map_frame_);
-    const Eigen::Vector3d cam_pos_ros = cam_to_world_ros.translation();
-
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = stamp;
-    marker.header.frame_id = map_frame_;
-    marker.ns = "feature_matches";
-    marker.id = 0;
-    marker.type = visualization_msgs::msg::Marker::LINE_LIST;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.02;
-    marker.color.r = 0.1f;
-    marker.color.g = 1.0f;
-    marker.color.b = 0.2f;
-    marker.color.a = 0.6f;
-    marker.points.reserve(landmarks.size() * 2);
-
-    for (const auto& lm : landmarks) {
-        if (!lm || lm->will_be_erased()) {
-            continue;
-        }
-        const auto pos_ros = cv_map_point_to_ros(rot_ros_to_cv_map_frame_, lm->get_pos_in_world());
-        geometry_msgs::msg::Point p_cam;
-        p_cam.x = cam_pos_ros.x();
-        p_cam.y = cam_pos_ros.y();
-        p_cam.z = cam_pos_ros.z();
-        geometry_msgs::msg::Point p_lm;
-        p_lm.x = pos_ros.x();
-        p_lm.y = pos_ros.y();
-        p_lm.z = pos_ros.z();
-        marker.points.push_back(p_cam);
-        marker.points.push_back(p_lm);
+    cv::Mat img = frame_publisher->draw_frame_matches();
+    if (img.empty()) {
+        return;
     }
-    if (!marker.points.empty()) {
-        feature_match_marker_pub_->publish(marker);
+    if (!img.isContinuous()) {
+        img = img.clone();
     }
+
+    sensor_msgs::msg::Image msg;
+    msg.header.stamp = stamp;
+    msg.header.frame_id = camera_frame_;
+    msg.height = static_cast<uint32_t>(img.rows);
+    msg.width = static_cast<uint32_t>(img.cols);
+    msg.encoding = sensor_msgs::image_encodings::BGR8;
+    msg.is_bigendian = false;
+    msg.step = static_cast<uint32_t>(img.cols * img.elemSize());
+    msg.data.resize(msg.step * msg.height);
+    std::memcpy(msg.data.data(), img.data, msg.data.size());
+    frame_match_image_pub_->publish(msg);
 }
 
 void system::publish_slam_visualizations(const rclcpp::Time& stamp,
                                          const std::shared_ptr<Eigen::Matrix4d>& cam_pose_wc) {
     publish_tracking_image(stamp);
     publish_map_points(stamp);
-    if (cam_pose_wc) {
-        publish_feature_matches(stamp, *cam_pose_wc);
-    }
+    publish_frame_match_image(stamp);
+    (void)cam_pose_wc;
 }
 
 bool system::publish_keyframes_if_changed(const rclcpp::Time& stamp) {
@@ -624,6 +651,7 @@ void system::finish_frame_visualization(const rclcpp::Time& stamp,
     }
     else {
         publish_keyframes_if_changed(stamp);
+        publish_loop_edges(stamp);
         publish_slam_visualizations(stamp, cam_pose_wc);
     }
     notify_frame_processed();
@@ -642,6 +670,7 @@ void system::on_visualization_timer() {
         pending_viz_ = false;
     }
     publish_keyframes_if_changed(stamp);
+    publish_loop_edges(stamp);
     publish_slam_visualizations(stamp, cam_pose_wc);
 }
 
@@ -676,11 +705,15 @@ void system::setParams() {
     publish_local_map_points_ = false;
     publish_local_map_points_ = node_->declare_parameter("publish_local_map_points", publish_local_map_points_);
 
-    publish_feature_matches_ = true;
-    publish_feature_matches_ = node_->declare_parameter("publish_feature_matches", publish_feature_matches_);
+    publish_frame_match_image_ = true;
+    publish_frame_match_image_ =
+        node_->declare_parameter("publish_frame_match_image", publish_frame_match_image_);
 
     publish_pose_graph_ = true;
     publish_pose_graph_ = node_->declare_parameter("publish_pose_graph", publish_pose_graph_);
+
+    publish_loop_edges_ = true;
+    publish_loop_edges_ = node_->declare_parameter("publish_loop_edges", publish_loop_edges_);
 
     map_points_skip_ = 1;
     map_points_skip_ = node_->declare_parameter("map_points_skip", map_points_skip_);

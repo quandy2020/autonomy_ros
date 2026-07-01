@@ -78,7 +78,8 @@ def _configure(context, *args, **kwargs):
             pkg_share, 'config', 'aist_mono.yaml')
         realtime = LaunchConfiguration('realtime').perform(context)
         if realtime == '':
-            realtime = 'false'
+            realtime = 'true'
+        fps = float(LaunchConfiguration('fps').perform(context))
 
         video_node = Node(
             package='autonomy_slam',
@@ -89,7 +90,8 @@ def _configure(context, *args, **kwargs):
                 'video_path': video_path,
                 'topic': image_topic,
                 'frame_id': 'camera_frame',
-                'fps': float(LaunchConfiguration('fps').perform(context)),
+                'fps': fps,
+                'publish_rate_hz': fps,
                 'frame_skip': int(frame_skip),
                 'realtime': realtime == 'true',
                 'loop': LaunchConfiguration('loop').perform(context) == 'true',
@@ -165,8 +167,8 @@ def generate_launch_description():
             'launch_rviz', default_value='true',
             description='true: video_publisher + run_slam + rviz2; false: run_video_slam CLI'),
         DeclareLaunchArgument(
-            'realtime', default_value='',
-            description='Video publish rate when launch_rviz:=true (default: false, process every frame)'),
+            'realtime', default_value='true',
+            description='Pace video at publish_rate_hz (default: true, 30 Hz)'),
         DeclareLaunchArgument('loop', default_value='false'),
         DeclareLaunchArgument(
             'no_sleep', default_value='true',
