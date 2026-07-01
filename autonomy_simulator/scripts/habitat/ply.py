@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any
 
 import numpy as np
@@ -36,6 +37,58 @@ from sensor_msgs.msg import PointCloud2, PointField
 from habitat.config import Config
 
 
+def _kujiale_module_dirs() -> list[str]:
+    """Directories that may contain semantic_ply_to_kujiale.py (install or source)."""
+    dirs: list[str] = []
+    here = os.path.abspath(__file__)
+    # .../lib/autonomy_simulator/habitat/ply.py or .../scripts/habitat/ply.py
+    pkg_root = os.path.dirname(os.path.dirname(here))
+    dirs.append(pkg_root)
+    try:
+        from ament_index_python.packages import get_package_prefix
+
+        prefix = get_package_prefix('autonomy_simulator')
+        dirs.append(os.path.join(prefix, 'lib', 'autonomy_simulator'))
+        # colcon symlink-install: module lives in workspace source, not install/.
+        ws = os.path.abspath(os.path.join(prefix, '..', '..'))
+        src_scripts = os.path.join(
+            ws, 'src', 'autonomy_ros', 'autonomy_simulator', 'scripts')
+        if os.path.isfile(os.path.join(src_scripts, 'semantic_ply_to_kujiale.py')):
+            dirs.append(src_scripts)
+    except Exception:
+        pass
+    # colcon source tree: autonomy_simulator/scripts/
+    for base in (pkg_root, os.path.dirname(pkg_root), os.path.dirname(os.path.dirname(here))):
+        scripts = os.path.join(base, 'scripts')
+        if os.path.isfile(os.path.join(scripts, 'semantic_ply_to_kujiale.py')):
+            dirs.append(scripts)
+    seen: set[str] = set()
+    out: list[str] = []
+    for d in dirs:
+        d = os.path.abspath(d)
+        if d not in seen:
+            seen.add(d)
+            out.append(d)
+    return out
+
+
+def _import_kujiale_converter():
+    last_error: Exception | None = None
+    for scripts in _kujiale_module_dirs():
+        if scripts not in sys.path:
+            sys.path.insert(0, scripts)
+        try:
+            import semantic_ply_to_kujiale as kujiale  # noqa: WPS433
+
+            return kujiale
+        except ImportError as exc:
+            last_error = exc
+    raise ImportError(
+        'semantic_ply_to_kujiale not found; rebuild autonomy_simulator '
+        f'({last_error})',
+    )
+
+
 def _ply_to_map(xyz: np.ndarray) -> np.ndarray:
     # MP3D semantic PLY: (x, y, z) = (Habitat X, Habitat Z, height); map y = -Habitat Z = ply y.
     return np.column_stack([xyz[:, 0], xyz[:, 1], xyz[:, 2]]).astype(np.float32)
@@ -50,9 +103,10 @@ class PlyPublisher:
         self._msgs: dict[str, object | None] = {'cloud': None, 'map': None}
         self._pubs: dict[str, object | None] = {'cloud': None, 'map': None}
 
+        self._ensure_kujiale_pointcloud()
         path = self._path()
         if not os.path.isfile(path):
-            self._logger.error(f'Semantic PLY not found: {path}')
+            self._logger.error(f'Point cloud PLY not found: {path}')
             return
 
         xyz, rgb = self._read(path)
@@ -61,6 +115,55 @@ class PlyPublisher:
             self._init_cloud(node, xyz, rgb, path)
         if cfg.occupancy_grid_rate_hz >= 0.0:
             self._init_map(node, xyz, path)
+
+    def _ensure_kujiale_pointcloud(self) -> None:
+        cfg = self._cfg
+        if cfg.semantic_ply_path or not cfg.kujiale_auto_convert:
+            return
+        try:
+            kujiale = _import_kujiale_converter()
+        except ImportError as exc:
+            self._logger.warning(f'Kujiale converter unavailable: {exc}')
+            return
+        scene_dir = cfg.scene_dir()
+        ref = str(cfg.kujiale_reference_ply).strip() or None
+        style = kujiale.KujialeStyleConfig(
+            map_resolution=float(cfg.occupancy_grid_resolution),
+            map_connect_close_cells=int(cfg.kujiale_map_connect_close_cells),
+            z_wall_ext_max=float(cfg.occupancy_grid_z_max),
+        )
+        try:
+            out, info = kujiale.ensure_scene_pointcloud(
+                scene_dir,
+                scene_id=cfg.scene_id,
+                reference_ply=ref,
+                force=bool(cfg.kujiale_force_convert),
+                cfg=style,
+            )
+        except Exception as exc:
+            self._logger.error(f'Kujiale pointcloud conversion failed: {exc}')
+            return
+        status = info.get('status')
+        if status == 'navmesh_missing':
+            self._logger.warning(f'Navmesh missing in {scene_dir}; skip pointcloud build')
+            return
+        if status in ('generated', 'overwritten'):
+            map_info = info.get('map', {})
+            msg = (
+                f"Kujiale pointcloud {status}: {info.get('points')} points "
+                f"(floor={info.get('layers', {}).get('floor')}, "
+                f"map_free={map_info.get('map_free_cells')}, "
+                f"map_largest={map_info.get('map_largest_component')})"
+            )
+            ref_map = info.get('reference_map')
+            if ref_map:
+                msg += (
+                    f" [ref map_free={ref_map.get('map_free_cells')}, "
+                    f"largest={ref_map.get('map_largest_component')}]"
+                )
+            self._logger.info(msg)
+        elif out is not None:
+            self._logger.debug(f'Using cached kujiale pointcloud: {out}')
 
     def publish_cloud(self, stamp: rclpy.time.Time) -> None:
         self._send('cloud', stamp)
@@ -72,13 +175,42 @@ class PlyPublisher:
         cfg = self._cfg
         if cfg.semantic_ply_path:
             return cfg.semantic_ply_path
-        return os.path.join(cfg.scene_dir(), f'{cfg.scene_id}_semantic.ply')
+        return os.path.join(cfg.scene_dir(), 'pointcloud.ply')
+
+    @staticmethod
+    def _vertex_dtype(header_lines: list[str]) -> np.dtype:
+        """Build vertex dtype from PLY header (MP3D float32 or kujiale float64)."""
+        props: list[tuple[str, str]] = []
+        in_vertex = False
+        for line in header_lines:
+            if line.startswith('element vertex'):
+                in_vertex = True
+                continue
+            if in_vertex and line.startswith('element '):
+                break
+            if not in_vertex or not line.startswith('property '):
+                continue
+            parts = line.split()
+            if len(parts) < 3:
+                continue
+            ptype, pname = parts[1], parts[2]
+            if ptype == 'float':
+                props.append((pname, '<f4'))
+            elif ptype == 'double':
+                props.append((pname, '<f8'))
+            elif ptype == 'uchar':
+                props.append((pname, 'u1'))
+        if not props:
+            raise ValueError('PLY header has no vertex properties')
+        return np.dtype(props)
 
     def _read(self, path: str) -> tuple[np.ndarray, np.ndarray]:
         with open(path, 'rb') as f:
+            header_lines: list[str] = []
             count = 0
             while True:
                 line = f.readline().decode('ascii').strip()
+                header_lines.append(line)
                 if line.startswith('element vertex'):
                     count = int(line.split()[-1])
                 if line == 'end_header':
@@ -86,12 +218,7 @@ class PlyPublisher:
             if count == 0:
                 raise ValueError(f'No vertices found in PLY: {path}')
 
-            # MP3D semantic PLY: float32 xyz + uint8 rgb per vertex.
-            dtype = np.dtype([
-                ('x', '<f4'), ('y', '<f4'), ('z', '<f4'),
-                ('red', 'u1'), ('green', 'u1'), ('blue', 'u1'),
-            ])
-            verts = np.fromfile(f, dtype=dtype, count=count)
+            verts = np.fromfile(f, dtype=self._vertex_dtype(header_lines), count=count)
 
         xyz = np.column_stack([verts['x'], verts['y'], verts['z']]).astype(np.float32)
         rgb = np.column_stack([verts['red'], verts['green'], verts['blue']]).astype(np.uint8)
@@ -154,22 +281,68 @@ class PlyPublisher:
         z_max = cfg.occupancy_grid_z_max
         res = cfg.occupancy_grid_resolution
 
+        try:
+            kujiale = _import_kujiale_converter()
+            navmesh = os.path.join(
+                cfg.scene_dir(), f'{cfg.scene_id}.navmesh')
+            if os.path.isfile(navmesh):
+                occ_grid = kujiale.load_occupancy_from_navmesh(
+                    navmesh, map_resolution=float(res))
+                cells, ox, oy = kujiale.occupancy_grid_to_ros(occ_grid)
+            else:
+                cells, ox, oy = kujiale.occupancy_grid_from_xyz(
+                    xyz.astype(np.float64),
+                    resolution=float(res),
+                    z_min=float(z_min),
+                    z_max=float(z_max),
+                )
+        except ImportError:
+            return self._grid_legacy(xyz, z_min, z_max, res)
+
+        h, w = cells.shape
+        grid = OccupancyGrid()
+        grid.header.frame_id = cfg.occupancy_grid_frame
+        grid.info.resolution = float(res)
+        grid.info.width = w
+        grid.info.height = h
+        grid.info.origin.position.x = ox
+        grid.info.origin.position.y = oy
+        grid.info.origin.orientation.w = 1.0
+        grid.data = cells.reshape(-1).tolist()
+        return grid
+
+    def _grid_legacy(
+        self,
+        xyz: np.ndarray,
+        z_min: float,
+        z_max: float,
+        res: float,
+    ) -> OccupancyGrid:
+        cfg = self._cfg
         # Points are in map frame; column 2 is height (PLY Z-up).
         mask = (xyz[:, 2] >= z_min) & (xyz[:, 2] <= z_max)
         pts = xyz[mask]
         if pts.shape[0] == 0:
             raise ValueError(f'No points in z range [{z_min}, {z_max}] for occupancy grid')
 
-        ox = float(pts[:, 0].min())
-        oy = float(pts[:, 1].min())
+        floor_pts = pts[pts[:, 2] <= 1e-6]
+        ref = floor_pts if floor_pts.size else pts
+        ox = float(ref[:, 0].min() - 0.5 * res)
+        oy = float(ref[:, 1].min() - 0.5 * res)
         w = max(1, int(np.ceil((pts[:, 0].max() - ox) / res)))
         h = max(1, int(np.ceil((pts[:, 1].max() - oy) / res)))
 
         gx = np.clip(((pts[:, 0] - ox) / res).astype(np.int32), 0, w - 1)
         gy = np.clip(((pts[:, 1] - oy) / res).astype(np.int32), 0, h - 1)
-        # ROS map: 0=free (white), 100=occupied (black), -1=unknown (gray).
-        cells = np.zeros(w * h, dtype=np.int8)
-        cells[np.unique(gy * w + gx)] = 100
+        flat = gy * w + gx
+        cells = np.full(w * h, -1, dtype=np.int8)
+        for idx, z in zip(flat, pts[:, 2]):
+            if z >= 0.1 - 1e-6:
+                cells[idx] = 100
+        for idx, z in zip(flat, pts[:, 2]):
+            if z <= 1e-6:
+                cells[idx] = 0
+        cells[cells < 0] = 100
 
         grid = OccupancyGrid()
         grid.header.frame_id = cfg.occupancy_grid_frame

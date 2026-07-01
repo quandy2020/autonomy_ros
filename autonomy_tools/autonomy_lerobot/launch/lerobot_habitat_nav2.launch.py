@@ -11,8 +11,9 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+from autonomy_lerobot.launch_utils import lerobot_bridge_node
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -51,9 +52,7 @@ def generate_launch_description() -> LaunchDescription:
         TimerAction(
             period=LaunchConfiguration('lerobot_startup_delay'),
             actions=[
-                Node(
-                    package='autonomy_lerobot',
-                    executable='lerobot_bridge_node',
+                lerobot_bridge_node(
                     output='screen',
                     parameters=[
                         LaunchConfiguration('config_file'),

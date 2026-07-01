@@ -29,14 +29,17 @@ from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from autonomy_lerobot.config import Config
 from autonomy_lerobot.conversions import (
     camera_info_to_array,
+    camera_info_to_intrinsic,
     cmd_vel_to_action,
+    depth_to_video_rgb,
     grid_info_to_array,
+    identity_extrinsic,
     image_to_numpy,
     occupancy_grid_to_array,
+    odom_to_action_matrix,
     odom_to_state,
     path_to_array,
     pointcloud_to_array,
-    pose_to_state,
 )
 
 KEY_RGB = 'observation.images.rgb'
@@ -44,6 +47,8 @@ KEY_DEPTH = 'observation.images.depth'
 KEY_SEMANTIC = 'observation.images.semantic'
 KEY_STATE = 'observation.state'
 KEY_CAMERA_INFO = 'observation.camera_info'
+KEY_CAMERA_INTRINSIC = 'observation.camera_intrinsic'
+KEY_CAMERA_EXTRINSIC = 'observation.camera_extrinsic'
 KEY_MAP = 'observation.map'
 KEY_MAP_INFO = 'observation.map_info'
 KEY_POINTCLOUD = 'observation.pointcloud'
@@ -60,10 +65,19 @@ KEY_TASK = 'task'
 
 FRAME_KEYS = (
     KEY_RGB, KEY_DEPTH, KEY_SEMANTIC, KEY_STATE, KEY_CAMERA_INFO,
+    KEY_CAMERA_INTRINSIC, KEY_CAMERA_EXTRINSIC,
     KEY_MAP, KEY_MAP_INFO, KEY_POINTCLOUD,
     KEY_GLOBAL_PLAN, KEY_GLOBAL_PLAN_LEN, KEY_LOCAL_PLAN, KEY_LOCAL_PLAN_LEN,
     KEY_GLOBAL_COSTMAP, KEY_GLOBAL_COSTMAP_INFO,
     KEY_LOCAL_COSTMAP, KEY_LOCAL_COSTMAP_INFO, KEY_ACTION,
+)
+
+JDROBOT_FRAME_KEYS = (
+    KEY_CAMERA_INTRINSIC,
+    KEY_CAMERA_EXTRINSIC,
+    KEY_ACTION,
+    KEY_RGB,
+    KEY_DEPTH,
 )
 
 
@@ -85,8 +99,28 @@ class Latest:
     global_costmap: OccupancyGrid | None = None
     local_costmap: OccupancyGrid | None = None
 
-    def ready(self) -> bool:
+    def ready(self, cfg: Config) -> bool:
+        if cfg.is_jdrobot:
+            return (
+                self.rgb is not None
+                and self.depth is not None
+                and self.camera_info is not None
+                and self.odom is not None
+            )
         return self.rgb is not None and self.odom is not None
+
+    def missing_fields(self, cfg: Config) -> list[str]:
+        missing: list[str] = []
+        if self.rgb is None:
+            missing.append('rgb')
+        if cfg.is_jdrobot:
+            if self.depth is None:
+                missing.append('depth')
+            if self.camera_info is None:
+                missing.append('camera_info')
+        if self.odom is None:
+            missing.append('odom')
+        return missing
 
     def clear(self) -> None:
         self.rgb = None
@@ -119,11 +153,7 @@ def _empty_grid(height: int, width: int) -> np.ndarray:
 _DEFAULT_LOCAL_COSTMAP_CELLS = 80
 
 
-def build_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
-    """Build one dataset frame from the latest messages."""
-    if not latest.ready():
-        raise ValueError('rgb and odom are required')
-
+def _build_habitat_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
     cmd_vel = latest.cmd_vel or Twist()
     frame: dict[str, Any] = {
         KEY_RGB: image_to_numpy(latest.rgb),
@@ -181,3 +211,26 @@ def build_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
                 dtype=np.float32,
             )
     return frame
+
+
+def _build_jdrobot_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
+    depth_m = image_to_numpy(latest.depth)
+    return {
+        KEY_CAMERA_INTRINSIC: camera_info_to_intrinsic(latest.camera_info),
+        KEY_CAMERA_EXTRINSIC: identity_extrinsic(),
+        KEY_ACTION: odom_to_action_matrix(latest.odom),
+        KEY_RGB: image_to_numpy(latest.rgb),
+        KEY_DEPTH: depth_to_video_rgb(depth_m, cfg.depth_min_m, cfg.depth_max_m),
+        KEY_TASK: cfg.task,
+    }
+
+
+def build_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
+    """Build one dataset frame from the latest messages."""
+    if not latest.ready(cfg):
+        missing = ', '.join(latest.missing_fields(cfg))
+        raise ValueError(f'required sensors missing: {missing}')
+
+    if cfg.is_jdrobot:
+        return _build_jdrobot_frame(latest, cfg)
+    return _build_habitat_frame(latest, cfg)

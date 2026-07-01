@@ -53,28 +53,24 @@ class BridgeNode(Node):
     def __init__(self) -> None:
         super().__init__('lerobot_bridge_node')
         self._cfg = load(self)
+        if (
+            self._cfg.dataset_repo_id.startswith('local/habitat_collection')
+            and not self._cfg.is_jdrobot
+        ):
+            raise RuntimeError(
+                'dataset_repo_id=local/habitat_collection requires dataset_format=jdrobot; '
+                'parameters from lerobot_collection.yaml were not applied '
+                '(namespaced nodes need /** in YAML or jdrobot_collection_parameters() in launch)')
         self._latest = Latest()
         self._recording = False
         self._record_fatal: str | None = None
         self._wait_ticks = 0
+        self._recorder: DatasetRecorder | None = None
         self._subscribe_all(self._cfg)
         self._tf_pose = MapBaseTransform(
             self, map_frame=self._cfg.map_frame, base_frame=self._cfg.base_frame)
         self._set_pose_pub = self.create_publisher(
             PoseStamped, self._cfg.set_agent_pose_topic, 10)
-
-        self._recorder = DatasetRecorder(
-            repo_id=self._cfg.dataset_repo_id,
-            fps=self._cfg.record_fps,
-            root=self._cfg.dataset_root,
-            logger=self.get_logger(),
-            video_vcodec=self._cfg.video_vcodec,
-            streaming_encoding=self._cfg.streaming_encoding,
-            parallel_video_encoding=self._cfg.parallel_video_encoding,
-            overwrite_dataset=self._cfg.overwrite_dataset,
-        )
-        if self._cfg.record_fps > 0.0:
-            self.create_timer(1.0 / self._cfg.record_fps, self._on_record_tick)
 
         service_cb = ReentrantCallbackGroup()
         self.create_service(
@@ -86,13 +82,43 @@ class BridgeNode(Node):
         self.create_service(
             Trigger, '~/reset_robot', self._on_reset_robot,
             callback_group=service_cb)
+
+        try:
+            self._recorder = DatasetRecorder(
+                repo_id=self._cfg.dataset_repo_id,
+                fps=self._cfg.record_fps,
+                root=self._cfg.dataset_root,
+                logger=self.get_logger(),
+                robot_type=self._cfg.effective_robot_type,
+                dataset_format=self._cfg.dataset_format,
+                video_vcodec=self._cfg.video_vcodec,
+                streaming_encoding=self._cfg.streaming_encoding,
+                parallel_video_encoding=self._cfg.parallel_video_encoding,
+                overwrite_dataset=self._cfg.overwrite_dataset,
+            )
+        except Exception as exc:
+            self._record_fatal = str(exc)
+            self.get_logger().error(f'recorder init failed: {exc}')
+        if self._cfg.record_fps > 0.0:
+            self.create_timer(1.0 / self._cfg.record_fps, self._on_record_tick)
         self.get_logger().info(
-            f'[lerobot] recording at {self._cfg.record_fps:.1f} Hz -> {self._cfg.dataset_repo_id}')
+            f'[lerobot] format={self._cfg.dataset_format} '
+            f'robot_type={self._cfg.effective_robot_type} '
+            f'fps={self._cfg.record_fps} vcodec={self._cfg.video_vcodec} '
+            f'record_nav2={self._cfg.record_nav2} record_semantic={self._cfg.record_semantic} '
+            f'-> {self._cfg.dataset_repo_id}')
 
     def _subscribe_all(self, cfg: Config) -> None:
         qos = qos_profile_sensor_data
         self.create_subscription(Image, cfg.rgb_topic, self._on_rgb, qos)
         self.create_subscription(Odometry, cfg.odom_topic, self._on_odom, 10)
+
+        if cfg.is_jdrobot:
+            self.create_subscription(Image, cfg.depth_topic, self._on_depth, qos)
+            self.create_subscription(
+                CameraInfo, cfg.camera_info_topic, self._on_camera_info, qos)
+            return
+
         self.create_subscription(PoseStamped, cfg.agent_pose_topic, self._on_agent_pose, 10)
         self.create_subscription(Twist, cfg.cmd_vel_topic, self._on_cmd_vel, 10)
         self._cmd_vel_pub = self.create_publisher(Twist, cfg.cmd_vel_topic, 10)
@@ -163,7 +189,14 @@ class BridgeNode(Node):
     def _on_local_costmap(self, msg: OccupancyGrid) -> None:
         self._latest.local_costmap = msg
 
+    def _buffered_frames(self) -> int:
+        return self._recorder.buffered_frames if self._recorder is not None else 0
+
     def _on_set_recording(self, request: SetBool.Request, response: SetBool.Response):
+        if self._recorder is None:
+            response.success = False
+            response.message = self._record_fatal or 'recorder not initialized'
+            return response
         if self._recording and not request.data:
             saved = self._recorder.save_episode()
             if saved.startswith('save failed'):
@@ -180,7 +213,7 @@ class BridgeNode(Node):
             if self._recording:
                 response.success = True
                 response.message = (
-                    f'already recording (buffered={self._recorder.buffered_frames})')
+                    f'already recording (buffered={self._buffered_frames()})')
                 return response
             self._record_fatal = None
             try:
@@ -194,12 +227,16 @@ class BridgeNode(Node):
         self._recording = request.data
         state = 'started' if self._recording else 'stopped'
         self.get_logger().info(
-            f'recording {state} (buffered={self._recorder.buffered_frames})')
+            f'recording {state} (buffered={self._buffered_frames()})')
         response.success = True
         response.message = f'recording {state}'
         return response
 
     def _on_save_episode(self, _request: Trigger.Request, response: Trigger.Response):
+        if self._recorder is None:
+            response.success = False
+            response.message = self._record_fatal or 'recorder not initialized'
+            return response
         response.success = True
         response.message = f'saved episode to {self._recorder.save_episode()}'
         self.get_logger().info(response.message)
@@ -217,14 +254,15 @@ class BridgeNode(Node):
 
     def _reset_robot_state(self) -> tuple[bool, str]:
         """Resync habitat agent pose / TF and clear LeRobot frame cache."""
-        if self._recording:
+        if self._recording and self._recorder is not None:
             saved = self._recorder.save_episode()
             if saved.startswith('save failed'):
                 self.get_logger().error(f'reset: recording save failed: {saved}')
             self._recording = False
 
         zero = Twist()
-        self._cmd_vel_pub.publish(zero)
+        if hasattr(self, '_cmd_vel_pub'):
+            self._cmd_vel_pub.publish(zero)
         self._latest.cmd_vel = zero
 
         pose = self._tf_pose.lookup_pose()
@@ -238,7 +276,8 @@ class BridgeNode(Node):
         self._record_fatal = None
         self._wait_ticks = 0
         try:
-            self._recorder.prepare_for_recording()
+            if self._recorder is not None:
+                self._recorder.prepare_for_recording()
         except Exception as exc:
             return False, f'recorder reset failed: {exc}'
         return True, (
@@ -250,19 +289,17 @@ class BridgeNode(Node):
         if not self._recording:
             self._wait_ticks = 0
             return
-        if not self._latest.ready():
+        if not self._latest.ready(self._cfg):
             self._wait_ticks += 1
             if self._wait_ticks == 1 or self._wait_ticks % 50 == 0:
-                missing = []
-                if self._latest.rgb is None:
-                    missing.append('rgb')
-                if self._latest.odom is None:
-                    missing.append('odom')
+                missing = self._latest.missing_fields(self._cfg)
                 self.get_logger().warning(
                     f'recording but no frames yet (missing {", ".join(missing)})')
             return
         self._wait_ticks = 0
         if self._record_fatal is not None:
+            return
+        if self._recorder is None:
             return
         try:
             self._recorder.add_frame(build_frame(self._latest, self._cfg))
@@ -272,7 +309,8 @@ class BridgeNode(Node):
             self._record_fatal = str(exc)
             self.get_logger().error(f'recording disabled: {exc}')
             self._recording = False
-            self._recorder.prepare_for_recording()
+            if self._recorder is not None:
+                self._recorder.prepare_for_recording()
 
     def get_observation(self) -> dict:
         """Return the latest observation for policy inference."""
@@ -299,7 +337,8 @@ class BridgeNode(Node):
         self._cmd_vel_pub.publish(twist)
 
     def destroy_node(self) -> bool:
-        self._recorder.finalize()
+        if self._recorder is not None:
+            self._recorder.finalize()
         return super().destroy_node()
 
 
@@ -317,3 +356,7 @@ def main(args=None) -> None:
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

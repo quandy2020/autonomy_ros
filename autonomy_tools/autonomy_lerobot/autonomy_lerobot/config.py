@@ -19,9 +19,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from autonomy_lerobot.data_paths import lerobot_root
 from autonomy_lerobot.repo_id import sanitize_repo_id
+
+if TYPE_CHECKING:
+    from rclpy.node import Node
+
+DATASET_FORMAT_HABITAT = 'habitat_nav2'
+DATASET_FORMAT_JDROBOT = 'jdrobot'
 
 
 @dataclass(frozen=True)
@@ -64,6 +71,12 @@ class Config:
     record_fps: float = 10.0
     task: str = 'navigate to goal'
 
+    # Dataset schema: habitat_nav2 (navigation) or jdrobot (kujiale-compatible).
+    dataset_format: str = DATASET_FORMAT_HABITAT
+    robot_type: str = ''
+    depth_min_m: float = 0.0
+    depth_max_m: float = 10.0
+
     # LeRobot video encoding (RGB/semantic -> .mp4 under videos/).
     video_vcodec: str = 'h264'
     streaming_encoding: bool = True
@@ -79,7 +92,18 @@ class Config:
     def image_shape(self) -> tuple[int, int, int]:
         return (self.image_height, self.image_width, 3)
 
+    @property
+    def is_jdrobot(self) -> bool:
+        return self.dataset_format == DATASET_FORMAT_JDROBOT
 
+    @property
+    def effective_robot_type(self) -> str:
+        if self.robot_type.strip():
+            return self.robot_type.strip()
+        return 'jdrobot' if self.is_jdrobot else 'habitat_diffdrive'
+
+
+_FLOAT_FIELDS = frozenset({'record_fps', 'depth_min_m', 'depth_max_m'})
 _BOOL_FIELDS = frozenset({
     'use_depth', 'record_depth', 'record_semantic', 'record_map', 'record_pointcloud',
     'record_camera_info', 'record_nav2', 'overwrite_dataset',
@@ -89,7 +113,7 @@ _INT_FIELDS = frozenset({
 })
 
 
-def load(node: Node) -> Config:
+def load(node: 'Node') -> Config:
     """Declare and read bridge parameters from the ROS node."""
     fields = Config.__dataclass_fields__
     to_declare = [
@@ -105,8 +129,15 @@ def load(node: Node) -> Config:
         values[name] = bool(values[name])
     for name in _INT_FIELDS:
         values[name] = int(values[name])
-    values['record_fps'] = float(values['record_fps'])
+    for name in _FLOAT_FIELDS:
+        values[name] = float(values[name])
     values['dataset_repo_id'] = sanitize_repo_id(str(values['dataset_repo_id']))
+    values['dataset_format'] = str(values['dataset_format']).strip()
+    values['robot_type'] = str(values['robot_type']).strip()
+    if values['dataset_format'] not in (DATASET_FORMAT_HABITAT, DATASET_FORMAT_JDROBOT):
+        raise ValueError(
+            f'unsupported dataset_format={values["dataset_format"]!r}; '
+            f'use {DATASET_FORMAT_HABITAT!r} or {DATASET_FORMAT_JDROBOT!r}')
     if not str(values['dataset_root']).strip():
         values['dataset_root'] = str(lerobot_root())
     return Config(**values)

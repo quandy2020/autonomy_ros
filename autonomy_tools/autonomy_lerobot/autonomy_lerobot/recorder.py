@@ -35,17 +35,99 @@ from autonomy_lerobot.repo_id import sanitize_repo_id
 
 _LEGACY_REPO_IDS = ('local/habitat_collection', 'local/habitat_nav2')
 
+_JDROBOT_VECTOR_NAMES: dict[str, list[str]] = {
+    'observation.camera_intrinsic': [f'K_{i}' for i in range(9)],
+    'observation.camera_extrinsic': [f'E_{i}' for i in range(16)],
+    'action': [f'A_{i}' for i in range(16)],
+}
 
-def _feature_for_array(key: str, arr: np.ndarray) -> dict[str, Any]:
+_JDROBOT_DATA_FEATURE_KEYS = frozenset({
+    'observation.camera_intrinsic',
+    'observation.camera_extrinsic',
+    'action',
+    'observation.images.rgb',
+    'observation.images.depth',
+})
+
+_META_FEATURE_KEYS = frozenset({
+    'timestamp', 'frame_index', 'episode_index', 'index', 'task_index',
+})
+
+# LeRobot encoder API names (info.json may still use the config label, e.g. av1).
+_LEROBOT_ENCODER_VCODEC_ALIASES = {
+    'av1': 'libsvtav1',
+}
+
+
+def lerobot_encoder_vcodec(config_vcodec: str) -> str:
+    """Map dataset metadata codec (kujiale: av1) to LeRobot encoder name."""
+    return _LEROBOT_ENCODER_VCODEC_ALIASES.get(config_vcodec.strip().lower(), config_vcodec)
+
+
+def _jdrobot_data_feature_keys(features: dict[str, Any]) -> set[str]:
+    return set(features.keys()) - _META_FEATURE_KEYS
+
+
+def dataset_schema_matches(
+    info: dict[str, Any],
+    *,
+    dataset_format: str,
+    robot_type: str,
+    fps: int,
+    video_vcodec: str,
+) -> tuple[bool, str]:
+    """Return whether on-disk info.json matches the requested recording schema."""
+    if dataset_format == 'jdrobot':
+        if info.get('robot_type') != robot_type:
+            return False, (
+                f"robot_type={info.get('robot_type')!r} (expected {robot_type!r})")
+        if int(info.get('fps', -1)) != fps:
+            return False, f"fps={info.get('fps')} (expected {fps})"
+        features = info.get('features', {})
+        data_keys = _jdrobot_data_feature_keys(features)
+        if data_keys != _JDROBOT_DATA_FEATURE_KEYS:
+            missing = sorted(_JDROBOT_DATA_FEATURE_KEYS - data_keys)
+            extra = sorted(data_keys - _JDROBOT_DATA_FEATURE_KEYS)
+            parts = []
+            if missing:
+                parts.append(f'missing {missing}')
+            if extra:
+                parts.append(f'extra {extra}')
+            return False, 'features: ' + ', '.join(parts)
+        action = features.get('action', {})
+        if list(action.get('shape', [])) != [16]:
+            return False, f"action.shape={action.get('shape')} (expected [16])"
+        for video_key in ('observation.images.rgb', 'observation.images.depth'):
+            codec = features.get(video_key, {}).get('info', {}).get('video.codec')
+            if codec != video_vcodec:
+                return False, (
+                    f'{video_key} codec={codec!r} (expected {video_vcodec!r})')
+        return True, ''
+    if info.get('robot_type') != robot_type:
+        return False, (
+            f"robot_type={info.get('robot_type')!r} (expected {robot_type!r})")
+    return True, ''
+
+
+def _load_dataset_info(path: Path) -> dict[str, Any] | None:
+    info_path = path / 'meta' / 'info.json'
+    if not info_path.is_file():
+        return None
+    return json.loads(info_path.read_text(encoding='utf-8'))
+
+
+def _feature_for_array(key: str, arr: np.ndarray, *, dataset_format: str) -> dict[str, Any]:
     """Infer a LeRobot feature spec from a numpy array."""
     if arr.dtype == np.uint8 and arr.ndim == 3:
         h, w, c = arr.shape
         if c == 3:
-            return {
+            spec: dict[str, Any] = {
                 'dtype': 'video',
                 'shape': (h, w, c),
-                'names': ['height', 'width', 'channel'],
             }
+            if dataset_format != 'jdrobot':
+                spec['names'] = ['height', 'width', 'channel']
+            return spec
     if arr.ndim == 3 and arr.shape[2] == 1:
         return {
             'dtype': 'float32',
@@ -59,6 +141,12 @@ def _feature_for_array(key: str, arr: np.ndarray) -> dict[str, Any]:
             'names': ['height', 'width'],
         }
     if arr.ndim == 1:
+        if dataset_format == 'jdrobot' and key in _JDROBOT_VECTOR_NAMES:
+            return {
+                'dtype': 'float32',
+                'shape': (arr.shape[0],),
+                'names': _JDROBOT_VECTOR_NAMES[key],
+            }
         stem = re.sub(r'^observation\.', '', key).replace('.', '_')
         return {
             'dtype': 'float32',
@@ -72,12 +160,12 @@ def _feature_for_array(key: str, arr: np.ndarray) -> dict[str, Any]:
     }
 
 
-def _features_from_frame(frame: dict[str, Any]) -> dict[str, Any]:
+def _features_from_frame(frame: dict[str, Any], *, dataset_format: str = 'habitat_nav2') -> dict[str, Any]:
     features: dict[str, Any] = {}
     for key, value in frame.items():
         if key == KEY_TASK or not isinstance(value, np.ndarray):
             continue
-        features[key] = _feature_for_array(key, value)
+        features[key] = _feature_for_array(key, value, dataset_format=dataset_format)
     return features
 
 
@@ -104,6 +192,8 @@ class DatasetRecorder:
         root: str,
         logger,
         *,
+        robot_type: str = 'habitat_diffdrive',
+        dataset_format: str = 'habitat_nav2',
         video_vcodec: str = 'h264',
         streaming_encoding: bool = True,
         parallel_video_encoding: bool = True,
@@ -114,11 +204,14 @@ class DatasetRecorder:
         self._root = Path(root).expanduser()
         self._lerobot_root: Path | None = None
         self._logger = logger
+        self._robot_type = robot_type
+        self._dataset_format = dataset_format
         self._episode_index = 0
         self._fallback_frames: list[dict[str, Any]] = []
         self._lerobot = None
         self._lerobot_available = self._check_lerobot()
         self._video_vcodec = video_vcodec
+        self._lerobot_vcodec = lerobot_encoder_vcodec(video_vcodec)
         self._streaming_encoding = streaming_encoding
         self._parallel_video_encoding = parallel_video_encoding
         self._overwrite_dataset = overwrite_dataset
@@ -128,6 +221,35 @@ class DatasetRecorder:
             self._force_remove_dataset(self._root)
         else:
             self._discard_incomplete_dataset(self._root)
+            self._reject_schema_mismatch(self._root)
+        if self._lerobot_vcodec != self._video_vcodec:
+            self._logger.info(
+                f'video_vcodec {self._video_vcodec!r} uses lerobot encoder '
+                f'{self._lerobot_vcodec!r}')
+
+    def _sync_info_json_video_codecs(self, root: Path) -> None:
+        """Keep meta info.json video.codec aligned with kujiale labels (e.g. av1)."""
+        if self._lerobot_vcodec == self._video_vcodec:
+            return
+        info_path = root / 'meta' / 'info.json'
+        if not info_path.is_file():
+            return
+        try:
+            info = json.loads(info_path.read_text(encoding='utf-8'))
+            features = info.get('features', {})
+            changed = False
+            for spec in features.values():
+                if not isinstance(spec, dict) or spec.get('dtype') != 'video':
+                    continue
+                video_info = spec.setdefault('info', {})
+                if video_info.get('video.codec') != self._video_vcodec:
+                    video_info['video.codec'] = self._video_vcodec
+                    changed = True
+            if changed:
+                info_path.write_text(
+                    json.dumps(info, indent=4) + '\n', encoding='utf-8')
+        except Exception as exc:
+            self._logger.warning(f'could not sync video.codec in {info_path}: {exc}')
 
     @property
     def buffered_frames(self) -> int:
@@ -183,6 +305,33 @@ class DatasetRecorder:
         shutil.rmtree(path)
         self._lerobot_root = None
         self._lerobot = None
+
+    def _schema_mismatch_reason(self, path: Path) -> str | None:
+        info = _load_dataset_info(path)
+        if info is None:
+            return None
+        ok, reason = dataset_schema_matches(
+            info,
+            dataset_format=self._dataset_format,
+            robot_type=self._robot_type,
+            fps=self._fps,
+            video_vcodec=self._video_vcodec,
+        )
+        return None if ok else reason
+
+    def _reject_schema_mismatch(self, path: Path) -> None:
+        """Refuse to append when an existing dataset uses a different schema."""
+        if not self._is_complete_lerobot_dataset(path):
+            return
+        reason = self._schema_mismatch_reason(path)
+        if reason is None:
+            return
+        raise RuntimeError(
+            f'existing dataset at {path} is incompatible with '
+            f'dataset_format={self._dataset_format!r} '
+            f'robot_type={self._robot_type!r} fps={self._fps} '
+            f'vcodec={self._video_vcodec!r}: {reason}. '
+            'Delete the directory or launch with clean_datasets_on_start:=true')
 
     def _episode_indices_from_parquet(
         self, root: Path, subdir: str,
@@ -384,7 +533,7 @@ class DatasetRecorder:
             return LeRobotDataset(
                 repo_id=rid,
                 root=str(root),
-                vcodec=self._video_vcodec,
+                vcodec=self._lerobot_vcodec,
                 streaming_encoding=self._streaming_encoding,
             )
         finally:
@@ -399,6 +548,14 @@ class DatasetRecorder:
             return self._lerobot_root
         root = self._root
         if self._is_complete_lerobot_dataset(root):
+            reason = self._schema_mismatch_reason(root)
+            if reason is not None:
+                if self._overwrite_dataset:
+                    self._logger.warning(
+                        f'replacing incompatible dataset at {root}: {reason}')
+                    self._force_remove_dataset(root)
+                else:
+                    self._reject_schema_mismatch(root)
             self._lerobot_root = root
             return root
         if self._is_partial_lerobot_dataset(root):
@@ -433,10 +590,10 @@ class DatasetRecorder:
             return LeRobotDataset.create(
                 repo_id=self._repo_id,
                 fps=self._fps,
-                features=_features_from_frame(frame),
-                robot_type='habitat_diffdrive',
+                features=_features_from_frame(frame, dataset_format=self._dataset_format),
+                robot_type=self._robot_type,
                 root=str(root),
-                vcodec=self._video_vcodec,
+                vcodec=self._lerobot_vcodec,
                 streaming_encoding=self._streaming_encoding,
             )
         except FileExistsError:
@@ -451,10 +608,10 @@ class DatasetRecorder:
                 return LeRobotDataset.create(
                     repo_id=self._repo_id,
                     fps=self._fps,
-                    features=_features_from_frame(frame),
-                    robot_type='habitat_diffdrive',
+                    features=_features_from_frame(frame, dataset_format=self._dataset_format),
+                    robot_type=self._robot_type,
                     root=str(root),
-                    vcodec=self._video_vcodec,
+                    vcodec=self._lerobot_vcodec,
                     streaming_encoding=self._streaming_encoding,
                 )
             raise RuntimeError(
@@ -619,6 +776,7 @@ class DatasetRecorder:
                     self._buffered_frames = 0
                     return f'save failed: {exc}'
                 root = self._resolve_lerobot_root()
+                self._sync_info_json_video_codecs(root)
                 videos = sorted((root / 'videos').rglob('*.mp4')) if (root / 'videos').is_dir() else []
                 if videos:
                     latest = videos[-1]
@@ -663,3 +821,4 @@ class DatasetRecorder:
                 self._lerobot.finalize()
             except Exception as exc:
                 self._logger.warning(f'LeRobot finalize: {exc}')
+            self._sync_info_json_video_codecs(self._resolve_lerobot_root())

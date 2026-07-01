@@ -1,25 +1,19 @@
-# LeRobot bridge for multi-robot collection (RGB + depth + semantic).
-# Map/plan/costmap are single-channel grids; skip them to avoid PNG write errors.
-lerobot_bridge_node:
+# Multi-robot collection — jdrobot / kujiale-compatible LeRobot v3 schema.
+# Use /** so parameters apply under namespaces (/robot1/lerobot_bridge_node, …).
+# Launch files also pass autonomy_lerobot.collection_params.jdrobot_collection_parameters().
+/**:
   ros__parameters:
+    dataset_format: jdrobot
+    robot_type: jdrobot
+
     rgb_topic: camera/rgb/image_raw
     depth_topic: camera/depth/image_raw
-    semantic_topic: camera/semantic/image_raw
     camera_info_topic: camera/rgb/camera_info
     odom_topic: odom
-    agent_pose_topic: habitat/agent_pose
-    cmd_vel_topic: cmd_vel
-    map_topic: map
-    pointcloud_topic: semantic_pointcloud
-
-    global_plan_topic: plan
-    local_plan_topic: transformed_global_plan
-    global_costmap_topic: global_costmap/costmap
-    local_costmap_topic: local_costmap/costmap
 
     use_depth: true
     record_depth: true
-    record_semantic: true
+    record_semantic: false
     record_map: false
     record_pointcloud: false
     record_camera_info: true
@@ -27,17 +21,14 @@ lerobot_bridge_node:
 
     image_width: 640
     image_height: 480
-    max_path_waypoints: 512
-    max_pointcloud_points: 4096
+    depth_min_m: 0.0
+    depth_max_m: 10.0
 
     dataset_repo_id: local/habitat_collection
-    record_fps: 10.0
+    record_fps: 20.0
     task: navigate to goal
+    overwrite_dataset: false
 
-    map_frame: map
-    base_frame: base_footprint
-    set_agent_pose_topic: habitat/set_agent_pose
-
-    video_vcodec: h264
+    video_vcodec: av1
     streaming_encoding: true
     parallel_video_encoding: true

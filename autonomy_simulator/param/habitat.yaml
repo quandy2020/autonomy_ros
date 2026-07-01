@@ -31,6 +31,10 @@
     semantic_topic: "camera/semantic/image_raw"
 
     semantic_ply_path: ""
+    kujiale_auto_convert: true
+    kujiale_force_convert: false
+    kujiale_reference_ply: ""
+    kujiale_map_connect_close_cells: 0
     semantic_pointcloud_topic: "semantic_pointcloud"
     semantic_pointcloud_frame: "map"
     semantic_pointcloud_downsample: 1
@@ -39,8 +43,9 @@
     occupancy_grid_topic: "map"
     occupancy_grid_frame: "map"
     occupancy_grid_resolution: 0.05
-    occupancy_grid_z_min: 0.4
-    occupancy_grid_z_max: 0.5
+    # Kujiale pointcloud height band (see semantic_ply_to_kujiale.py).
+    occupancy_grid_z_min: 0.0
+    occupancy_grid_z_max: 0.55
     occupancy_grid_downsample: 1
     occupancy_grid_rate_hz: 0.0
 
