@@ -8,10 +8,11 @@ run_slam:
     publish_tf: true
     publish_keyframes: true
     publish_pose_graph: true
+    publish_loop_edges: true
     publish_tracking_image: true
     publish_map_points: true
     publish_local_map_points: true
-    publish_feature_matches: true
+    publish_frame_match_image: true
     publish_trajectory: true
     trajectory_keyframes_only: true
     keyframe_frustum_skip: 2

@@ -52,10 +52,11 @@ public:
     void publish_keyframes(const rclcpp::Time& stamp);
     void publish_keyframe_frustums(const rclcpp::Time& stamp);
     void publish_pose_graph(const rclcpp::Time& stamp);
+    void publish_loop_edges(const rclcpp::Time& stamp);
     void publish_current_camera_frustum(const rclcpp::Time& stamp, const Eigen::Matrix4d& cam_pose_wc);
     void publish_tracking_image(const rclcpp::Time& stamp);
     void publish_map_points(const rclcpp::Time& stamp);
-    void publish_feature_matches(const rclcpp::Time& stamp, const Eigen::Matrix4d& cam_pose_wc);
+    void publish_frame_match_image(const rclcpp::Time& stamp);
     void publish_slam_visualizations(const rclcpp::Time& stamp,
                                      const std::shared_ptr<Eigen::Matrix4d>& cam_pose_wc);
     void finish_frame_visualization(const rclcpp::Time& stamp,
@@ -77,9 +78,10 @@ public:
     std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> tracking_image_pub_;
     std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>> map_points_pub_;
     std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>> local_map_points_pub_;
-    std::shared_ptr<rclcpp::Publisher<visualization_msgs::msg::Marker>> feature_match_marker_pub_;
+    std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> frame_match_image_pub_;
     std::shared_ptr<rclcpp::Publisher<visualization_msgs::msg::MarkerArray>> keyframe_frustums_pub_;
     std::shared_ptr<rclcpp::Publisher<visualization_msgs::msg::Marker>> pose_graph_pub_;
+    std::shared_ptr<rclcpp::Publisher<visualization_msgs::msg::Marker>> loop_edges_pub_;
     std::shared_ptr<rclcpp::Publisher<visualization_msgs::msg::Marker>> current_camera_frustum_pub_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Empty>> frame_processed_pub_;
     std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>>
@@ -102,8 +104,9 @@ public:
     bool publish_tracking_image_;
     bool publish_map_points_;
     bool publish_local_map_points_;
-    bool publish_feature_matches_;
+    bool publish_frame_match_image_;
     bool publish_pose_graph_;
+    bool publish_loop_edges_;
     int map_points_skip_;
     double camera_frustum_scale_;
     double camera_frustum_aspect_;
