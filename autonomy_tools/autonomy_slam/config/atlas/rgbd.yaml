@@ -1,0 +1,41 @@
+# TUM RGB-D — atlas 相机/SLAM 配置（示例）
+
+Camera:
+  name: "RGBD"
+  setup: "RGBD"
+  model: "perspective"
+  fx: 517.306408
+  fy: 516.469215
+  cx: 318.643040
+  cy: 255.313989
+  k1: 0.262383
+  k2: -0.953104
+  p1: -0.005358
+  p2: 0.002628
+  k3: 1.163314
+  fps: 30.0
+  cols: 640
+  rows: 480
+  focal_x_baseline: 40.0
+  depth_threshold: 40.0
+  color_order: "RGB"
+
+Preprocessing:
+  min_size: 800
+  depthmap_factor: 5000.0
+
+Feature:
+  scale_factor: 1.2
+  num_levels: 8
+  ini_fast_threshold: 20
+  min_fast_threshold: 7
+
+Tracking:
+  margin_local_map_projection: 10.0
+
+Mapping:
+  baseline_dist_thr: 0.07471049682
+  redundant_obs_ratio_thr: 0.9
+
+System:
+  map_format: "msgpack"

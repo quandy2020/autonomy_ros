@@ -1,0 +1,43 @@
+# EuRoC monocular — atlas 相机/SLAM 配置（示例）
+# 请根据实际相机修改内参；或启动时通过 atlas_config 指定其他 YAML。
+
+Camera:
+  name: "monocular"
+  setup: "monocular"
+  model: "perspective"
+  fx: 458.654
+  fy: 457.296
+  cx: 367.215
+  cy: 248.375
+  k1: -0.28340811
+  k2: 0.07395907
+  p1: 0.00019359
+  p2: 1.76187114e-05
+  k3: 0.0
+  fps: 20.0
+  cols: 752
+  rows: 480
+  color_order: "Gray"
+
+Preprocessing:
+  min_size: 800
+
+Feature:
+  scale_factor: 1.2
+  num_levels: 8
+  ini_fast_threshold: 20
+  min_fast_threshold: 7
+
+Mapping:
+  backend: "g2o"
+  baseline_dist_thr_ratio: 0.02
+  redundant_obs_ratio_thr: 0.9
+
+Tracking:
+  backend: "g2o"
+
+LoopDetector:
+  backend: "g2o"
+
+System:
+  map_format: "msgpack"

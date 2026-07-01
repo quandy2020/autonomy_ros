@@ -1,0 +1,32 @@
+# AIST Living Lab — ROS 2 节点参数（与 Pangolin 一致的 atlas 坐标系）
+run_slam:
+  ros__parameters:
+    map_frame: map
+    odom_frame: odom
+    robot_base_frame: base_link
+    camera_frame: camera_frame
+    publish_tf: true
+    publish_keyframes: true
+    publish_pose_graph: true
+    publish_tracking_image: true
+    publish_map_points: true
+    publish_local_map_points: true
+    publish_feature_matches: true
+    publish_trajectory: true
+    trajectory_keyframes_only: true
+    keyframe_frustum_skip: 2
+    map_points_skip: 2
+    visualization_hz: 20.0
+    keyframe_frustum_scale: 0.15
+    keyframe_frustum_aspect: 1.5
+    current_camera_frustum_scale: 0.18
+    current_camera_frustum_aspect: 1.5
+    landmark_point_size: 0.02
+    apply_ros_map_conversion: false
+    image_qos_reliable: true
+    odom2d: false
+    transform_tolerance: 0.1
+    use_message_timestamp: false
+    frame_skip: 3
+    publish_last_pose_when_lost: true
+    encoding: "bgr8"

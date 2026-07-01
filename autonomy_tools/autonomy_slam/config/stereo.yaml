@@ -1,0 +1,13 @@
+# 双目 SLAM — ROS 2 节点参数（run_slam）
+run_slam:
+  ros__parameters:
+    map_frame: map
+    odom_frame: odom
+    robot_base_frame: base_link
+    camera_frame: camera_frame
+    publish_tf: true
+    publish_keyframes: true
+    odom2d: false
+    transform_tolerance: 0.5
+    encoding: ""
+    use_exact_time: false
