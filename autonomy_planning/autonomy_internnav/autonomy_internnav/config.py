@@ -55,6 +55,9 @@ class Config:
 
     base_frame: str = 'base_link'
     map_frame: str = 'map'
+    markers_frame: str = ''  # empty → base_frame（机体系，避免 map 系下 TF/重采样抖动）
+    marker_lifetime_sec: float = 0.5
+    path_frame: str = ''  # empty → base_frame
 
     image_size: int = 224
     memory_size: int = 8
@@ -106,6 +109,9 @@ def load(node: Node) -> Config:
         overlay_topic=_param(node, 'overlay_topic', defaults.overlay_topic),
         base_frame=_param(node, 'base_frame', defaults.base_frame),
         map_frame=_param(node, 'map_frame', defaults.map_frame),
+        markers_frame=_param(node, 'markers_frame', defaults.markers_frame),
+        marker_lifetime_sec=_param(node, 'marker_lifetime_sec', defaults.marker_lifetime_sec),
+        path_frame=_param(node, 'path_frame', defaults.path_frame),
         image_size=_param(node, 'image_size', defaults.image_size),
         memory_size=_param(node, 'memory_size', defaults.memory_size),
         predict_size=_param(node, 'predict_size', defaults.predict_size),

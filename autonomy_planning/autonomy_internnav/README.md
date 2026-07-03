@@ -219,8 +219,8 @@ ros2 service call /internnav_node/reset std_srvs/srv/Trigger
 | 话题 | 类型 | 说明 |
 |------|------|------|
 | `cmd_vel` | `geometry_msgs/Twist` | 速度指令 |
-| `navdp/plan` | `nav_msgs/Path` | critic 选中的单条轨迹（map 系） |
-| `navdp/markers` | `visualization_msgs/MarkerArray` | diffusion 候选轨迹（jet 按 critic 着色）+ 选中轨迹 |
+| `navdp/plan` | `nav_msgs/Path` | critic 选中的单条轨迹（默认 `base_link` 机体系） |
+| `navdp/markers` | `visualization_msgs/MarkerArray` | diffusion 候选轨迹（jet 着色）+ 选中轨迹（机体系，随机器人运动） |
 | `navdp/overlay` | `sensor_msgs/Image` | RGB 上投影的多条候选轨迹（NavDP `project_trajectory`） |
 
 ### 服务
@@ -243,7 +243,10 @@ ros2 service call /internnav_node/reset std_srvs/srv/Trigger
 | `overlay_topic` | `navdp/overlay` | RGB 轨迹叠加图 |
 | `cmd_vel_topic` | `cmd_vel` | 速度输出话题 |
 | `base_frame` | `base_link` | 机器人基座坐标系 |
-| `map_frame` | `map` | 路径与 marker 坐标系 |
+| `map_frame` | `map` | 全局地图坐标系 |
+| `markers_frame` | `''`（→ `base_link`） | marker 坐标系；机体系可避免 map 投影抖动 |
+| `path_frame` | `''`（→ `base_link`） | `/navdp/plan` 坐标系 |
+| `marker_lifetime_sec` | `0.5` | marker 自动过期时间（秒），替代每帧 DELETEALL |
 | `image_size` | `224` | 模型输入分辨率 |
 | `memory_size` | `8` | 历史帧数量（填满后推理更稳定） |
 | `predict_size` | `24` | 预测轨迹步数 |
