@@ -25,6 +25,9 @@ internnav_node:
 
     base_frame: base_link
     map_frame: map
+    markers_frame: ''
+    marker_lifetime_sec: 0.5
+    path_frame: ''
 
     image_size: 224
     memory_size: 8

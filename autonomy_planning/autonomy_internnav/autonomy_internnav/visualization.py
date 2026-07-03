@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 import numpy as np
-from geometry_msgs.msg import Point, PoseStamped, Twist
+from builtin_interfaces.msg import Duration
+from geometry_msgs.msg import Point, PoseStamped
 from std_msgs.msg import ColorRGBA, Header
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -28,6 +29,13 @@ from autonomy_internnav.baselines.navdp.colormap import critic_value_to_rgb
 
 def _color(r: float, g: float, b: float, a: float = 1.0) -> ColorRGBA:
     return ColorRGBA(r=r, g=g, b=b, a=a)
+
+
+def _set_lifetime(marker: Marker, lifetime_sec: float) -> None:
+    if lifetime_sec > 0.0:
+        sec = int(lifetime_sec)
+        nsec = int((lifetime_sec - sec) * 1e9)
+        marker.lifetime = Duration(sec=sec, nanosec=nsec)
 
 
 def _trajectory_points_xy(trajectory: np.ndarray) -> list[Point]:
@@ -49,6 +57,7 @@ def _line_strip(
     color: ColorRGBA,
     scale: float,
     ns: str,
+    lifetime_sec: float,
 ) -> Marker:
     marker = Marker()
     marker.header = header
@@ -60,6 +69,7 @@ def _line_strip(
     marker.color = color
     marker.pose.orientation.w = 1.0
     marker.points = _trajectory_points_xy(points)
+    _set_lifetime(marker, lifetime_sec)
     return marker
 
 
@@ -76,17 +86,15 @@ def build_navdp_markers(
     candidates: np.ndarray | None = None,
     values: np.ndarray | None = None,
     goal: PoseStamped | None = None,
-    cmd: Twist | None = None,
     lookahead_index: int = 3,
-    robot_xy: tuple[float, float] | None = None,
+    lifetime_sec: float = 0.5,
 ) -> MarkerArray:
     """Build RViz markers for NavDP diffusion samples and the critic-selected path.
 
-    Candidate colors use the same matplotlib jet mapping as NavDP ``project_trajectory``.
+    Trajectories should be published in the robot body frame (``base_link``) so they
+    stay fixed relative to the robot and do not jitter from map/odom reprojection.
     """
     out = MarkerArray()
-    out.markers.append(Marker(action=Marker.DELETEALL))
-
     critic_values = _flatten_critic_values(values)
     marker_id = 0
 
@@ -112,6 +120,7 @@ def build_navdp_markers(
                 _color(r, g, b, 0.5),
                 0.02,
                 'diffusion_samples',
+                lifetime_sec,
             ))
             marker_id += 1
 
@@ -122,7 +131,9 @@ def build_navdp_markers(
         else:
             r, g, b = 0.1, 0.98, 0.2
         out.markers.append(_line_strip(
-            header, marker_id, selected, _color(r, g, b, 1.0), 0.08, 'selected'))
+            header, marker_id, selected, _color(r, g, b, 1.0), 0.08, 'selected',
+            lifetime_sec,
+        ))
         marker_id += 1
 
         idx = min(max(lookahead_index, 0), len(selected) - 1)
@@ -140,6 +151,7 @@ def build_navdp_markers(
         lookahead.pose.orientation.w = 1.0
         lookahead.scale.x = lookahead.scale.y = lookahead.scale.z = 0.12
         lookahead.color = _color(1.0, 0.85, 0.1, 1.0)
+        _set_lifetime(lookahead, lifetime_sec)
         out.markers.append(lookahead)
 
     if goal is not None:
@@ -154,26 +166,7 @@ def build_navdp_markers(
         goal_marker.pose.position.z = 0.15
         goal_marker.scale.x = goal_marker.scale.y = goal_marker.scale.z = 0.25
         goal_marker.color = _color(0.95, 0.2, 0.2, 0.9)
+        _set_lifetime(goal_marker, lifetime_sec)
         out.markers.append(goal_marker)
-
-    if cmd is not None and abs(cmd.linear.x) + abs(cmd.angular.z) > 1e-4:
-        rx, ry = robot_xy if robot_xy is not None else (0.0, 0.0)
-        arrow = Marker()
-        arrow.header = header
-        arrow.ns = 'cmd_vel'
-        arrow.id = marker_id
-        arrow.type = Marker.ARROW
-        arrow.action = Marker.ADD
-        arrow.pose.orientation.w = 1.0
-        arrow.points.append(Point(x=rx, y=ry, z=0.05))
-        end = Point()
-        end.x = rx + float(cmd.linear.x) * 0.8
-        end.y = ry + float(cmd.angular.z) * 0.4
-        end.z = 0.05
-        arrow.points.append(end)
-        arrow.scale.x = 0.05
-        arrow.scale.y = 0.08
-        arrow.color = _color(1.0, 0.4, 0.0, 0.95)
-        out.markers.append(arrow)
 
     return out

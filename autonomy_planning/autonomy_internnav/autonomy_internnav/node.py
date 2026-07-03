@@ -40,8 +40,6 @@ from autonomy_internnav.conversions import (
     depth_to_meters,
     goal_to_robot_xy,
     image_to_bgr,
-    trajectories_body_to_map_xy,
-    trajectory_body_to_map_xy,
     trajectory_to_path,
     trajectory_to_twist,
 )
@@ -258,14 +256,20 @@ class InternNavNode(Node):
             all_traj = result.all_trajectory
             values = result.values
 
-            stamp = self.get_clock().now().to_msg()
-            map_traj = trajectory_body_to_map_xy(trajectory, self._odom)
-            map_candidates = (
-                trajectories_body_to_map_xy(all_traj, self._odom)
-                if all_traj is not None and np.asarray(all_traj).size > 0
-                else None
+            stamp = (
+                self._odom.header.stamp
+                if self._odom is not None
+                else self.get_clock().now().to_msg()
             )
-            path = trajectory_to_path(map_traj, stamp, self._cfg.map_frame)
+            markers_frame = self._cfg.markers_frame or self._cfg.base_frame
+            path_frame = self._cfg.path_frame or self._cfg.base_frame
+
+            body_candidates = None
+            if all_traj is not None and np.asarray(all_traj).size > 0:
+                arr = np.asarray(all_traj)
+                body_candidates = arr[0] if arr.ndim == 4 else arr
+
+            path = trajectory_to_path(trajectory, stamp, path_frame)
             self._path_pub.publish(path)
 
             cmd = trajectory_to_twist(
@@ -278,20 +282,15 @@ class InternNavNode(Node):
                 cmd = Twist()
             self._cmd_pub.publish(cmd)
 
-            robot_xy = (
-                self._odom.pose.pose.position.x,
-                self._odom.pose.pose.position.y,
-            )
-            marker_header = Header(stamp=stamp, frame_id=self._cfg.map_frame)
+            marker_header = Header(stamp=stamp, frame_id=markers_frame)
             self._markers_pub.publish(build_navdp_markers(
                 marker_header,
-                selected=map_traj,
-                candidates=map_candidates,
+                selected=trajectory,
+                candidates=body_candidates,
                 values=values,
                 goal=self._goal,
-                cmd=cmd,
                 lookahead_index=self._cfg.lookahead_index,
-                robot_xy=robot_xy,
+                lifetime_sec=self._cfg.marker_lifetime_sec,
             ))
 
             if result.trajectory_mask is not None:
@@ -311,8 +310,8 @@ class InternNavNode(Node):
                     goal_msg = f', pixel=({goal_rel[0]:.0f},{goal_rel[1]:.0f})'
                 else:
                     goal_msg = f', goal_body=({goal_rel[0]:.2f},{goal_rel[1]:.2f})'
-            end = map_traj[-1] if len(map_traj) else (0.0, 0.0, 0.0)
-            n_samples = len(map_candidates) if map_candidates is not None else 0
+            end = trajectory[-1] if len(trajectory) else (0.0, 0.0, 0.0)
+            n_samples = len(body_candidates) if body_candidates is not None else 0
             critic_msg = ''
             if values is not None and np.asarray(values).size > 0:
                 flat = np.asarray(values, dtype=np.float64).reshape(-1)
@@ -322,7 +321,7 @@ class InternNavNode(Node):
             stop_msg = ', STOP' if result.stopped else ''
             self.get_logger().info(
                 f'{self._cfg.policy} plan: selected {len(path.poses)} pts{goal_msg}'
-                f'{critic_msg}{stop_msg}, end_map=({end[0]:.2f},{end[1]:.2f}), '
+                f'{critic_msg}{stop_msg}, end_body=({end[0]:.2f},{end[1]:.2f}), '
                 f'cmd=({cmd.linear.x:.2f},{cmd.angular.z:.2f})',
                 throttle_duration_sec=2.0,
             )
