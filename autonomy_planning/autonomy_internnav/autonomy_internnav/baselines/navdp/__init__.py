@@ -1,6 +1,6 @@
-"""NavDP diffusion-policy inference (from NavDP/baselines/navdp)."""
+"""Backward-compatible re-export. Prefer :mod:`autonomy_internnav.navdp`."""
 
-from autonomy_internnav.baselines.navdp.policy_agent import NavDP_Agent
-from autonomy_internnav.baselines.navdp.policy_network import NavDP_Policy
+from autonomy_internnav.navdp.agent import NavDP_Agent
+from autonomy_internnav.navdp.policy import NavDP_Policy
 
 __all__ = ['NavDP_Agent', 'NavDP_Policy']
