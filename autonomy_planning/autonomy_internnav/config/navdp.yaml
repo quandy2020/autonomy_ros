@@ -1,0 +1,43 @@
+internnav_node:
+  ros__parameters:
+    policy: navdp
+    goal_type: point
+    checkpoint: navdp-cross-modal.ckpt
+    device: cuda:0
+
+    model_config: ''
+    robot_config: ''
+    data_config: ''
+    m2f_checkpoint: ''
+    m2f_config: ''
+
+    rgb_topic: camera/rgb/image_raw
+    depth_topic: camera/depth/image_raw
+    camera_info_topic: camera/rgb/camera_info
+    odom_topic: odom
+    goal_topic: goal_pose
+    image_goal_topic: image_goal
+    pixel_goal_topic: pixel_goal
+    cmd_vel_topic: cmd_vel
+    path_topic: navdp/plan
+    markers_topic: navdp/markers
+    overlay_topic: navdp/overlay
+
+    base_frame: base_link
+    map_frame: map
+
+    image_size: 224
+    memory_size: 8
+    predict_size: 24
+    temporal_depth: 16
+    heads: 8
+    token_dim: 384
+    stop_threshold: -3.0
+    batch_size: 1
+    sample_num: 16
+
+    inference_rate_hz: 5.0
+    linear_speed: 0.3
+    angular_speed: 0.5
+    lookahead_index: 3
+    depth_encoding: 32fc1

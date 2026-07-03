@@ -1,0 +1,4 @@
+# NavDP checkpoint files are large; keep them local and out of git by default.
+*.ckpt
+*.pth
+*.pt

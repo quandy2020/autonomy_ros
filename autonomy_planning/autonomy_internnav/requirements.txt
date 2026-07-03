@@ -1,0 +1,23 @@
+# NavDP inference deps for the ROS 2 node (/usr/bin/python3).
+# Pinned to coexist with habitat-sim, lerobot, and datasets in the Docker venv.
+#
+# Install:
+#   cd src/autonomy_ros/autonomy_planning/autonomy_internnav
+#   bash scripts/install_deps.sh
+#
+# See NavDP/baselines/navdp/requirements.txt
+
+numpy==1.26.4
+Pillow==10.4.0
+torch>=2.2.1,<2.11.0
+torchvision>=0.21.0,<0.26.0
+diffusers>=0.33.0,<0.36.0
+huggingface-hub>=0.34.2,<0.36.0
+opencv-python>=4.9.0,<5.0.0
+matplotlib>=3.8.0,<4.0.0
+fsspec>=2023.1.0,<=2026.2.0
+packaging>=24.2,<26.0
+
+# colcon / myst-parser (same system Python)
+setuptools>=30.3.0,<80
+markdown-it-py>=3.0.0,<4.0.0

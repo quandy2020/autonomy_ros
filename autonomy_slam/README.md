@@ -2,11 +2,14 @@
 
 基于 `autonomy` atlas 模块的 ROS 2 视觉 SLAM 封装包。支持单目、双目、RGB-D，可视化使用 **rviz2**。
 
+可与同工作空间中的 [`autonomy_internnav`](../autonomy_planning/autonomy_internnav/)（NavDP 视觉导航）联用：SLAM 提供定位与地图，InternNav 根据 RGB-D 与目标点输出 `cmd_vel`。
+
 ## 目录
 
 - [环境要求](#环境要求)
 - [编译安装](#编译安装)
 - [快速上手](#快速上手)
+- [与 autonomy_internnav 联用](#与-autonomy_internnav-联用)
 - [离线回放（rosbag2）](#离线回放rosbag2)
 - [Composable 节点](#composable-节点)
 - [rviz2 可视化](#rviz2-可视化)
@@ -29,6 +32,14 @@
 source /opt/ros/humble/setup.bash
 colcon build --packages-select autonomy autonomy_slam
 source install/setup.bash
+```
+
+若需与 NavDP 视觉导航联用，一并编译 `autonomy_internnav` 并安装 Python 依赖：
+
+```bash
+colcon build --packages-select autonomy autonomy_slam autonomy_internnav --symlink-install
+source install/setup.bash
+bash src/autonomy_ros/autonomy_planning/autonomy_internnav/scripts/install_deps.sh
 ```
 
 仅修改本包时：
@@ -79,7 +90,7 @@ ros2 launch autonomy_slam slam.launch.py mode:=mono launch_rviz:=false
 先下载数据与词袋：
 
 ```bash
-cd src/autonomy_ros/autonomy_tools/autonomy_slam/vocab
+cd src/autonomy_ros/autonomy_slam/vocab
 ./download_vocab.sh
 ./download_aist_example.sh
 colcon build --packages-select autonomy_slam
@@ -179,6 +190,85 @@ ros2 launch autonomy_slam slam.launch.py \
   left_topic:=/stereo/left/image \
   right_topic:=/stereo/right/image
 ```
+
+## 与 autonomy_internnav 联用
+
+[`autonomy_internnav`](../autonomy_planning/autonomy_internnav/) 提供 NavDP 点目标视觉导航：订阅 RGB-D、`odom` 与 `goal_pose`，发布 `cmd_vel`、规划路径与可视化 marker。训练代码位于 `autonomy_internnav/train/`（由 InternNav 整合而来）。
+
+### 数据流
+
+```text
+相机 RGB-D ──┬──► autonomy_slam（可选）──► map / TF / camera_pose
+             │
+             └──► internnav_node（NavDP）──► cmd_vel / navdp/plan
+odom ──────────────────────────────────────► internnav_node
+goal_pose（RViz 2D Goal）──────────────────► internnav_node
+```
+
+- **SLAM**：建图、重定位、发布 `map` → `odom` TF 与 `~/camera_pose`
+- **InternNav**：在机器人坐标系下根据视觉输入与目标点生成轨迹与速度指令
+
+### 默认话题对照
+
+`autonomy_internnav` 默认配置见 `autonomy_planning/autonomy_internnav/config/navdp.yaml`：
+
+| InternNav 参数 | 默认值 | 说明 |
+|----------------|--------|------|
+| `rgb_topic` | `camera/rgb/image_raw` | RGB 图像 |
+| `depth_topic` | `camera/depth/image_raw` | 深度图 |
+| `camera_info_topic` | `camera/rgb/camera_info` | 相机内参 |
+| `odom_topic` | `odom` | 里程计 |
+| `goal_topic` | `goal_pose` | 目标位姿 |
+| `cmd_vel_topic` | `cmd_vel` | 速度输出 |
+
+本包 RGB-D 模式默认订阅 `camera/color/image_raw`、`camera/depth/image_raw`。与 InternNav 联用时，请统一话题名（launch 重映射或修改 `navdp.yaml`）。
+
+| 场景 | RGB-D 来源 | `odom` 来源 |
+|------|------------|-------------|
+| Habitat 仿真 | `autonomy_simulator` 桥接 | 仿真器 `odom` |
+| Gazebo TB3 | 相机插件 | `robot_state_publisher` / 仿真 odom |
+| 实机 + SLAM | 相机驱动 | `autonomy_slam` 的 `~/camera_pose` 或轮式里程计 |
+
+### Habitat + NavDP 示例（无需 SLAM）
+
+Habitat 桥接话题与 `navdp.yaml` 默认一致，可直接启动 NavDP：
+
+```bash
+# 终端 1：Habitat 仿真
+ros2 launch autonomy_simulator habitat.launch.py
+
+# 终端 2：NavDP 导航（需 GPU 与 checkpoint，见 weights/README.md）
+ros2 launch autonomy_internnav internnav.launch.py use_sim_time:=false
+```
+
+在 RViz 中使用 **2D Goal Pose** 设置 `goal_pose`。
+
+### SLAM + NavDP 示例
+
+实机或 rosbag 回放时，SLAM 负责定位，InternNav 负责视觉导航：
+
+```bash
+# 终端 1：RGB-D SLAM（按实际相机话题调整 launch 参数）
+ros2 launch autonomy_slam slam_rgbd.launch.py \
+  color_topic:=camera/rgb/image_raw \
+  depth_topic:=camera/depth/image_raw \
+  launch_rviz:=false
+
+# 终端 2：NavDP（若 odom 来自 SLAM，将 camera_pose 转为 odom 或配置 odom 源）
+ros2 launch autonomy_internnav internnav.launch.py
+```
+
+若 SLAM 仅发布 `~/camera_pose` 而无 `odom`，可增加 relay 节点将 `nav_msgs/Odometry` 转发到 `/odom`，或在 `navdp.yaml` 中将 `odom_topic` 改为 SLAM 输出话题。
+
+### NavDP 权重与训练
+
+| 步骤 | 说明 |
+|------|------|
+| 推理权重 | 放置于 `autonomy_internnav/weights/navdp-cross-modal.ckpt`，或设置 `NAVDP_CHECKPOINT` |
+| 训练 | `bash autonomy_internnav/scripts/train/start_train.sh --name my_run --gpus 1` |
+| 训练产出 | `checkpoints/<run_name>/ckpts/navdp.ckpt`，可复制到 `weights/` 用于推理 |
+
+详见 [`autonomy_internnav/weights/README.md`](../autonomy_planning/autonomy_internnav/weights/README.md)。
 
 ### 6. 手动启动（不使用 launch）
 
@@ -350,11 +440,21 @@ autonomy_slam/
 │   ├── slam_mono.launch.py
 │   ├── slam_stereo.launch.py
 │   ├── slam_rgbd.launch.py
+│   ├── aist_*.launch.py      # AIST Living Lab 示例
 │   └── rviz.launch.py
 ├── rviz/autonomy_slam.rviz
 ├── vocab/                    # 放置 orb_vocab.fbow
+├── data/aist_living_lab/     # 示例视频与配置
 └── src/
 ```
+
+## 相关包
+
+| 包 | 路径 | 说明 |
+|----|------|------|
+| `autonomy_internnav` | `autonomy_planning/autonomy_internnav/` | NavDP 推理与训练 |
+| `autonomy_simulator` | `autonomy_simulator/` | Gazebo / Fake / Habitat 仿真 |
+| `autonomy_ros` | `autonomy_ros/` | 导航栈与任务 API |
 
 ## 参考
 

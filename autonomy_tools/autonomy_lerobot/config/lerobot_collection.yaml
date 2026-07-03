@@ -15,7 +15,9 @@
     record_depth: true
     record_semantic: false
     record_map: false
-    record_pointcloud: false
+    record_pointcloud: true
+    pointcloud_from_depth: true
+    pointcloud_stride: 4
     record_camera_info: true
     record_nav2: false
 

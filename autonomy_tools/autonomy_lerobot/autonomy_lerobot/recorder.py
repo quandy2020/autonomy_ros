@@ -49,6 +49,10 @@ _JDROBOT_DATA_FEATURE_KEYS = frozenset({
     'observation.images.depth',
 })
 
+_JDROBOT_OPTIONAL_FEATURE_KEYS = frozenset({
+    'observation.pointcloud',
+})
+
 _META_FEATURE_KEYS = frozenset({
     'timestamp', 'frame_index', 'episode_index', 'index', 'task_index',
 })
@@ -85,15 +89,12 @@ def dataset_schema_matches(
             return False, f"fps={info.get('fps')} (expected {fps})"
         features = info.get('features', {})
         data_keys = _jdrobot_data_feature_keys(features)
-        if data_keys != _JDROBOT_DATA_FEATURE_KEYS:
+        if not _JDROBOT_DATA_FEATURE_KEYS.issubset(data_keys):
             missing = sorted(_JDROBOT_DATA_FEATURE_KEYS - data_keys)
-            extra = sorted(data_keys - _JDROBOT_DATA_FEATURE_KEYS)
-            parts = []
-            if missing:
-                parts.append(f'missing {missing}')
-            if extra:
-                parts.append(f'extra {extra}')
-            return False, 'features: ' + ', '.join(parts)
+            return False, f'features missing {missing}'
+        extra = data_keys - _JDROBOT_DATA_FEATURE_KEYS - _JDROBOT_OPTIONAL_FEATURE_KEYS
+        if extra:
+            return False, f'features extra {sorted(extra)}'
         action = features.get('action', {})
         if list(action.get('shape', [])) != [16]:
             return False, f"action.shape={action.get('shape')} (expected [16])"

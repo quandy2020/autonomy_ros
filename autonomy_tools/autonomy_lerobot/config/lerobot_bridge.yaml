@@ -24,6 +24,8 @@ lerobot_bridge_node:
     record_semantic: true
     record_map: true
     record_pointcloud: true
+    pointcloud_from_depth: true
+    pointcloud_stride: 4
     record_camera_info: true
     record_nav2: true
 
