@@ -60,6 +60,9 @@ class Config:
     record_pointcloud: bool = True
     record_camera_info: bool = True
     record_nav2: bool = True
+    # True: back-project depth+camera_info (robot view); False: subscribe pointcloud_topic.
+    pointcloud_from_depth: bool = True
+    pointcloud_stride: int = 4
 
     image_width: int = 640
     image_height: int = 480
@@ -106,10 +109,11 @@ class Config:
 _FLOAT_FIELDS = frozenset({'record_fps', 'depth_min_m', 'depth_max_m'})
 _BOOL_FIELDS = frozenset({
     'use_depth', 'record_depth', 'record_semantic', 'record_map', 'record_pointcloud',
-    'record_camera_info', 'record_nav2', 'overwrite_dataset',
+    'record_camera_info', 'record_nav2', 'overwrite_dataset', 'pointcloud_from_depth',
 })
 _INT_FIELDS = frozenset({
     'image_width', 'image_height', 'max_path_waypoints', 'max_pointcloud_points',
+    'pointcloud_stride',
 })
 
 

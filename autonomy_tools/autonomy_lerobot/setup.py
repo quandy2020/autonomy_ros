@@ -29,5 +29,6 @@ setup(
     },
     scripts=[
         'scripts/encode_dataset_videos.py',
+        'scripts/lerobot_dataset_viz',
     ],
 )

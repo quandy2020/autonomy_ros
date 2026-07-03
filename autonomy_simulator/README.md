@@ -28,7 +28,7 @@ ros2 launch autonomy_simulator simulator.launch.py sim_mode:=gazebo
 # Fake
 ros2 launch autonomy_simulator simulator.launch.py sim_mode:=fake use_sim_time:=false
 
-# Habitat（需预先安装 habitat-sim 与 MP3D 场景）
+# Habitat（需预先安装 habitat-sim 与 MP3D 场景；内部固定 use_sim_time:=false）
 ros2 launch autonomy_simulator simulator.launch.py sim_mode:=habitat
 ```
 
@@ -74,9 +74,9 @@ ros2 launch autonomy_ros navigation_stack.launch.py
 ros2 launch autonomy_ros navigation_stack.launch.py \
   simulation_mode:=fake use_sim_time:=false
 
-# Habitat + 导航栈
+# Habitat + 导航栈（Habitat 桥接使用系统时钟，建议 use_sim_time:=false）
 ros2 launch autonomy_ros navigation_stack.launch.py \
-  simulation_mode:=habitat use_sim_time:=true
+  simulation_mode:=habitat use_sim_time:=false
 ```
 
 Fake 模式下请在 `config/parameters.yaml` 中将 `autonomy.enable_scan_bridge` 设为 `false`（无 `/scan`），`autonomy.planner.global_frame` 使用 `odom`。

@@ -106,6 +106,8 @@ class BridgeNode(Node):
             f'robot_type={self._cfg.effective_robot_type} '
             f'fps={self._cfg.record_fps} vcodec={self._cfg.video_vcodec} '
             f'record_nav2={self._cfg.record_nav2} record_semantic={self._cfg.record_semantic} '
+            f'record_pointcloud={self._cfg.record_pointcloud} '
+            f'pointcloud_from_depth={self._cfg.pointcloud_from_depth} '
             f'-> {self._cfg.dataset_repo_id}')
 
     def _subscribe_all(self, cfg: Config) -> None:
@@ -117,23 +119,34 @@ class BridgeNode(Node):
             self.create_subscription(Image, cfg.depth_topic, self._on_depth, qos)
             self.create_subscription(
                 CameraInfo, cfg.camera_info_topic, self._on_camera_info, qos)
+            if cfg.record_pointcloud and not cfg.pointcloud_from_depth:
+                self.create_subscription(
+                    PointCloud2, cfg.pointcloud_topic, self._on_pointcloud, qos)
             return
 
         self.create_subscription(PoseStamped, cfg.agent_pose_topic, self._on_agent_pose, 10)
         self.create_subscription(Twist, cfg.cmd_vel_topic, self._on_cmd_vel, 10)
         self._cmd_vel_pub = self.create_publisher(Twist, cfg.cmd_vel_topic, 10)
 
-        if cfg.use_depth or cfg.record_depth:
+        need_depth = (
+            cfg.use_depth
+            or cfg.record_depth
+            or (cfg.record_pointcloud and cfg.pointcloud_from_depth)
+        )
+        if need_depth:
             self.create_subscription(Image, cfg.depth_topic, self._on_depth, qos)
         if cfg.record_semantic:
             self.create_subscription(Image, cfg.semantic_topic, self._on_semantic, qos)
-        if cfg.record_camera_info:
+        need_camera_info = cfg.record_camera_info or (
+            cfg.record_pointcloud and cfg.pointcloud_from_depth
+        )
+        if need_camera_info:
             self.create_subscription(
                 CameraInfo, cfg.camera_info_topic, self._on_camera_info, qos)
         if cfg.record_map:
             self.create_subscription(
                 OccupancyGrid, cfg.map_topic, self._on_map, _MAP_QOS)
-        if cfg.record_pointcloud:
+        if cfg.record_pointcloud and not cfg.pointcloud_from_depth:
             self.create_subscription(
                 PointCloud2, cfg.pointcloud_topic, self._on_pointcloud, qos)
         if cfg.record_nav2:

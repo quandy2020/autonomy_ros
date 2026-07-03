@@ -31,6 +31,7 @@ from autonomy_lerobot.conversions import (
     camera_info_to_array,
     camera_info_to_intrinsic,
     cmd_vel_to_action,
+    depth_rgb_to_pointcloud_array,
     depth_to_video_rgb,
     grid_info_to_array,
     identity_extrinsic,
@@ -101,25 +102,35 @@ class Latest:
 
     def ready(self, cfg: Config) -> bool:
         if cfg.is_jdrobot:
-            return (
+            base = (
                 self.rgb is not None
                 and self.depth is not None
                 and self.camera_info is not None
                 and self.odom is not None
             )
-        return self.rgb is not None and self.odom is not None
+            return base
+        if self.rgb is None or self.odom is None:
+            return False
+        if cfg.record_pointcloud and cfg.pointcloud_from_depth:
+            return self.depth is not None and self.camera_info is not None
+        return True
 
     def missing_fields(self, cfg: Config) -> list[str]:
         missing: list[str] = []
         if self.rgb is None:
             missing.append('rgb')
-        if cfg.is_jdrobot:
+        if cfg.is_jdrobot or cfg.use_depth or cfg.record_depth:
             if self.depth is None:
                 missing.append('depth')
+        if cfg.is_jdrobot or cfg.record_camera_info or (
+            cfg.record_pointcloud and cfg.pointcloud_from_depth
+        ):
             if self.camera_info is None:
                 missing.append('camera_info')
         if self.odom is None:
             missing.append('odom')
+        if cfg.record_pointcloud and not cfg.pointcloud_from_depth and self.pointcloud is None:
+            missing.append('pointcloud')
         return missing
 
     def clear(self) -> None:
@@ -149,6 +160,28 @@ def _empty_grid(height: int, width: int) -> np.ndarray:
     return np.full((height, width, 1), -1, dtype=np.int8)
 
 
+def _append_pointcloud(frame: dict[str, Any], latest: Latest, cfg: Config) -> None:
+    if not cfg.record_pointcloud:
+        return
+    if cfg.pointcloud_from_depth:
+        if latest.depth is None or latest.camera_info is None:
+            return
+        depth_m = image_to_numpy(latest.depth)
+        rgb_arr = image_to_numpy(latest.rgb) if latest.rgb is not None else None
+        frame[KEY_POINTCLOUD] = depth_rgb_to_pointcloud_array(
+            depth_m,
+            latest.camera_info,
+            rgb=rgb_arr,
+            max_points=cfg.max_pointcloud_points,
+            depth_min=max(cfg.depth_min_m, 0.05),
+            depth_max=cfg.depth_max_m,
+            stride=cfg.pointcloud_stride,
+        )
+    elif latest.pointcloud is not None:
+        frame[KEY_POINTCLOUD] = pointcloud_to_array(
+            latest.pointcloud, cfg.max_pointcloud_points)
+
+
 # Nav2 local costmap: 4 m window at 0.05 m/cell (nav2_habitat_params.yaml).
 _DEFAULT_LOCAL_COSTMAP_CELLS = 80
 
@@ -170,9 +203,7 @@ def _build_habitat_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
     if cfg.record_map and latest.map_grid is not None:
         frame[KEY_MAP] = occupancy_grid_to_array(latest.map_grid)
         frame[KEY_MAP_INFO] = grid_info_to_array(latest.map_grid)
-    if cfg.record_pointcloud and latest.pointcloud is not None:
-        frame[KEY_POINTCLOUD] = pointcloud_to_array(
-            latest.pointcloud, cfg.max_pointcloud_points)
+    _append_pointcloud(frame, latest, cfg)
     if cfg.record_nav2:
         if latest.global_plan is not None:
             plan, length = path_to_array(latest.global_plan, cfg.max_path_waypoints)
@@ -215,7 +246,7 @@ def _build_habitat_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
 
 def _build_jdrobot_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
     depth_m = image_to_numpy(latest.depth)
-    return {
+    frame: dict[str, Any] = {
         KEY_CAMERA_INTRINSIC: camera_info_to_intrinsic(latest.camera_info),
         KEY_CAMERA_EXTRINSIC: identity_extrinsic(),
         KEY_ACTION: odom_to_action_matrix(latest.odom),
@@ -223,6 +254,8 @@ def _build_jdrobot_frame(latest: Latest, cfg: Config) -> dict[str, Any]:
         KEY_DEPTH: depth_to_video_rgb(depth_m, cfg.depth_min_m, cfg.depth_max_m),
         KEY_TASK: cfg.task,
     }
+    _append_pointcloud(frame, latest, cfg)
+    return frame
 
 
 def build_frame(latest: Latest, cfg: Config) -> dict[str, Any]:

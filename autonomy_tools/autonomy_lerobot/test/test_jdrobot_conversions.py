@@ -8,6 +8,7 @@ import numpy as np
 
 from autonomy_lerobot.conversions import (
     camera_info_to_intrinsic,
+    depth_rgb_to_pointcloud_array,
     depth_to_video_rgb,
     identity_extrinsic,
     pose_to_action_matrix,
@@ -17,6 +18,7 @@ from autonomy_lerobot.observation import (
     KEY_CAMERA_EXTRINSIC,
     KEY_CAMERA_INTRINSIC,
     KEY_DEPTH,
+    KEY_POINTCLOUD,
     KEY_RGB,
 )
 from autonomy_lerobot.collection_params import (
@@ -67,6 +69,61 @@ class TestJdrobotConversions(unittest.TestCase):
         self.assertEqual(int(rgb[0, 1, 0]), 127)
         self.assertEqual(int(rgb[1, 0, 0]), 255)
         self.assertEqual(int(rgb[1, 1, 0]), 0)
+
+    def test_depth_rgb_to_pointcloud_center_pixel(self) -> None:
+        from sensor_msgs.msg import CameraInfo
+
+        info = CameraInfo()
+        info.k = [320.0, 0.0, 320.0, 0.0, 320.0, 240.0, 0.0, 0.0, 1.0]
+        depth = np.zeros((480, 640), dtype=np.float32)
+        depth[240, 320] = 2.0
+        rgb = np.zeros((480, 640, 3), dtype=np.uint8)
+        rgb[240, 320] = [10, 20, 30]
+        cloud = depth_rgb_to_pointcloud_array(
+            depth, info, rgb=rgb, max_points=8, depth_min=0.1, depth_max=5.0, stride=1)
+        self.assertEqual(cloud.shape, (8, 6))
+        self.assertAlmostEqual(cloud[0, 0], 0.0, places=4)
+        self.assertAlmostEqual(cloud[0, 1], 0.0, places=4)
+        self.assertAlmostEqual(cloud[0, 2], 2.0, places=4)
+        self.assertEqual(int(cloud[0, 3]), 10)
+        self.assertEqual(int(cloud[0, 4]), 20)
+        self.assertEqual(int(cloud[0, 5]), 30)
+
+    def test_jdrobot_feature_schema_with_pointcloud(self) -> None:
+        frame = {
+            KEY_CAMERA_INTRINSIC: np.zeros(9, dtype=np.float32),
+            KEY_CAMERA_EXTRINSIC: np.eye(4, dtype=np.float32).reshape(-1),
+            KEY_ACTION: np.eye(4, dtype=np.float32).reshape(-1),
+            KEY_RGB: np.zeros((480, 640, 3), dtype=np.uint8),
+            KEY_DEPTH: np.zeros((480, 640, 3), dtype=np.uint8),
+            KEY_POINTCLOUD: np.zeros((4096, 6), dtype=np.float32),
+        }
+        features = _features_from_frame(frame, dataset_format='jdrobot')
+        self.assertIn(KEY_POINTCLOUD, features)
+        self.assertEqual(features[KEY_POINTCLOUD]['shape'], (4096, 6))
+
+    def test_dataset_schema_matches_kujiale_with_optional_pointcloud(self) -> None:
+        info_with_pc = {
+            'robot_type': 'jdrobot',
+            'fps': 20,
+            'features': {
+                'observation.camera_intrinsic': {'shape': [9]},
+                'observation.camera_extrinsic': {'shape': [16]},
+                'action': {'shape': [16]},
+                'observation.images.rgb': {'info': {'video.codec': 'av1'}},
+                'observation.images.depth': {'info': {'video.codec': 'av1'}},
+                'observation.pointcloud': {'shape': [4096, 6]},
+                'timestamp': {},
+            },
+        }
+        ok, reason = dataset_schema_matches(
+            info_with_pc,
+            dataset_format='jdrobot',
+            robot_type='jdrobot',
+            fps=20,
+            video_vcodec='av1',
+        )
+        self.assertTrue(ok, reason)
 
     def test_jdrobot_feature_schema(self) -> None:
         frame = {
@@ -138,6 +195,8 @@ class TestJdrobotConversions(unittest.TestCase):
         self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['record_fps'], 20.0)
         self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['video_vcodec'], 'av1')
         self.assertFalse(JDROBOT_COLLECTION_ROS_PARAMS['record_nav2'])
+        self.assertTrue(JDROBOT_COLLECTION_ROS_PARAMS['record_pointcloud'])
+        self.assertTrue(JDROBOT_COLLECTION_ROS_PARAMS['pointcloud_from_depth'])
         overrides = jdrobot_collection_parameters(dataset_root='/tmp/r1')
         self.assertEqual(overrides['dataset_root'], '/tmp/r1')
         self.assertEqual(overrides['dataset_format'], 'jdrobot')

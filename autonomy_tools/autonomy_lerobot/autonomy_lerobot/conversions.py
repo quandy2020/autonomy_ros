@@ -179,3 +179,56 @@ def pointcloud_to_array(msg: PointCloud2, max_points: int) -> np.ndarray:
             arr[i, 4] = (rgb >> 8) & 0xFF
             arr[i, 5] = rgb & 0xFF
     return arr
+
+
+def depth_rgb_to_pointcloud_array(
+    depth: np.ndarray,
+    camera_info: CameraInfo,
+    *,
+    rgb: np.ndarray | None = None,
+    max_points: int = 4096,
+    depth_min: float = 0.05,
+    depth_max: float = 10.0,
+    stride: int = 4,
+) -> np.ndarray:
+    """Back-project depth to (max_points, 6) [x,y,z,r,g,b] in camera optical frame."""
+    if depth.ndim != 2:
+        raise ValueError('depth must be a 2-D array (H, W)')
+    stride = max(1, int(stride))
+    h, w = depth.shape
+    fx = float(camera_info.k[0])
+    fy = float(camera_info.k[4])
+    cx = float(camera_info.k[2])
+    cy = float(camera_info.k[5])
+    if fx <= 0.0 or fy <= 0.0:
+        raise ValueError('camera_info K must have positive fx and fy')
+
+    v_coords = np.arange(0, h, stride, dtype=np.int32)
+    u_coords = np.arange(0, w, stride, dtype=np.int32)
+    uu, vv = np.meshgrid(u_coords, v_coords)
+    z = depth[vv, uu].astype(np.float32)
+    valid = np.isfinite(z) & (z > depth_min) & (z < depth_max)
+    if not np.any(valid):
+        return np.zeros((max_points, 6), dtype=np.float32)
+
+    z = z[valid]
+    u = uu[valid].astype(np.float32)
+    v = vv[valid].astype(np.float32)
+    x = (u - cx) * z / fx
+    y = (v - cy) * z / fy
+
+    n_total = z.shape[0]
+    if n_total > max_points:
+        pick = np.linspace(0, n_total - 1, max_points, dtype=np.int64)
+        x, y, z, u, v = x[pick], y[pick], z[pick], u[pick], v[pick]
+    n = min(n_total, max_points)
+
+    arr = np.zeros((max_points, 6), dtype=np.float32)
+    arr[:n, 0] = x[:n]
+    arr[:n, 1] = y[:n]
+    arr[:n, 2] = z[:n]
+    if rgb is not None:
+        vi = np.clip(v[:n].astype(np.int32), 0, h - 1)
+        ui = np.clip(u[:n].astype(np.int32), 0, w - 1)
+        arr[:n, 3:6] = rgb[vi, ui].astype(np.float32)
+    return arr

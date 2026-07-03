@@ -28,7 +28,8 @@ def generate_launch_description():
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
         default_value='true',
-        description='Use simulation clock (true for Gazebo; false for fake/habitat)')
+        description='Use simulation clock (Gazebo only; fake/habitat always use wall clock)',
+    )
 
     is_gazebo = IfCondition(PythonExpression(["'", sim_mode, "' == 'gazebo'"]))
     is_habitat = IfCondition(PythonExpression(["'", sim_mode, "' == 'habitat'"]))
@@ -46,7 +47,7 @@ def generate_launch_description():
             os.path.join(pkg_share, 'launch', 'fake_robot.launch.py')
         ),
         launch_arguments={
-            'use_sim_time': use_sim_time,
+            'use_sim_time': 'false',
             'publish_odom': 'true',
             'publish_tf': 'true',
         }.items(),
@@ -57,7 +58,8 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(pkg_share, 'launch', 'habitat.launch.py')
         ),
-        launch_arguments={'use_sim_time': use_sim_time}.items(),
+        # Habitat bridge uses wall clock; no /clock publisher. use_sim_time=true stalls timers.
+        launch_arguments={'use_sim_time': 'false'}.items(),
         condition=is_habitat,
     )
 
