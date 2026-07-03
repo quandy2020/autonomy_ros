@@ -241,12 +241,19 @@ ros2 service call /internnav_node/reset std_srvs/srv/Trigger
 | `image_goal_topic` | `image_goal` | 图像目标（`goal_type=image` / `point_image`） |
 | `pixel_goal_topic` | `pixel_goal` | 像素目标（`goal_type=pixel`） |
 | `overlay_topic` | `navdp/overlay` | RGB 轨迹叠加图 |
+| `overlay_rate_hz` | `20.0` | overlay 发布频率（与 `inference_rate_hz` 解耦） |
+| `overlay_decouple` | `true` | `true`：按相机帧率 CPU 重绘；`false`：仅推理时发布（~5Hz 会卡） |
+| `overlay_show_all_samples` | `true` | `false` 时只画 critic top-N（更流畅） |
+| `overlay_max_samples` | `16` | 上项为 `false` 时的 top-N |
 | `cmd_vel_topic` | `cmd_vel` | 速度输出话题 |
 | `base_frame` | `base_link` | 机器人基座坐标系 |
 | `map_frame` | `map` | 全局地图坐标系 |
 | `markers_frame` | `''`（→ `base_link`） | marker 坐标系；机体系可避免 map 投影抖动 |
 | `path_frame` | `''`（→ `base_link`） | `/navdp/plan` 坐标系 |
-| `marker_lifetime_sec` | `0.5` | marker 自动过期时间（秒），替代每帧 DELETEALL |
+| `marker_lifetime_sec` | `0.5` | marker 自动过期时间（秒） |
+| `markers_show_all_samples` | `true` | `false` 时仅显示 critic 选中轨迹 |
+| `markers_use_latest_tf` | `true` | marker `stamp=0`，RViz 用最新 TF |
+| `inference_seed` | `0` | diffusion 噪声种子（`-1`=随机；`0` 更稳定） |
 | `image_size` | `224` | 模型输入分辨率 |
 | `memory_size` | `8` | 历史帧数量（填满后推理更稳定） |
 | `predict_size` | `24` | 预测轨迹步数 |

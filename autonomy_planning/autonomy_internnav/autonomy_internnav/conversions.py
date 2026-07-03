@@ -100,6 +100,23 @@ def goal_to_robot_xy(goal: PoseStamped, odom: Odometry) -> tuple[np.ndarray, np.
     return goal_arr, rel
 
 
+def goal_to_body_pose(
+    goal: PoseStamped,
+    odom: Odometry,
+    frame_id: str,
+    stamp,
+) -> PoseStamped:
+    """Express navigation goal in the robot body frame for stable RViz markers."""
+    _goal_arr, rel = goal_to_robot_xy(goal, odom)
+    out = PoseStamped()
+    out.header = Header(stamp=stamp, frame_id=frame_id)
+    out.pose.position.x = float(rel[0])
+    out.pose.position.y = float(rel[1])
+    out.pose.position.z = 0.15
+    out.pose.orientation.w = 1.0
+    return out
+
+
 def trajectory_body_to_map_xy(trajectory: np.ndarray, odom: Odometry) -> np.ndarray:
     """Map body-frame NavDP trajectory (x, y, yaw) to map-frame ground points."""
     x0 = odom.pose.pose.position.x
@@ -132,9 +149,13 @@ def bgr_array_to_image_msg(
     bgr: np.ndarray,
     stamp,
     frame_id: str,
+    encoding: str = 'bgr8',
 ) -> Image:
     """Publish NavDP ``trajectory_mask`` overlay as sensor_msgs/Image."""
-    msg = _BRIDGE.cv2_to_imgmsg(np.asarray(bgr, dtype=np.uint8), encoding='bgr8')
+    arr = np.asarray(bgr, dtype=np.uint8)
+    if encoding.lower() == 'rgb8':
+        arr = cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+    msg = _BRIDGE.cv2_to_imgmsg(arr, encoding=encoding.lower())
     msg.header = Header(stamp=stamp, frame_id=frame_id)
     return msg
 

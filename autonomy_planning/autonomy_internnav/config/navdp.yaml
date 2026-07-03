@@ -22,12 +22,19 @@ internnav_node:
     path_topic: navdp/plan
     markers_topic: navdp/markers
     overlay_topic: navdp/overlay
+    overlay_rate_hz: 20.0
+    overlay_decouple: true
+    overlay_show_all_samples: true
+    overlay_max_samples: 16
 
     base_frame: base_link
     map_frame: map
     markers_frame: ''
-    marker_lifetime_sec: 0.5
+    marker_lifetime_sec: 0.0
+    markers_show_all_samples: true
+    markers_use_latest_tf: true
     path_frame: ''
+    inference_seed: 0
 
     image_size: 224
     memory_size: 8
@@ -39,7 +46,7 @@ internnav_node:
     batch_size: 1
     sample_num: 16
 
-    inference_rate_hz: 5.0
+    inference_rate_hz: 10.0
     linear_speed: 0.3
     angular_speed: 0.5
     lookahead_index: 3
