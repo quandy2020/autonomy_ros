@@ -2,9 +2,12 @@
 # Docker 挂载数据盘：AUTONOMY_DATA_VOLUMES=/mnt/data4t 或 run_autonomy.py --data-volume /mnt/data4t
 volume_root: /mnt/data4t
 
-# 可选覆盖（默认由 volume_root 派生：{volume_root}/data、{volume_root}/mp3d）
+# 可选覆盖（默认由 volume_root 派生：{volume_root}/data、{volume_root}/Datasets/mp3d）
 # data_root: /mnt/data4t/data
-# mp3d_root: /mnt/data4t/mp3d
+mp3d_root: /mnt/data4t/Datasets/mp3d
+
+# TrackVLA humanoid URDF + SMPL-X motion (female_2/, male_0/, …)
+humanoid_data_root: /mnt/data4t/Datasets/humanoids/humanoids/humanoid_data
 
 mp3d_default_scene_id: 17DRP5sb8fy
 

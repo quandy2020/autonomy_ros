@@ -41,7 +41,7 @@ def data_root() -> Path:
 def mp3d_root() -> Path:
     if 'mp3d_root' in _raw():
         return Path(str(_raw()['mp3d_root'])).expanduser().resolve()
-    return volume_root() / 'mp3d'
+    return volume_root() / 'Datasets' / 'mp3d'
 
 
 def mp3d_default_scene_id() -> str:
@@ -54,6 +54,16 @@ def default_mp3d_scene() -> Path:
     if override:
         return Path(override).expanduser().resolve()
     return mp3d_root() / mp3d_default_scene_id()
+
+
+def humanoid_data_root() -> Path:
+    """TrackVLA-style humanoid URDF root; ``AUTONOMY_HUMANOID_DATA_ROOT`` overrides yaml."""
+    override = os.environ.get('AUTONOMY_HUMANOID_DATA_ROOT', '').strip().rstrip('/')
+    if override:
+        return Path(override).expanduser().resolve()
+    if 'humanoid_data_root' in _raw():
+        return Path(str(_raw()['humanoid_data_root'])).expanduser().resolve()
+    return volume_root() / 'Datasets' / 'humanoids' / 'humanoids' / 'humanoid_data'
 
 
 def lerobot_root() -> Path:

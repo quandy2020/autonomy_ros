@@ -63,6 +63,22 @@ class Config:
     depth_topic: str = 'camera/depth/image_raw'
     semantic_topic: str = 'camera/semantic/image_raw'
 
+    # topdown_mode: room | oblique | overhead | interactive (RViz 6-DOF marker)
+    topdown_enabled: bool = False
+    topdown_topic: str = 'camera/topdown/image_raw'
+    topdown_camera_info_topic: str = 'camera/topdown/camera_info'
+    topdown_frame: str = 'map'
+    topdown_mode: str = 'room'
+    topdown_width: int = 640
+    topdown_height: int = 480
+    topdown_height_m: float = 8.0
+    topdown_distance_m: float = 7.0
+    topdown_look_ahead_m: float = 3.0
+    topdown_look_at_height_m: float = 1.2
+    topdown_hfov_deg: float = 90.0
+    topdown_room_margin: float = 1.18
+    topdown_ortho_scale: float = 0.0  # 0 = auto from navmesh; meters (room mode ORTHOGRAPHIC)
+
     semantic_ply_path: str = ''  # Empty: use {scene_dir}/{scene_id}_semantic.ply.
     kujiale_auto_convert: bool = True  # Build pointcloud.ply from scene .navmesh when needed.
     kujiale_force_convert: bool = False  # Always overwrite pointcloud.ply on startup.
@@ -112,6 +128,31 @@ class Config:
     spawn_x: float = 0.0
     spawn_y: float = 0.0
     spawn_yaw: float = 0.0
+
+    # Dynamic pedestrians (evt_bench-style oracle nav on navmesh).
+    pedestrians_enabled: bool = False
+    pedestrian_count: int = 5
+    pedestrian_goal_count: int = 4
+    pedestrian_linear_speed: float = 1.0
+    pedestrian_angular_speed: float = 1.5
+    pedestrian_dist_thresh: float = 0.5
+    pedestrian_turn_thresh: float = 0.3
+    pedestrian_waypoint_min_dist: float = 3.0
+    pedestrian_robot_activate_dist: float = -1.0
+    pedestrian_avoid_dist: float = 2.0
+    pedestrian_spawn_min_robot_dist: float = 2.5
+    pedestrian_radius: float = 0.35
+    pedestrian_height: float = 1.7
+    pedestrian_seed: int = 0
+    pedestrians_tracked_topic: str = 'pedestrian_visualizer/tracked_persons'
+    pedestrians_viz_topic: str = 'pedestrian_simulator/visualization'
+    trackvla_root: str = ''
+    humanoid_data_root: str = ''
+    humanoid_avatar: str = 'female_2'
+    # Comma-separated avatar names; empty = auto-discover all under humanoid_data_root
+    humanoid_avatars: str = ''
+    humanoid_infos_json: str = ''
+    pedestrian_semantic_id: int = 250
 
     def dataset_config(self) -> str:
         if self.scene_dataset_config:
@@ -170,5 +211,29 @@ def load(node: Node) -> Config:
     values['spawn_y'] = float(values['spawn_y'])
     values['spawn_yaw'] = float(values['spawn_yaw'])
     values['spawn_mode'] = str(values['spawn_mode']).strip().lower() or 'fixed'
+    values['pedestrian_count'] = max(0, int(values['pedestrian_count']))
+    values['pedestrian_goal_count'] = max(1, int(values['pedestrian_goal_count']))
+    values['pedestrian_seed'] = int(values['pedestrian_seed'])
+    values['pedestrian_semantic_id'] = int(values['pedestrian_semantic_id'])
+    values['topdown_enabled'] = bool(values['topdown_enabled'])
+    values['topdown_mode'] = str(values['topdown_mode']).strip().lower() or 'room'
+    if values['topdown_mode'] not in ('room', 'oblique', 'overhead', 'interactive'):
+        values['topdown_mode'] = 'room'
+    values['topdown_width'] = max(64, int(values['topdown_width']))
+    values['topdown_height'] = max(64, int(values['topdown_height']))
+    values['topdown_height_m'] = max(1.0, float(values['topdown_height_m']))
+    values['topdown_distance_m'] = max(0.5, float(values['topdown_distance_m']))
+    values['topdown_look_ahead_m'] = float(values['topdown_look_ahead_m'])
+    values['topdown_look_at_height_m'] = max(0.0, float(values['topdown_look_at_height_m']))
+    values['topdown_hfov_deg'] = float(values['topdown_hfov_deg'])
+    values['topdown_room_margin'] = max(1.0, float(values['topdown_room_margin']))
+    values['topdown_ortho_scale'] = max(0.0, float(values['topdown_ortho_scale']))
+    if not str(values['humanoid_data_root']).strip():
+        try:
+            from autonomy_lerobot.data_paths import humanoid_data_root
+
+            values['humanoid_data_root'] = str(humanoid_data_root())
+        except Exception:
+            pass
 
     return Config(**values)

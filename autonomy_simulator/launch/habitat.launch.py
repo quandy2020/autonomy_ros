@@ -11,6 +11,7 @@ from ament_index_python.packages import get_package_share_directory
 from autonomy_lerobot.data_paths import default_mp3d_scene
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -31,6 +32,12 @@ def generate_launch_description():
     spawn_mode = LaunchConfiguration('spawn_mode')
     spawn_index = LaunchConfiguration('spawn_index')
     spawn_count = LaunchConfiguration('spawn_count')
+    pedestrians_enabled = LaunchConfiguration('pedestrians_enabled')
+    pedestrian_count = LaunchConfiguration('pedestrian_count')
+    trackvla_root = LaunchConfiguration('trackvla_root')
+    topdown_enabled = LaunchConfiguration('topdown_enabled')
+    topdown_mode = LaunchConfiguration('topdown_mode')
+    use_rviz = LaunchConfiguration('use_rviz')
 
     with open(os.path.join(pkg, 'urdf', 'habitat.urdf'), encoding='utf-8') as f:
         urdf = f.read()
@@ -80,6 +87,36 @@ def generate_launch_description():
             default_value='1',
             description='Total robots sharing the dispersed spawn layout',
         ),
+        DeclareLaunchArgument(
+            'pedestrians_enabled',
+            default_value='false',
+            description='Enable evt_bench-style dynamic pedestrians on navmesh',
+        ),
+        DeclareLaunchArgument(
+            'pedestrian_count',
+            default_value='5',
+            description='Number of dynamic pedestrian obstacles (URDF humanoid mesh)',
+        ),
+        DeclareLaunchArgument(
+            'trackvla_root',
+            default_value='',
+            description='TrackVLA repo root for humanoid assets (default: TRACKVLA_ROOT env or sibling TrackVLA/)',
+        ),
+        DeclareLaunchArgument(
+            'topdown_enabled',
+            default_value='false',
+            description='Publish overview RGB on camera/topdown/image_raw',
+        ),
+        DeclareLaunchArgument(
+            'topdown_mode',
+            default_value='room',
+            description='room | oblique | overhead | interactive (RViz 6-DOF marker)',
+        ),
+        DeclareLaunchArgument(
+            'use_rviz',
+            default_value='false',
+            description='Launch rviz2 with rviz/habitat.rviz (3D orbit + scene layers)',
+        ),
     ]
 
     robot_state_publisher = Node(
@@ -111,8 +148,24 @@ def generate_launch_description():
                 'spawn_mode': spawn_mode,
                 'spawn_index': spawn_index,
                 'spawn_count': spawn_count,
+                'pedestrians_enabled': pedestrians_enabled,
+                'pedestrian_count': pedestrian_count,
+                'trackvla_root': trackvla_root,
+                'topdown_enabled': topdown_enabled,
+                'topdown_mode': topdown_mode,
             },
         ],
+    )
+
+    rviz_config = os.path.join(pkg, 'rviz', 'habitat.rviz')
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        namespace=ns,
+        output='screen',
+        arguments=['-d', rviz_config],
+        condition=IfCondition(use_rviz),
     )
 
     return LaunchDescription([
@@ -121,4 +174,5 @@ def generate_launch_description():
         *declares,
         robot_state_publisher,
         habitat_node,
+        rviz_node,
     ])

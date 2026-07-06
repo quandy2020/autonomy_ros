@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterShellExecution": [
+      {
+        "command": ".cursor/hooks/clean-pycache-after-verify.sh",
+        "matcher": "autonomy_internnav.*(py_compile|verify_package|pytest)|py_compile.*autonomy_internnav"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/clean-pycache-on-stop.sh"
+      }
+    ]
+  }
+}

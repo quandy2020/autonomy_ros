@@ -36,6 +36,7 @@ _SENSOR_KEYS = {
     'rgb': ('color_sensor', 'rgb'),
     'depth': ('depth_sensor', 'depth'),
     'semantic': ('semantic_sensor', 'semantic'),
+    'topdown': ('topdown_color_sensor', 'topdown'),
 }
 
 
@@ -56,15 +57,28 @@ class CameraPublisher:
             'depth': node.create_publisher(Image, cfg.depth_topic, qos),
             'semantic': node.create_publisher(Image, cfg.semantic_topic, qos),
         }
+        self._topdown_pub = None
+        self._topdown_info_pub = None
+        if cfg.topdown_enabled:
+            self._topdown_pub = node.create_publisher(Image, cfg.topdown_topic, qos)
+            self._topdown_info_pub = node.create_publisher(
+                CameraInfo, cfg.topdown_camera_info_topic, qos,
+            )
         self._info_pub = node.create_publisher(
             CameraInfo, cfg.rgb_camera_info_topic, qos
         )
         self._keys: dict[str, str | None] = {name: None for name in _SENSOR_KEYS}
 
-    def publish(self, stamp: rclpy.time.Time, obs: dict[str, Any]) -> None:
+    def publish(
+        self,
+        stamp: rclpy.time.Time,
+        obs: dict[str, Any],
+        topdown_hfov_deg: float | None = None,
+    ) -> None:
         self._pub_rgb(stamp, obs)
         self._pub_depth(stamp, obs)
         self._pub_sem(stamp, obs)
+        self._pub_topdown(stamp, obs, topdown_hfov_deg)
 
     def _find_key(self, obs: dict[str, Any], name: str) -> str | None:
         if self._keys[name]:
@@ -95,6 +109,55 @@ class CameraPublisher:
         info.r = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         info.p = [fx, 0.0, cx, 0.0, 0.0, fx, cy, 0.0, 0.0, 0.0, 1.0, 0.0]
         self._info_pub.publish(info)
+
+    def _pub_topdown_camera_info(
+        self,
+        stamp: rclpy.time.Time,
+        hfov_deg: float | None = None,
+    ) -> None:
+        if self._topdown_info_pub is None:
+            return
+        cfg = self._cfg
+        w, h = cfg.topdown_width, cfg.topdown_height
+        fov = cfg.topdown_hfov_deg if hfov_deg is None else hfov_deg
+        fx = w / (2.0 * math.tan(math.radians(fov / 2.0)))
+        cx, cy = w / 2.0, h / 2.0
+        info = CameraInfo()
+        info.header.stamp = stamp.to_msg()
+        info.header.frame_id = cfg.topdown_frame
+        info.width = w
+        info.height = h
+        info.distortion_model = 'plumb_bob'
+        info.d = [0.0, 0.0, 0.0, 0.0, 0.0]
+        info.k = [fx, 0.0, cx, 0.0, fx, cy, 0.0, 0.0, 1.0]
+        info.r = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        info.p = [fx, 0.0, cx, 0.0, 0.0, fx, cy, 0.0, 0.0, 0.0, 1.0, 0.0]
+        self._topdown_info_pub.publish(info)
+
+    def _pub_topdown(
+        self,
+        stamp: rclpy.time.Time,
+        obs: dict[str, Any],
+        hfov_deg: float | None = None,
+    ) -> None:
+        if self._topdown_pub is None:
+            return
+        key = self._find_key(obs, 'topdown')
+        if key is None:
+            return
+        self._pub_topdown_camera_info(stamp, hfov_deg)
+        rgba = np.asarray(obs[key])
+        rgb = np.ascontiguousarray(rgba[:, :, :3], dtype=np.uint8)
+        arr = np.ascontiguousarray(rgb)
+        msg = Image()
+        msg.header.stamp = stamp.to_msg()
+        msg.header.frame_id = self._cfg.topdown_frame
+        msg.encoding = 'rgb8'
+        msg.is_bigendian = False
+        msg.height, msg.width = arr.shape[:2]
+        msg.step = msg.width * 3
+        msg.data = array.array('B', arr.tobytes())
+        self._topdown_pub.publish(msg)
 
     def _send(
         self,

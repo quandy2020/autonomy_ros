@@ -30,6 +30,22 @@
     depth_topic: "camera/depth/image_raw"
     semantic_topic: "camera/semantic/image_raw"
 
+    topdown_enabled: false
+    topdown_topic: "camera/topdown/image_raw"
+    topdown_camera_info_topic: "camera/topdown/camera_info"
+    topdown_frame: "map"
+    # room: ortho full-scene; oblique/overhead: follow robot; interactive: RViz 6-DOF marker
+    topdown_mode: "room"
+    topdown_width: 640
+    topdown_height: 480
+    topdown_height_m: 8.0
+    topdown_distance_m: 7.0
+    topdown_look_ahead_m: 3.0
+    topdown_look_at_height_m: 1.2
+    topdown_hfov_deg: 90.0
+    topdown_room_margin: 1.18
+    topdown_ortho_scale: 0.0
+
     semantic_ply_path: ""
     kujiale_auto_convert: true
     kujiale_force_convert: false
@@ -79,3 +95,29 @@
     spawn_x: 0.0
     spawn_y: 0.0
     spawn_yaw: 0.0
+
+    pedestrians_enabled: false
+    pedestrian_count: 5
+    pedestrian_goal_count: 4
+    pedestrian_linear_speed: 1.0
+    pedestrian_angular_speed: 1.5
+    pedestrian_dist_thresh: 0.5
+    pedestrian_turn_thresh: 0.3
+    pedestrian_waypoint_min_dist: 3.0
+    pedestrian_robot_activate_dist: -1.0
+    pedestrian_avoid_dist: 2.0
+    pedestrian_spawn_min_robot_dist: 2.5
+    pedestrian_radius: 0.35
+    pedestrian_height: 1.7
+    pedestrian_seed: 0
+    pedestrians_tracked_topic: "pedestrian_visualizer/tracked_persons"
+    pedestrians_viz_topic: "pedestrian_simulator/visualization"
+    trackvla_root: ""
+    # Empty: auto from autonomy_lerobot/config/data_paths.yaml
+    # (/mnt/data4t/Datasets/humanoids/humanoids/humanoid_data)
+    humanoid_data_root: ""
+    humanoid_avatar: "female_2"
+    # Comma-separated types (female_2,male_0,...); empty = all folders under humanoid_data_root
+    humanoid_avatars: ""
+    humanoid_infos_json: ""
+    pedestrian_semantic_id: 250
