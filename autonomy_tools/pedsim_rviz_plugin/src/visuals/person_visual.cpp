@@ -98,6 +98,8 @@ struct PersonMeshResource
     std::string parent_path;
     double native_height;
     double foot_z;
+    // Extra Z rotation (deg) so model walk axis aligns with parent +X (ROS forward).
+    double forward_z_deg;
 
     bool empty() const
     {
@@ -124,9 +126,11 @@ PersonMeshResource resolvePersonMeshResource()
 {
     static const std::vector<PersonMeshResource> meshCandidates = {
         // Native height/foot offset measured from each mesh bounding box.
-        {"package://ros_tools/models/walking.dae", "package://ros_tools/models", 1.872074, 0.024},
-        {"package://hunav_rviz2_panel/meshes/walk.dae", "package://hunav_rviz2_panel/meshes", 1.65895, 0.0},
-        {"package://pedsim_rviz_plugin/media/male_symbol.dae", "package://pedsim_rviz_plugin/media", 1.75, 0.0},
+        // BoundingBoxPersonVisual depth is along +X (see rear(w,0,0) in person_visual.hpp).
+        // walking.dae bind pose is elongated along +Y; rotate +Y -> +X to match the bbox.
+        {"package://ros_tools/models/walking.dae", "package://ros_tools/models", 1.872074, 0.024, -90.0},
+        {"package://hunav_rviz2_panel/meshes/walk.dae", "package://hunav_rviz2_panel/meshes", 1.65895, 0.0, -90.0},
+        {"package://pedsim_rviz_plugin/media/male_symbol.dae", "package://pedsim_rviz_plugin/media", 1.75, 0.0, -90.0},
     };
 
     for (const auto & candidate : meshCandidates) {
@@ -234,11 +238,13 @@ MeshPersonVisual::MeshPersonVisual(const PersonVisualDefaultArgs& args)
     materials_.insert(default_material);
     applyDefaultMaterialToEntity(entity_, default_material);
 
-    // walking.dae is Z-up (height along Z). The legacy Y/Z rotations were only needed
-    // when the parent node used a quaternion-derived scale flip for cylinders.
-    // Align model forward (+Y) with ROS +X on the ground plane.
-    Ogre::Quaternion alignForward;
-    alignForward.FromAngleAxis(Ogre::Degree(-90), Ogre::Vector3::UNIT_Z);
+    // Match BoundingBoxPersonVisual: person forward is +X in the parent scene node.
+    // Z-up humanoid meshes (walking.dae, walk.dae) walk along model +Y; rotate onto +X.
+    Ogre::Quaternion alignForward = Ogre::Quaternion::IDENTITY;
+    if (std::abs(meshResource.forward_z_deg) > 1e-6) {
+        alignForward.FromAngleAxis(
+            Ogre::Degree(meshResource.forward_z_deg), Ogre::Vector3::UNIT_Z);
+    }
     m_childSceneNode->setOrientation(alignForward);
 
     applyMeshScale(m_userScalingFactor);

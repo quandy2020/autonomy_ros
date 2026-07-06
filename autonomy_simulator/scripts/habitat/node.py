@@ -52,12 +52,27 @@ class BridgeNode(Node):
             self._ply = PlyPublisher(self, cfg, self.get_logger())
         # Habitat-Sim startup is slow; keep lightweight publishers above it.
         self._session = Session(cfg, self.get_logger())
+        self._scene_bounds = None
+        from habitat.scene_bounds import SceneBoundsPublisher
+        self._scene_bounds = SceneBoundsPublisher(self, cfg, self._session, self.get_logger())
+        self._topdown_interactive = None
+        if cfg.topdown_enabled and cfg.topdown_mode == 'interactive':
+            from habitat.topdown_interactive import TopdownInteractive
+            self._topdown_interactive = TopdownInteractive(
+                self, cfg, self._session, self.get_logger(),
+            )
+        self._pedestrians = None
+        if cfg.pedestrians_enabled and cfg.pedestrian_count > 0:
+            from habitat.pedestrians import PedestrianSim
+            self._pedestrians = PedestrianSim(self, cfg, self._session)
         self._navmesh = None
         if cfg.navmesh_rate_hz >= 0.0:
             self._navmesh = NavMeshPublisher(self, cfg, self._session)
 
         stamp = self.get_clock().now()
         self._odom.publish(stamp, self._session)
+        if self._scene_bounds is not None:
+            self._scene_bounds.publish_once(stamp)
 
         self._pose_pub = self.create_publisher(PoseStamped, cfg.agent_pose_topic, qos)
         self.create_subscription(PoseStamped, cfg.set_agent_pose_topic, self._on_pose, qos)
@@ -74,6 +89,13 @@ class BridgeNode(Node):
         self.get_logger().info(
             f'[habitat] scene={cfg.scene_id} '
             f'path={cfg.scene_dir()} cmd_vel={cfg.cmd_vel_topic}'
+            + (f' pedestrians={cfg.pedestrian_count}' if self._pedestrians else '')
+            + (f' pedestrian_render=humanoid' if self._pedestrians else '')
+            + (f' topdown={cfg.topdown_topic}' if cfg.topdown_enabled else '')
+            + (
+                f' mode={cfg.topdown_mode}'
+                if cfg.topdown_enabled else ''
+            )
         )
 
     def _timer(self, hz: float, cb: Callable[[], None]) -> None:
@@ -109,10 +131,13 @@ class BridgeNode(Node):
             return
         stamp = self.get_clock().now()
         timed_out = self._timed_out()
-        obs = self._session.step(self._dt, timed_out)
+        self._session.advance(self._dt, timed_out)
+        if self._pedestrians is not None:
+            self._pedestrians.step(self._dt, stamp)
+        obs = self._session.observe()
         self._pose_pub.publish(self._session.agent_pose(self._cfg.agent_pose_frame, stamp))
         self._odom.publish(stamp, self._session, timed_out)
-        self._cam.publish(stamp, obs)
+        self._cam.publish(stamp, obs, topdown_hfov_deg=self._session.topdown_hfov_deg())
 
     def destroy_node(self) -> bool:
         self._session.close()

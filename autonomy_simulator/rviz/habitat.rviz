@@ -1,19 +1,58 @@
 Panels:
   - Class: rviz_common/Displays
+    Help Height: 70
     Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /RGB1
+        - /Depth1
+        - /Semantic1
+      Splitter Ratio: 0.5
+    Tree Height: 202
   - Class: hunav_rviz2_panel/HunavPanel
     Name: HunavPanel
     Topic: ""
   - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
     Name: Views
+    Splitter Ratio: 0.5
 Visualization Manager:
   Class: ""
   Displays:
     - Class: rviz_default_plugins/TF
       Enabled: true
       Frame Timeout: 15
-      Marker Scale: 0.3
+      Frames:
+        All Enabled: true
+        base_footprint:
+          Value: true
+        base_link:
+          Value: true
+        camera_link:
+          Value: true
+        camera_optical_frame:
+          Value: true
+        map:
+          Value: true
+        odom:
+          Value: true
+      Marker Scale: 0.30000001192092896
       Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        map:
+          odom:
+            base_footprint:
+              base_link:
+                camera_link:
+                  camera_optical_frame:
+                    {}
+      Update Interval: 0
+      Value: true
     - Alpha: 0.5
       Cell Size: 1
       Class: rviz_default_plugins/Grid
@@ -32,116 +71,341 @@ Visualization Manager:
       Plane Cell Count: 50
       Reference Frame: <Fixed Frame>
       Value: true
-    - Class: rviz_default_plugins/Map
+    - Alpha: 0.699999988079071
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: false
       Enabled: true
       Name: Map
       Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
         Value: /map
-        Depth: 1
-        Durability Policy: Transient Local
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Color Scheme: map
-      Draw Behind: false
+        Value: /map_updates
+      Use Timestamp: false
+      Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
       Name: RGB
+      Normalize Range: true
       Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
         Value: /camera/rgb/image_raw
-        Depth: 5
-        History Policy: Keep Last
-        Reliability Policy: Reliable
+      Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
       Name: Depth
+      Normalize Range: true
       Topic:
-        Value: /camera/depth/image_raw
         Depth: 5
+        Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
+        Value: /camera/depth/image_raw
+      Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
       Name: Semantic
+      Normalize Range: true
       Topic:
-        Value: /camera/semantic/image_raw
         Depth: 5
+        Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-    - Class: autonomy_msgs/Graph
+        Value: /camera/semantic/image_raw
+      Value: true
+    - Class: rviz_default_plugins/Marker
       Enabled: true
-      Name: NavMesh
+      Name: RoomBounds
+      Namespaces:
+        habitat_room: false
       Topic:
-        Value: /habitat/graph
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /habitat/room_bounds
+      Value: true
+    - Class: rviz_default_plugins/InteractiveMarkers
+      Enable Transparency: true
+      Enabled: true
+      Interactive Markers Namespace: ""
+      Name: InteractiveMarkers
+      Show Axes: false
+      Show Descriptions: true
+      Show Visual Aids: true
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: NavMeshMesh
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /habitat/navmesh_mesh
+      Value: true
+    - Class: autonomy_msgs/Graph
+      Default node scale: 0.07999999821186066
+      Edge types:
+        Bidirectional: true
+        Bidirectional width scale: 1
+        Directed: true
+        Directed width scale: 1
+        Undirected: true
+        Undirected width scale: 1
+        Virtual: true
+        Virtual width scale: 0.5
+      Enabled: false
+      Face alpha scale: 1
+      Face shapes:
+        Polygon: true
+        Rectangle: true
+        Triangle: true
+      Line width: 0.029999999329447746
+      Link shapes:
+        Line: true
+        Polygon: true
+        Polygon width scale: 0.8999999761581421
+        Rectangle: true
+        Rectangle width scale: 1.100000023841858
+        Triangle: true
+        Triangle width scale: 1
+      Name: NavMesh
+      Show edges: true
+      Show faces: true
+      Show nodes: true
+      Topic:
         Depth: 1
         Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Default node scale: 0.08
-      Line width: 0.03
-      Show nodes: true
-      Show edges: true
+        Value: /habitat/graph
+      Value: false
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: HunavAgents
+      Namespaces:
+        {}
       Topic:
-        Value: /hunav_agent
         Depth: 5
         Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
+        Value: /hunav_agent
+      Value: true
     - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
+      Enabled: false
       Name: HunavGoals
+      Namespaces:
+        {}
       Topic:
-        Value: /hunav_goals
         Depth: 5
+        Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
+        Value: /hunav_goals
+      Value: false
     - Alpha: 1
       Class: pedsim_rviz_plugin/TrackedPersons
+      Color: 130; 130; 130
+      Color map offset: 0
+      Color transform: Rainbow
+      Delete after no. cycles: 100
       Enabled: true
-      Font scale: 1.5
+      Excluded person IDs: ""
+      Font color: 255; 255; 255
+      Font color style: Same color
+      Font scale: 1
       History as line:
-        Value: true
+        Line width: 0.05000000074505806
+        Value: false
       History size: 15
+      Included person IDs: ""
+      Min. history point distance: 0.4000000059604645
+      Missed alpha: 0.5
       Name: TrackedPersons
+      Occlusion alpha: 0.30000001192092896
+      Render covariances:
+        Line width: 0.10000000149011612
+        Value: true
       Render detection IDs: false
-      Render history: true
+      Render history: false
       Render person visual: true
       Render track IDs: true
+      Render track state: true
       Render velocities: true
+      Show DELETED tracks: false
+      Show MATCHED tracks: true
+      Show MISSED tracks: false
+      Show OCCLUDED tracks: false
       Style:
-        Value: Cylinders
+        Line width: 0.05000000074505806
+        Scaling factor: 1
+        Value: Person meshes
       Topic:
-        Value: /pedestrian_visualizer/tracked_persons
-    - Alpha: 1
-      Class: pedsim_rviz_plugin/TrackedGroups
-      Enabled: true
-      Name: TrackedGroups
-      Topic:
-        Value: /pedestrian_visualizer/tracked_groups
-      Tracked persons topic:
-        Value: /pedestrian_visualizer/tracked_persons
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: PredictionPaths
-      Topic:
-        Value: /pedestrian_simulator/prediction_paths
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: PedestrianVisualization
-      Topic:
-        Value: /pedestrian_simulator/visualization
         Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: PedestrianRobot
+        Value: /pedestrian_visualizer/tracked_persons
+      Tracking frame: map
+      Value: true
+      Z offset:
+        Use Z position from message: true
+        Value: 0
+    - Alpha: 1
+      Class: pedsim_rviz_plugin/TrackedGroups
+      Color: 130; 130; 130
+      Color map offset: 0
+      Color transform: Rainbow
+      Connect group members: true
+      Enabled: false
+      Excluded group IDs: ""
+      Excluded person IDs: ""
+      Font color: 255; 255; 255
+      Font color style: Same color
+      Font scale: 2
+      Global history size: 1000
+      Group ID Z offset: 2
+      Included group IDs: ""
+      Included person IDs: ""
+      Name: TrackedGroups
+      Occlusion alpha: 0.5
+      Render group IDs:
+        Hide IDs of single-person groups: false
+        Value: true
+      Render history: false
+      Single-person groups in constant color: true
+      Style:
+        Line width: 0.05000000074505806
+        Scaling factor: 1
+        Value: Cylinders
       Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pedestrian_visualizer/tracked_groups
+      Tracked persons topic: /pedestrian_visualizer/tracked_persons
+      Value: false
+      Z offset:
+        Use Z position from message: false
+        Value: 0
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: false
+      Name: PredictionPaths
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pedestrian_simulator/prediction_paths
+      Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: false
+      Name: PedestrianVisualization
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pedestrian_simulator/visualization
+      Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: false
+      Name: PedestrianRobot
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
         Value: /pedestrian_simulator/robot_position
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /semantic_pointcloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: false
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Topdown
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /camera/topdown/image_raw
+      Value: false
+  Enabled: true
   Global Options:
+    Background Color: 48; 48; 48
     Fixed Frame: map
+    Frame Rate: 30
   Name: root
   Tools:
     - Class: rviz_default_plugins/Interact
@@ -156,11 +420,14 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /clicked_point
     - Class: hunav_rviz2_panel/HunavGoals
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
   Value: true
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 35
+      Distance: 14.147295951843262
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -175,13 +442,45 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.8671977519989014
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: -1.5707963705062866
+      Yaw: 0.965397834777832
+    Saved:
+      - Angle: 0
+        Class: rviz_default_plugins/TopDownOrtho
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Invert Z Axis: false
+        Name: Room TopDown
+        Near Clip Distance: 0.009999999776482582
+        Scale: 45
+        Target Frame: <Fixed Frame>
+        Value: TopDownOrtho (rviz_default_plugins)
+        X: 0
+        Y: 0
 Window Geometry:
-  Height: 900
+  Depth:
+    collapsed: false
+  Displays:
+    collapsed: false
+  Height: 1403
   Hide Left Dock: false
+  Hide Right Dock: false
   HunavPanel:
     collapsed: false
-  Width: 1400
+  QMainWindow State: 000000ff00000000fd00000001000000000000019b00000525fc0200000008fb0000000a00440065007000740068010000003b000001410000002800fffffffb000000060052004700420100000182000001470000002800fffffffb0000001000530065006d0061006e00740069006301000002cf000001400000002800fffffffb000000100044006900730070006c00610079007301000004150000014b000000c700fffffffb0000001400480075006e0061007600500061006e0065006c000000036f000000e40000005c00fffffffb0000000a00560069006500770073000000038e000001d2000000a000fffffffb0000000a0049006d0061006700650300000d2c000002340000045d00000296fb0000000e0054006f00700064006f0077006e0200000c5e000001410000030f000002a70000085f0000052500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  RGB:
+    collapsed: false
+  Semantic:
+    collapsed: false
+  Topdown:
+    collapsed: false
+  Views:
+    collapsed: false
+  Width: 2560
+  X: 2560
+  Y: 0

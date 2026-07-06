@@ -274,7 +274,7 @@ namespace pedsim_rviz_plugin
 
             if(hasValidOrientation(pose)) {
                 Ogre::Quaternion detectionOrientation(orientation.w, orientation.x, orientation.y, orientation.z);
-                detectionOrientation.FromAngleAxis(detectionOrientation.getRoll(), Ogre::Vector3(0,0,1)); // only use yaw angle, ignore roll and pitch
+                detectionOrientation.FromAngleAxis(detectionOrientation.getYaw(), Ogre::Vector3(0,0,1)); // map yaw about Z
                 sceneNode->setOrientation(m_frameOrientation * detectionOrientation);
             }
             else {
