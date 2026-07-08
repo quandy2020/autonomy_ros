@@ -186,14 +186,18 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 |------|------|------|
 | `num_robots` | `3` | 机器人数量 |
 | `scene_data_path` | `/mnt/data4t/Datasets/mp3d/17DRP5sb8fy` | MP3D 场景目录（可用 `AUTONOMY_MP3D_SCENE` 覆盖） |
-| `dataset_root` | `/workspace/autonomy/data/lerobot/collection` | LeRobot 根目录 |
+| `dataset_root` | `/mnt/data4t/data/lerobot/collection` | LeRobot 根目录（见 `autonomy_lerobot/config/data_paths.yaml`） |
 | `dataset_repo_id` | `local/habitat_collection` | 数据集 repo id |
 | `recording_enabled` | `true` | 是否启动 bridge |
 | `clean_datasets_on_start` | `false` | `true` 时删除已有 `robotN/` 从零开始 |
 | `task_config` | 包内 `collection_task.yaml` | 编排配置路径 |
-| `nav_ready_sec` | `12.0` | 最后一台 Nav2 就绪后再开始分配 |
+| `habitat_load_sec` | `8.0` | 单台 Habitat Session 预计加载时间 |
+| `habitat_load_penalty_sec` | `12.0` | 每多一台机器人额外增加的 Nav2 等待（GPU 争用） |
+| `nav2_stagger_sec` | `12.0` | 各机器人 Nav2 错峰间隔 |
+| `lerobot_gap_sec` | `15.0` | 最后一台 Nav2 启动后再等多久开 LeRobot |
+| `nav_ready_sec` | `45.0` | 最后一台 Nav2 就绪后再开始分配 |
 
-启动顺序：Habitat（错峰）→ Nav2（错峰）→ LeRobot bridge → coordinator。
+启动顺序：Habitat（错峰）→ Nav2（错峰）→ LeRobot bridge（在 Nav2 之后）→ coordinator。
 
 ### 单独运行编排节点
 
@@ -201,7 +205,7 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 ros2 run autonomy_task collection_coordinator_node --ros-args \
   -p config_file:=$(ros2 pkg prefix autonomy_task)/share/autonomy_task/config/collection_task.yaml \
   -p num_robots:=5 \
-  -p dataset_root:=/workspace/autonomy/data/lerobot/collection \
+  -p dataset_root:=/mnt/data4t/data/lerobot/collection \
   -p dataset_repo_id:=local/habitat_collection
 ```
 

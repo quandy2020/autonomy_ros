@@ -7,7 +7,7 @@
 
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from autonomy_lerobot.data_paths import default_mp3d_scene
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
@@ -16,6 +16,24 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 DEFAULT_MP3D_SCENE = str(default_mp3d_scene())
+
+
+def _simulator_script(name: str) -> str:
+    """Resolve installed script path, with source-tree fallback for symlink-install."""
+    prefix = get_package_prefix('autonomy_simulator')
+    installed = os.path.join(prefix, 'lib', 'autonomy_simulator', name)
+    if os.path.isfile(installed):
+        return installed
+    ws_root = os.path.abspath(os.path.join(prefix, '..', '..'))
+    source = os.path.join(
+        ws_root, 'src', 'autonomy_ros', 'autonomy_simulator', 'scripts', name,
+    )
+    if os.path.isfile(source):
+        return source
+    raise RuntimeError(
+        f'Missing autonomy_simulator script {name!r}; '
+        'run: colcon build --packages-select autonomy_simulator --symlink-install',
+    )
 
 
 def generate_launch_description():
@@ -129,6 +147,23 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time, 'robot_description': urdf}],
     )
 
+    habitat_odom_tf = Node(
+        executable='/opt/venv/bin/python3',
+        arguments=[_simulator_script('habitat_odom_tf_node.py')],
+        name='habitat_odom_tf',
+        namespace=ns,
+        output='screen',
+        remappings=tf_remappings,
+        parameters=[
+            params,
+            {
+                'use_sim_time': use_sim_time,
+                'scene_data_path': scene,
+                'package_scene_dataset_config': dataset_config,
+            },
+        ],
+    )
+
     habitat_node = Node(
         package='autonomy_simulator',
         executable='habitat_node.py',
@@ -173,6 +208,7 @@ def generate_launch_description():
         SetEnvironmentVariable('FASTDDS_BUILTIN_TRANSPORTS', 'UDPv4'),
         *declares,
         robot_state_publisher,
+        habitat_odom_tf,
         habitat_node,
         rviz_node,
     ])

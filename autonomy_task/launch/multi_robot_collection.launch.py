@@ -6,7 +6,7 @@
 Startup order (global timeline, t=0 is launch):
   1. Habitat  — per-robot stagger (robot1 @ 0s, robot2 @ +stagger, …)
   2. Nav2     — after all Habitat instances have had time to load map/TF
-  3. LeRobot  — after Habitat load (parallel with Nav2 bringup)
+  3. LeRobot  — after all Nav2 stacks have started (reduces lifecycle contention)
   4. Coordinator (+ optional RViz) — after last Nav2 stack + nav_ready_sec
 """
 
@@ -52,6 +52,7 @@ def _phase_delays(
     *,
     habitat_stagger: float,
     habitat_load: float,
+    habitat_load_penalty: float,
     nav2_gap: float,
     nav2_stagger: float,
     lerobot_gap: float,
@@ -60,14 +61,19 @@ def _phase_delays(
     """Compute per-phase start times from robot count and timing knobs."""
     n = max(1, num_robots)
     last_habitat = (n - 1) * habitat_stagger
-    nav2_base = last_habitat + habitat_load + nav2_gap
-    last_nav2 = nav2_base + (n - 1) * nav2_stagger
-    lerobot_delay = last_habitat + habitat_load + lerobot_gap
+    last_nav2 = (
+        last_habitat
+        + habitat_load
+        + (n - 1) * habitat_load_penalty
+        + nav2_gap
+        + (n - 1) * nav2_stagger
+    )
+    # Start LeRobot after all Nav2 stacks have launched (avoids DDS/CPU contention during bringup).
+    lerobot_delay = last_nav2 + lerobot_gap
     # Coordinator assigns Nav2 goals — start after the last stack has time to activate.
     coordinator_delay = last_nav2 + nav_ready_sec
     return {
         'habitat_stagger': habitat_stagger,
-        'nav2_base': nav2_base,
         'nav2_stagger': nav2_stagger,
         'lerobot_delay': lerobot_delay,
         'coordinator_delay': coordinator_delay,
@@ -102,6 +108,8 @@ def _launch_phased_stack(context, *args, **kwargs):
 
     habitat_stagger = float(LaunchConfiguration('habitat_stagger_sec').perform(context))
     habitat_load = float(LaunchConfiguration('habitat_load_sec').perform(context))
+    habitat_load_penalty = float(
+        LaunchConfiguration('habitat_load_penalty_sec').perform(context))
     nav2_gap = float(LaunchConfiguration('nav2_gap_sec').perform(context))
     nav2_stagger = float(LaunchConfiguration('nav2_stagger_sec').perform(context))
     lerobot_gap = float(LaunchConfiguration('lerobot_gap_sec').perform(context))
@@ -111,6 +119,7 @@ def _launch_phased_stack(context, *args, **kwargs):
         num_robots,
         habitat_stagger=habitat_stagger,
         habitat_load=habitat_load,
+        habitat_load_penalty=habitat_load_penalty,
         nav2_gap=nav2_gap,
         nav2_stagger=nav2_stagger,
         lerobot_gap=lerobot_gap,
@@ -129,9 +138,11 @@ def _launch_phased_stack(context, *args, **kwargs):
                 'robot_name_prefix': prefix,
                 'params_file': params_file,
                 'scene_data_path': scene_data_path,
-                'nav2_startup_delay_base': f'{phases["nav2_base"]:.1f}',
-                'nav2_startup_delay_step': f'{phases["nav2_stagger"]:.1f}',
                 'habitat_startup_delay_step': f'{phases["habitat_stagger"]:.1f}',
+                'habitat_load_sec': f'{habitat_load:.1f}',
+                'habitat_load_penalty_sec': f'{habitat_load_penalty:.1f}',
+                'nav2_gap_sec': f'{nav2_gap:.1f}',
+                'nav2_startup_delay_step': f'{phases["nav2_stagger"]:.1f}',
             }.items(),
         ),
     ]
@@ -227,8 +238,13 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             'habitat_load_sec',
-            default_value='4.0',
+            default_value='8.0',
             description='Expected Habitat Session load time before Nav2 (phase 1→2)',
+        ),
+        DeclareLaunchArgument(
+            'habitat_load_penalty_sec',
+            default_value='12.0',
+            description='Extra Nav2 delay per robot index for cumulative GPU load',
         ),
         DeclareLaunchArgument(
             'nav2_gap_sec',
@@ -237,22 +253,22 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             'nav2_stagger_sec',
-            default_value='8.0',
+            default_value='12.0',
             description='Delay between each robot Nav2 start (phase 2)',
         ),
         DeclareLaunchArgument(
             'lerobot_gap_sec',
-            default_value='1.0',
-            description='Gap after Habitat before first LeRobot bridge (phase 3)',
+            default_value='15.0',
+            description='Gap after last Nav2 start before first LeRobot bridge (phase 3)',
         ),
         DeclareLaunchArgument(
             'lerobot_stagger_sec',
-            default_value='4.0',
+            default_value='6.0',
             description='Delay between each robot LeRobot bridge start (reduces DDS load)',
         ),
         DeclareLaunchArgument(
             'nav_ready_sec',
-            default_value='25.0',
+            default_value='45.0',
             description='Extra delay after last Nav2 start before coordinator assigns goals',
         ),
     ]

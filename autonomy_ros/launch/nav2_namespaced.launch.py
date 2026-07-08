@@ -22,6 +22,9 @@ def generate_launch_description() -> LaunchDescription:
     params_file = LaunchConfiguration('params_file')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
+    use_respawn = LaunchConfiguration('use_respawn')
+    lifecycle_bringup_delay = LaunchConfiguration('lifecycle_bringup_delay')
+    log_level = LaunchConfiguration('log_level')
 
     default_params = os.path.join(
         autonomy_ros_share, 'config', 'nav2_habitat_params.yaml'
@@ -45,6 +48,21 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('autostart', default_value='true'),
+        DeclareLaunchArgument(
+            'use_respawn',
+            default_value='true',
+            description='Respawn Nav2 nodes on crash (recommended for multi-robot)',
+        ),
+        DeclareLaunchArgument(
+            'lifecycle_bringup_delay',
+            default_value='8.0',
+            description='Delay before lifecycle_manager autostarts the Nav2 stack',
+        ),
+        DeclareLaunchArgument(
+            'log_level',
+            default_value='info',
+            description='Nav2 node log level',
+        ),
     ]
 
     nav2_stack = GroupAction([
@@ -65,6 +83,9 @@ def generate_launch_description() -> LaunchDescription:
                 'params_file': params_file,
                 'autostart': autostart,
                 'use_composition': 'False',
+                'use_respawn': use_respawn,
+                'lifecycle_bringup_delay': lifecycle_bringup_delay,
+                'log_level': log_level,
             }.items(),
         ),
     ])

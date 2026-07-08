@@ -131,6 +131,15 @@ export HF_HUB_OFFLINE=1
 # 推荐：自动解析 collection 路径（需先 colcon build 并 source install/setup.bash）
 ros2 run autonomy_lerobot lerobot_dataset_viz --robot robot1 --episode-index 0
 
+# Docker 内 GUI「Save」不可用；播放结束后会自动导出 .rrd 到：
+#   /mnt/data4t/data/lerobot/viz/<repo_id>_episode_<N>.rrd
+# 也可显式导出（不弹 viewer）：
+ros2 run autonomy_lerobot lerobot_dataset_viz --robot robot1 --episode-index 0 \
+  --save-dir /mnt/data4t/data/lerobot/viz
+
+# 或在宿主机浏览器查看（容器内 distant 模式）：
+ros2 run autonomy_lerobot lerobot_dataset_viz --robot robot1 --episode-index 0 --mode distant
+
 # 或直接调用模块（不经过 ros2 run）
 python3 -m autonomy_lerobot.dataset_viz --robot robot1 --episode-index 0
 

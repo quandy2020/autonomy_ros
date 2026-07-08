@@ -62,7 +62,7 @@ install(DIRECTORY launch urdf rviz worlds models configs param
 install(DIRECTORY scripts/habitat
   DESTINATION lib/${PROJECT_NAME}
 )
-install(PROGRAMS scripts/habitat_node.py scripts/semantic_ply_to_kujiale.py
+install(PROGRAMS scripts/habitat_node.py scripts/habitat_odom_tf_node.py scripts/semantic_ply_to_kujiale.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

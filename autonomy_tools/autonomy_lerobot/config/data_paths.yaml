@@ -1,5 +1,6 @@
 # 唯一数据路径配置（单机 / 多机共用）。
 # Docker 挂载数据盘：AUTONOMY_DATA_VOLUMES=/mnt/data4t 或 run_autonomy.py --data-volume /mnt/data4t
+# 运行时可用环境变量覆盖：AUTONOMY_VOLUME_ROOT=/mnt/data4t
 volume_root: /mnt/data4t
 
 # 可选覆盖（默认由 volume_root 派生：{volume_root}/data、{volume_root}/Datasets/mp3d）

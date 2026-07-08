@@ -45,12 +45,10 @@ class BridgeNode(Node):
 
         self._cam = CameraPublisher(self, cfg)
         self._odom = OdomPublisher(self, cfg)
-        # Flush map→odom / odom→base_footprint before the blocking Session() load.
-        rclpy.spin_once(self, timeout_sec=0.1)
         self._ply = None
         if cfg.semantic_pointcloud_rate_hz >= 0.0 or cfg.occupancy_grid_rate_hz >= 0.0:
             self._ply = PlyPublisher(self, cfg, self.get_logger())
-        # Habitat-Sim startup is slow; keep lightweight publishers above it.
+        # habitat_odom_tf_node keeps map→odom→base_footprint alive while Session() blocks here.
         self._session = Session(cfg, self.get_logger())
         self._scene_bounds = None
         from habitat.scene_bounds import SceneBoundsPublisher
@@ -83,7 +81,6 @@ class BridgeNode(Node):
             self._timer(cfg.occupancy_grid_rate_hz, self._on_map)
         if self._navmesh is not None:
             navmesh_hz = cfg.navmesh_rate_hz
-            # rate_hz=0 latches once; still republish at 1 Hz so late RViz subscribers receive it.
             self._timer(1.0 if navmesh_hz == 0.0 else navmesh_hz, self._on_navmesh)
 
         self.get_logger().info(

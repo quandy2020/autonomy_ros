@@ -29,6 +29,9 @@ def _raw() -> dict:
 
 
 def volume_root() -> Path:
+    override = os.environ.get('AUTONOMY_VOLUME_ROOT', '').strip()
+    if override:
+        return Path(override).expanduser().resolve()
     return Path(str(_raw()['volume_root'])).expanduser().resolve()
 
 
@@ -73,6 +76,22 @@ def lerobot_root() -> Path:
 def lerobot_collection_root() -> Path:
     """Multi-robot collection dataset root (per-robot subdirs: robot1/, robot2/, …)."""
     return lerobot_root() / 'collection'
+
+
+def list_collection_robots(collection_root: Path | None = None) -> dict[str, Path]:
+    """Return ``{robot_name: dataset_dir}`` for visualizable local datasets."""
+    root = (collection_root or lerobot_collection_root()).expanduser().resolve()
+    if not root.is_dir():
+        return {}
+    from autonomy_lerobot.dataset_health import has_episodes_meta
+
+    return {
+        child.name: child
+        for child in sorted(root.iterdir())
+        if child.is_dir()
+        and (child / 'meta' / 'info.json').is_file()
+        and has_episodes_meta(child)
+    }
 
 
 def lerobot_habitat_nav2_root() -> Path:

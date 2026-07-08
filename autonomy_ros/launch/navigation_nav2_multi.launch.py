@@ -16,6 +16,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
     OpaqueFunction,
+    SetEnvironmentVariable,
 )
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -31,21 +32,32 @@ def _robot_configs(
     num_robots: int,
     name_prefix: str,
     scene: str,
-    delay_base: float,
-    delay_step: float,
     habitat_step: float,
+    habitat_load: float,
+    habitat_load_penalty: float,
+    nav2_gap: float,
+    nav2_step: float,
 ) -> list[dict[str, str]]:
-    return [
-        {
+    """Per-robot Nav2 delay: wait for *this* robot's Habitat start + load (+ GPU penalty)."""
+    configs = []
+    for index in range(1, num_robots + 1):
+        i = index - 1
+        nav2_delay = (
+            i * habitat_step
+            + habitat_load
+            + i * habitat_load_penalty
+            + nav2_gap
+            + i * nav2_step
+        )
+        configs.append({
             'name': f'{name_prefix}{index}',
             'scene': scene,
-            'nav2_startup_delay': f'{delay_base + (index - 1) * delay_step:.1f}',
-            'habitat_startup_delay': f'{(index - 1) * habitat_step:.1f}',
-            'spawn_index': str(index - 1),
+            'nav2_startup_delay': f'{nav2_delay:.1f}',
+            'habitat_startup_delay': f'{i * habitat_step:.1f}',
+            'spawn_index': str(i),
             'spawn_count': str(num_robots),
-        }
-        for index in range(1, num_robots + 1)
-    ]
+        })
+    return configs
 
 
 def _launch_robot_stacks(context, *args, **kwargs):
@@ -57,13 +69,18 @@ def _launch_robot_stacks(context, *args, **kwargs):
 
     name_prefix = LaunchConfiguration('robot_name_prefix').perform(context)
     scene = LaunchConfiguration('scene_data_path').perform(context)
-    delay_base = float(LaunchConfiguration('nav2_startup_delay_base').perform(context))
-    delay_step = float(LaunchConfiguration('nav2_startup_delay_step').perform(context))
     habitat_step = float(LaunchConfiguration('habitat_startup_delay_step').perform(context))
+    habitat_load = float(LaunchConfiguration('habitat_load_sec').perform(context))
+    habitat_load_penalty = float(
+        LaunchConfiguration('habitat_load_penalty_sec').perform(context))
+    nav2_gap = float(LaunchConfiguration('nav2_gap_sec').perform(context))
+    nav2_step = float(LaunchConfiguration('nav2_startup_delay_step').perform(context))
 
     params_file = LaunchConfiguration('params_file').perform(context)
     use_sim_time = LaunchConfiguration('use_sim_time').perform(context)
     autostart = LaunchConfiguration('autostart').perform(context)
+    lifecycle_bringup_delay = LaunchConfiguration(
+        'lifecycle_bringup_delay').perform(context)
 
     robot_launch = os.path.join(
         autonomy_ros_share, 'launch', 'navigation_nav2_robot.launch.py'
@@ -71,7 +88,14 @@ def _launch_robot_stacks(context, *args, **kwargs):
 
     actions = []
     for robot in _robot_configs(
-        num_robots, name_prefix, scene, delay_base, delay_step, habitat_step
+        num_robots,
+        name_prefix,
+        scene,
+        habitat_step,
+        habitat_load,
+        habitat_load_penalty,
+        nav2_gap,
+        nav2_step,
     ):
         actions.append(
             IncludeLaunchDescription(
@@ -85,6 +109,7 @@ def _launch_robot_stacks(context, *args, **kwargs):
                     'autostart': autostart,
                     'nav2_startup_delay': robot['nav2_startup_delay'],
                     'habitat_startup_delay': robot['habitat_startup_delay'],
+                    'lifecycle_bringup_delay': lifecycle_bringup_delay,
                     'occupancy_grid_rate_hz': '0.0',
                     'spawn_index': robot['spawn_index'],
                     'spawn_count': robot['spawn_count'],
@@ -134,19 +159,37 @@ def generate_launch_description() -> LaunchDescription:
             description='MP3D scene directory for every robot',
         ),
         DeclareLaunchArgument(
-            'nav2_startup_delay_base',
-            default_value='8.0',
-            description='Nav2 start delay for robot1 (seconds; allow Habitat Session load)',
-        ),
-        DeclareLaunchArgument(
-            'nav2_startup_delay_step',
-            default_value='5.0',
-            description='Extra Nav2 delay per robot index (seconds)',
-        ),
-        DeclareLaunchArgument(
             'habitat_startup_delay_step',
             default_value='3.0',
             description='Extra Habitat delay per robot index (seconds)',
+        ),
+        DeclareLaunchArgument(
+            'habitat_load_sec',
+            default_value='8.0',
+            description='Expected Habitat Session load time before Nav2 (per robot)',
+        ),
+        DeclareLaunchArgument(
+            'habitat_load_penalty_sec',
+            default_value='12.0',
+            description=(
+                'Extra Nav2 delay per robot index for cumulative GPU load '
+                '(robotK waits K×penalty longer after its Habitat start)'
+            ),
+        ),
+        DeclareLaunchArgument(
+            'nav2_gap_sec',
+            default_value='1.0',
+            description='Gap after Habitat load before Nav2 for each robot',
+        ),
+        DeclareLaunchArgument(
+            'nav2_startup_delay_step',
+            default_value='12.0',
+            description='Extra Nav2 stagger per robot index (seconds)',
+        ),
+        DeclareLaunchArgument(
+            'lifecycle_bringup_delay',
+            default_value='8.0',
+            description='Per-robot delay before lifecycle_manager autostarts Nav2',
         ),
     ]
 
@@ -161,6 +204,7 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     return LaunchDescription([
+        SetEnvironmentVariable('FASTDDS_BUILTIN_TRANSPORTS', 'UDPv4'),
         *declares,
         OpaqueFunction(function=_launch_robot_stacks),
         rviz,
