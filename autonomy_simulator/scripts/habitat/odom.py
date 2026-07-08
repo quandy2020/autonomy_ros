@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 import rclpy
 from geometry_msgs.msg import Point, Quaternion, TransformStamped
@@ -28,7 +29,9 @@ from rclpy.qos import qos_profile_system_default
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
 from habitat.config import Config
-from habitat.sim import Session
+
+if TYPE_CHECKING:
+    from habitat.sim import Session
 
 
 class OdomPublisher:
@@ -45,12 +48,11 @@ class OdomPublisher:
 
     def _pub_initial_odom_to_base(self) -> None:
         """Identity odom→base_footprint until the first sim tick (Session load is slow)."""
-        msg = TransformStamped()
-        msg.header.stamp = rclpy.time.Time().to_msg()
-        msg.header.frame_id = self._cfg.odom_frame
-        msg.child_frame_id = self._cfg.base_footprint_frame
-        msg.transform.rotation.w = 1.0
-        self._tf.sendTransform(msg)
+        self.hold_tf_alive(rclpy.time.Time())
+
+    def hold_tf_alive(self, stamp: rclpy.time.Time) -> None:
+        """Republish odom→base_footprint while Session loads (keeps Nav2 TF tree valid)."""
+        self._pub_odom_to_base(stamp, 0.0, 0.0, 0.0, 0.0)
 
     def publish(
         self,

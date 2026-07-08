@@ -17,11 +17,16 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, SetEnvironmentVariable
+from launch.actions import (
+    DeclareLaunchArgument,
+    GroupAction,
+    SetEnvironmentVariable,
+    TimerAction,
+)
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LoadComposableNodes
-from launch_ros.actions import Node
+from launch_ros.actions import Node, PushRosNamespace
 from launch_ros.descriptions import ComposableNode, ParameterFile
 from nav2_common.launch import RewrittenYaml
 
@@ -39,6 +44,7 @@ def generate_launch_description():
     container_name_full = (namespace, '/', container_name)
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
+    lifecycle_bringup_delay = LaunchConfiguration('lifecycle_bringup_delay')
 
     lifecycle_nodes = ['controller_server',
                        'smoother_server',
@@ -107,6 +113,26 @@ def generate_launch_description():
     declare_log_level_cmd = DeclareLaunchArgument(
         'log_level', default_value='info',
         description='log level')
+
+    declare_lifecycle_bringup_delay_cmd = DeclareLaunchArgument(
+        'lifecycle_bringup_delay',
+        default_value='0.0',
+        description=(
+            'Seconds to wait after Nav2 nodes spawn before starting '
+            'lifecycle_manager (reduces get_state timeouts under load)'
+        ),
+    )
+
+    lifecycle_manager_node = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_navigation',
+        output='screen',
+        arguments=['--ros-args', '--log-level', log_level],
+        parameters=[configured_params,
+                    {'autostart': autostart},
+                    {'node_names': lifecycle_nodes}],
+    )
 
     load_nodes = GroupAction(
         condition=IfCondition(PythonExpression(['not ', use_composition])),
@@ -181,15 +207,16 @@ def generate_launch_description():
                 arguments=['--ros-args', '--log-level', log_level],
                 remappings=remappings +
                         [('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
-            Node(
-                package='nav2_lifecycle_manager',
-                executable='lifecycle_manager',
-                name='lifecycle_manager_navigation',
-                output='screen',
-                arguments=['--ros-args', '--log-level', log_level],
-                parameters=[configured_params,
-                            {'autostart': autostart},
-                            {'node_names': lifecycle_nodes}]),
+            TimerAction(
+                period=lifecycle_bringup_delay,
+                # TimerAction fires outside the parent PushRosNamespace scope; re-apply here.
+                actions=[
+                    GroupAction([
+                        PushRosNamespace(namespace=namespace),
+                        lifecycle_manager_node,
+                    ]),
+                ],
+            ),
         ]
     )
 
@@ -265,6 +292,7 @@ def generate_launch_description():
     ld.add_action(declare_container_name_cmd)
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_log_level_cmd)
+    ld.add_action(declare_lifecycle_bringup_delay_cmd)
     # Add the actions to launch all of the navigation nodes
     ld.add_action(load_nodes)
     ld.add_action(load_composable_nodes)

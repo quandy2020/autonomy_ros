@@ -223,6 +223,7 @@ def _rebuild_meta_from_lengths(
         return len(rows)
 
     _remove_corrupt_parquet(episodes_dir, dry_run=False)
+    episodes_dir.mkdir(parents=True, exist_ok=True)
     for chunk in episodes_dir.iterdir():
         if chunk.is_dir():
             shutil.rmtree(chunk, ignore_errors=True)

@@ -30,6 +30,10 @@ def _launch_robot(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration('use_sim_time').perform(context)
     params_file = LaunchConfiguration('params_file').perform(context)
     autostart = LaunchConfiguration('autostart').perform(context)
+    use_respawn = LaunchConfiguration('use_respawn').perform(context)
+    lifecycle_bringup_delay = LaunchConfiguration(
+        'lifecycle_bringup_delay').perform(context)
+    log_level = LaunchConfiguration('log_level').perform(context)
     scene_data_path = LaunchConfiguration('scene_data_path').perform(context)
     occupancy_grid_rate_hz = LaunchConfiguration('occupancy_grid_rate_hz').perform(context)
     habitat_delay = float(LaunchConfiguration('habitat_startup_delay').perform(context))
@@ -66,6 +70,9 @@ def _launch_robot(context, *args, **kwargs):
                     'use_sim_time': use_sim_time,
                     'params_file': params_file,
                     'autostart': autostart,
+                    'use_respawn': use_respawn,
+                    'lifecycle_bringup_delay': lifecycle_bringup_delay,
+                    'log_level': log_level,
                 }.items(),
             ),
         ],
@@ -109,6 +116,21 @@ def generate_launch_description() -> LaunchDescription:
             'autostart',
             default_value='true',
             description='Autostart Nav2 lifecycle nodes',
+        ),
+        DeclareLaunchArgument(
+            'use_respawn',
+            default_value='true',
+            description='Respawn Nav2 nodes on crash',
+        ),
+        DeclareLaunchArgument(
+            'lifecycle_bringup_delay',
+            default_value='8.0',
+            description='Delay before lifecycle_manager autostarts Nav2',
+        ),
+        DeclareLaunchArgument(
+            'log_level',
+            default_value='info',
+            description='Nav2 node log level',
         ),
         DeclareLaunchArgument(
             'nav2_startup_delay',
