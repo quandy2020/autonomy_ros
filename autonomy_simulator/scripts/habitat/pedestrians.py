@@ -51,6 +51,41 @@ def _habitat_to_map(pos: np.ndarray) -> tuple[float, float]:
     return xy(pos)
 
 
+def _quat_from_euler(roll: float, pitch: float, yaw: float) -> tuple[float, float, float, float]:
+    cr = math.cos(roll * 0.5)
+    sr = math.sin(roll * 0.5)
+    cp = math.cos(pitch * 0.5)
+    sp = math.sin(pitch * 0.5)
+    cy = math.cos(yaw * 0.5)
+    sy = math.sin(yaw * 0.5)
+    return (
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+        cr * cp * cy + sr * sp * sy,
+    )
+
+
+def _quat_multiply(
+    q1: tuple[float, float, float, float],
+    q2: tuple[float, float, float, float],
+) -> tuple[float, float, float, float]:
+    x1, y1, z1, w1 = q1
+    x2, y2, z2, w2 = q2
+    return (
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+    )
+
+
+def _rotate_xy(x: float, y: float, yaw: float) -> tuple[float, float]:
+    cy = math.cos(yaw)
+    sy = math.sin(yaw)
+    return (x * cy - y * sy, x * sy + y * cy)
+
+
 @dataclass
 class _Pedestrian:
     track_id: int
@@ -59,6 +94,8 @@ class _Pedestrian:
     yaw: float
     goals: list[np.ndarray]
     avatar: str
+    radius: float
+    height: float
     goal_idx: int = 0
     old_map_xy: tuple[float, float] | None = None
     lin_speed: float = 1.0
@@ -69,7 +106,7 @@ class _Pedestrian:
 
 
 class PedestrianSim:
-    """Spawn and step dynamic pedestrians; publish TrackedPersons + RViz markers."""
+    """Spawn and step one dynamic-agent group; publish tracks + RViz markers."""
 
     _COLORS = (
         (0.9, 0.25, 0.2),
@@ -82,30 +119,69 @@ class PedestrianSim:
         (0.85, 0.35, 0.55),
     )
 
-    def __init__(self, node: Node, cfg: Config, session: Session) -> None:
+    def __init__(
+        self,
+        node: Node,
+        cfg: Config,
+        session: Session,
+        *,
+        actor_kind: str,
+        agent_count: int,
+        goal_count: int,
+        linear_speed: float,
+        seed: int,
+        tracked_topic: str,
+        viz_topic: str,
+        track_id_offset: int = 0,
+        blocked_positions: list[tuple[float, float, float]] | None = None,
+    ) -> None:
         if TrackedPersons is None:
             raise RuntimeError('pedsim_msgs is required when pedestrians_enabled=true')
         self._node = node
         self._cfg = cfg
         self._session = session
         self._logger = node.get_logger()
+        self._actor_kind = str(actor_kind).strip().lower() or 'humanoid'
+        self._agent_count = max(0, int(agent_count))
+        self._goal_count = max(1, int(goal_count))
+        self._linear_speed = float(linear_speed)
+        self._seed = int(seed)
+        self._track_id_offset = int(track_id_offset)
+        self._blocked_positions = list(blocked_positions or [])
+        self._robot_debug_mesh_viz = bool(getattr(cfg, 'robot_agents_debug_mesh_viz', False))
         qos = qos_profile_system_default
-        self._tracks_pub = node.create_publisher(
-            TrackedPersons, cfg.pedestrians_tracked_topic, qos,
+        self._publish_tracks = self._actor_kind != 'robot'
+        self._tracks_pub = (
+            node.create_publisher(TrackedPersons, tracked_topic, qos)
+            if self._publish_tracks else None
         )
         self._viz_pub = node.create_publisher(
-            MarkerArray, cfg.pedestrians_viz_topic, qos,
+            MarkerArray, viz_topic, qos,
         )
         self._people: list[_Pedestrian] = []
         self._birth = node.get_clock().now()
-        if cfg.pedestrian_count > 0:
-            from habitat.humanoid.manager import HumanoidMeshManager
-            self._humanoids = HumanoidMeshManager(cfg, session, self._logger)
+        self._robot_model = None
+        if self._agent_count > 0:
+            if self._actor_kind == 'robot':
+                from habitat.robot.manager import RobotMeshManager
+                from habitat.robot.model_publisher import RobotModelPublisher
+
+                self._humanoids = RobotMeshManager(cfg, session, self._logger)
+                self._robot_model = RobotModelPublisher(node, cfg)
+                asset_hint = 'robot URDF assets (robot_asset_root or autonomy_simulator/urdf)'
+            else:
+                from habitat.humanoid.manager import HumanoidMeshManager
+
+                self._humanoids = HumanoidMeshManager(cfg, session, self._logger)
+                asset_hint = (
+                    'humanoid URDF assets (humanoid_data_root / '
+                    'AUTONOMY_HUMANOID_DATA_ROOT)'
+                )
             if not self._humanoids.active:
                 raise RuntimeError(
-                    'pedestrians_enabled requires humanoid URDF assets '
-                    '(humanoid_data_root / AUTONOMY_HUMANOID_DATA_ROOT). '
-                    'See autonomy_lerobot/config/data_paths.yaml',
+                    f'pedestrians_enabled requires {asset_hint}. '
+                    'See autonomy_simulator/param/habitat.yaml and '
+                    'autonomy_lerobot/config/data_paths.yaml',
                 )
         else:
             self._humanoids = None
@@ -116,41 +192,57 @@ class PedestrianSim:
         session = self._session
         pf = session.pathfinder
         if pf is None or not pf.is_loaded:
-            self._logger.warning('Navmesh unavailable; pedestrians disabled')
+            self._logger.warning(f'Navmesh unavailable; {self._actor_kind} agents disabled')
             self._people = []
             return
 
         floor = session.floor_height
         robot_x, robot_y, _, _ = session.map_pose()
-        seed = cfg.pedestrian_seed or (hash(cfg.scene_id) & 0xFFFFFFFF)
+        seed = self._seed or (hash((cfg.scene_id, self._actor_kind)) & 0xFFFFFFFF)
 
         def sample() -> np.ndarray:
             return session._snap(pf.get_random_navigable_point())  # noqa: SLF001
 
         spawn_pts = pick_dispersed_navigable_points(
             sample,
-            cfg.pedestrian_count + 1,
+            self._agent_count + 1,
             seed=seed,
         )
         avatar_plan = (
-            self._humanoids.pick_avatars(cfg.pedestrian_count, seed)
+            self._humanoids.pick_avatars(self._agent_count, seed)
             if self._humanoids is not None and self._humanoids.active
             else []
         )
         self._people = []
         rng = np.random.default_rng(seed + 17)
-        pid = 1
+        pid = 1 + self._track_id_offset
         for point in spawn_pts:
             mx, my = _habitat_to_map(point)
             if math.hypot(mx - robot_x, my - robot_y) < cfg.pedestrian_spawn_min_robot_dist:
                 continue
-            goals = self._sample_goals(point, floor, pf, rng)
-            speed = cfg.pedestrian_linear_speed * float(rng.uniform(0.8, 1.2))
+            actor_radius = cfg.pedestrian_radius
+            actor_height = cfg.pedestrian_height
             avatar = (
                 avatar_plan[len(self._people)]
                 if len(self._people) < len(avatar_plan)
                 else avatar_plan[-1] if avatar_plan else cfg.humanoid_avatar
             )
+            if (
+                self._actor_kind == 'robot'
+                and self._humanoids is not None
+                and self._robot_debug_mesh_viz
+            ):
+                actor_radius = self._humanoids.actor_radius(avatar)
+                actor_height = self._humanoids.actor_height(avatar)
+            blocked = False
+            for bx, by, br in self._blocked_positions:
+                if math.hypot(mx - bx, my - by) < max(cfg.pedestrian_avoid_dist * 0.6, actor_radius + br):
+                    blocked = True
+                    break
+            if blocked:
+                continue
+            goals = self._sample_goals(point, floor, pf, rng)
+            speed = self._linear_speed * float(rng.uniform(0.8, 1.2))
             self._people.append(_Pedestrian(
                 track_id=pid,
                 map_x=mx,
@@ -158,22 +250,35 @@ class PedestrianSim:
                 yaw=float(rng.uniform(-math.pi, math.pi)),
                 goals=goals,
                 avatar=avatar,
+                radius=actor_radius,
+                height=actor_height,
                 lin_speed=speed,
                 sidestep_sign=1.0 if pid % 2 == 0 else -1.0,
             ))
             pid += 1
-            if len(self._people) >= cfg.pedestrian_count:
+            if len(self._people) >= self._agent_count:
                 break
 
         avatar_summary = ', '.join(p.avatar for p in self._people)
         self._logger.info(
-            f'Spawned {len(self._people)} pedestrians '
-            f'(goals={cfg.pedestrian_goal_count}, seed={seed}, avatars={avatar_summary})',
+            f'Spawned {len(self._people)} dynamic actors kind={self._actor_kind} '
+            f'(goals={self._goal_count}, seed={seed}, assets={avatar_summary})',
         )
+        if self._robot_model is not None and self._people:
+            self._robot_model.set_assets([ped.avatar for ped in self._people])
         if self._humanoids is not None and self._humanoids.active:
             self._humanoids.respawn(self._people, floor)
 
-    def step(self, dt: float, stamp: rclpy.time.Time) -> None:
+    def positions(self) -> list[tuple[float, float, float]]:
+        return [(p.map_x, p.map_y, p.radius) for p in self._people]
+
+    def step(
+        self,
+        dt: float,
+        stamp: rclpy.time.Time,
+        *,
+        external_positions: list[tuple[float, float, float]] | None = None,
+    ) -> None:
         if not self._people:
             return
         cfg = self._cfg
@@ -182,7 +287,9 @@ class PedestrianSim:
         robot_x, robot_y, _, _ = self._session.map_pose()
         robot_xy = (robot_x, robot_y)
 
-        positions = [(p.map_x, p.map_y) for p in self._people]
+        positions = self.positions()
+        if external_positions:
+            positions.extend(external_positions)
         for idx, ped in enumerate(self._people):
             ped.old_map_xy = (ped.map_x, ped.map_y)
             ped.nav_rel_map = None
@@ -195,6 +302,15 @@ class PedestrianSim:
         if self._humanoids is not None and self._humanoids.active:
             robot_far = [p.robot_far for p in self._people]
             self._humanoids.sync(self._people, floor, robot_far)
+        if self._robot_model is not None and self._people:
+            joint_states = None
+            if self._actor_kind == 'robot' and self._humanoids is not None:
+                joint_states = self._humanoids.joint_state_maps()
+            self._robot_model.publish_poses(
+                stamp,
+                [(ped.map_x, ped.map_y, floor, ped.yaw) for ped in self._people],
+                joint_states=joint_states,
+            )
 
         self._publish(stamp, dt)
 
@@ -207,7 +323,7 @@ class PedestrianSim:
     ) -> list[np.ndarray]:
         cfg = self._cfg
         goals: list[np.ndarray] = []
-        for _ in range(cfg.pedestrian_goal_count):
+        for _ in range(self._goal_count):
             for _try in range(200):
                 candidate = pf.get_random_navigable_point()
                 if goals and map_dist(candidate, goals[-1]) < cfg.pedestrian_waypoint_min_dist:
@@ -232,8 +348,9 @@ class PedestrianSim:
     def _nav_direction(
         rel_targ: np.ndarray,
         self_xy: tuple[float, float],
-        others: list[tuple[float, float]],
+        others: list[tuple[float, float, float]],
         cfg: Config,
+        self_radius: float,
         sidestep_sign: float,
     ) -> np.ndarray:
         """Goal attraction + pairwise repulsion; tangential sidestep if blocked."""
@@ -244,16 +361,18 @@ class PedestrianSim:
             direction = np.array([1.0, 0.0], dtype=np.float64)
 
         repulse = np.zeros(2, dtype=np.float64)
-        personal = cfg.pedestrian_radius * 2.2
-        for ox, oy in others:
+        personal = self_radius * 2.2
+        for ox, oy, other_radius in others:
             off = np.array([self_xy[0] - ox, self_xy[1] - oy], dtype=np.float64)
             dist = float(np.linalg.norm(off))
-            if dist > cfg.pedestrian_avoid_dist:
+            avoid_dist = max(cfg.pedestrian_avoid_dist, self_radius + other_radius)
+            if dist > avoid_dist:
                 continue
             if dist < 1e-3:
                 off = np.array([sidestep_sign, 0.3 * sidestep_sign], dtype=np.float64)
                 dist = float(np.linalg.norm(off))
-            repulse += off / dist * max((personal - dist) / personal, 0.15)
+            pair_personal = max(personal, (self_radius + other_radius) * 1.2)
+            repulse += off / dist * max((pair_personal - dist) / pair_personal, 0.15)
 
         combined = direction + 1.8 * repulse
         comb_norm = float(np.linalg.norm(combined))
@@ -276,7 +395,7 @@ class PedestrianSim:
         ped: _Pedestrian,
         dt: float,
         robot_xy: tuple[float, float],
-        all_xy: list[tuple[float, float]],
+        all_xy: list[tuple[float, float, float]],
         floor: float,
         pf: Any,
         cfg: Config,
@@ -298,8 +417,8 @@ class PedestrianSim:
         next_x, next_y = _habitat_to_map(next_hab)
         rel = np.array([next_x - ped.map_x, next_y - ped.map_y], dtype=np.float64)
 
-        others = [p for p in all_xy if p != self_xy]
-        rel = self._nav_direction(rel, self_xy, others, cfg, ped.sidestep_sign)
+        others = [p for p in all_xy if (p[0], p[1]) != self_xy]
+        rel = self._nav_direction(rel, self_xy, others, cfg, ped.radius, ped.sidestep_sign)
         ped.nav_rel_map = rel.copy()
 
         goal_x, goal_y = _habitat_to_map(goal)
@@ -335,8 +454,9 @@ class PedestrianSim:
         cfg = self._cfg
         floor = self._session.floor_height
         header = Header(stamp=stamp.to_msg(), frame_id=cfg.map_frame)
-        tracks = TrackedPersons()
-        tracks.header = header
+        tracks = TrackedPersons() if self._publish_tracks else None
+        if tracks is not None:
+            tracks.header = header
         markers = MarkerArray()
 
         age_ns = max(0, (stamp - self._birth).nanoseconds)
@@ -369,9 +489,64 @@ class PedestrianSim:
 
             track.twist.twist.linear.x = vx
             track.twist.twist.linear.y = vy
-            tracks.tracks.append(track)
+            if tracks is not None:
+                tracks.tracks.append(track)
 
             rgb = self._COLORS[idx % len(self._COLORS)]
+            if self._actor_kind == 'robot' and self._humanoids is not None:
+                spec = self._humanoids.actor_marker_spec(ped.avatar)
+                if spec is not None:
+                    parts = spec.get('parts', [spec])
+                    for part in parts[:1]:
+                        mesh = Marker()
+                        mesh.header = header
+                        mesh.ns = 'robot_meshes'
+                        mesh.id = ped.track_id
+                        mesh.action = Marker.ADD
+                        offx, offy, offz = part['offset_xyz']
+                        rotx, roty = _rotate_xy(float(offx), float(offy), yaw)
+                        mesh.pose.position.x = ped.map_x + rotx
+                        mesh.pose.position.y = ped.map_y + roty
+                        mesh.pose.position.z = floor + float(offz)
+                        q_yaw = _quat_from_euler(0.0, 0.0, yaw)
+                        q_off = _quat_from_euler(*part['offset_rpy'])
+                        # Apply the mesh's local corrective rotation first, then
+                        # rotate the assembled robot in the map frame by yaw.
+                        qx, qy, qz, qw = _quat_multiply(q_off, q_yaw)
+                        mesh.pose.orientation.x = qx
+                        mesh.pose.orientation.y = qy
+                        mesh.pose.orientation.z = qz
+                        mesh.pose.orientation.w = qw
+                        rgba = part.get('color', (rgb[0], rgb[1], rgb[2], 1.0))
+                        mesh.color.r = float(rgba[0])
+                        mesh.color.g = float(rgba[1])
+                        mesh.color.b = float(rgba[2])
+                        mesh.color.a = float(rgba[3])
+                        part_type = str(part.get('type', 'mesh'))
+                        if 'mesh' in part:
+                            mesh.type = Marker.MESH_RESOURCE
+                            sx, sy, sz = part.get('scale', (1.0, 1.0, 1.0))
+                            mesh.scale.x = float(sx)
+                            mesh.scale.y = float(sy)
+                            mesh.scale.z = float(sz)
+                            mesh.mesh_resource = f'file://{part["mesh"]}'
+                            mesh.mesh_use_embedded_materials = True
+                        elif part_type == 'box':
+                            mesh.type = Marker.CUBE
+                            sx, sy, sz = part['size']
+                            mesh.scale.x = float(sx)
+                            mesh.scale.y = float(sy)
+                            mesh.scale.z = float(sz)
+                        elif part_type == 'cylinder':
+                            mesh.type = Marker.CYLINDER
+                            sx, sy, sz = part['size']
+                            mesh.scale.x = float(sx)
+                            mesh.scale.y = float(sy)
+                            mesh.scale.z = float(sz)
+                        else:
+                            continue
+                        markers.markers.append(mesh)
+                    continue
             body = Marker()
             body.header = header
             body.ns = 'pedestrians'
@@ -380,10 +555,10 @@ class PedestrianSim:
             body.action = Marker.ADD
             body.pose.position.x = ped.map_x
             body.pose.position.y = ped.map_y
-            body.pose.position.z = floor + cfg.pedestrian_height * 0.5
+            body.pose.position.z = floor + ped.height * 0.5
             body.pose.orientation.w = 1.0
-            body.scale.x = body.scale.y = cfg.pedestrian_radius * 2.0
-            body.scale.z = cfg.pedestrian_height
+            body.scale.x = body.scale.y = ped.radius * 2.0
+            body.scale.z = ped.height
             body.color = ColorRGBA(r=rgb[0], g=rgb[1], b=rgb[2], a=0.85)
             markers.markers.append(body)
 
@@ -395,13 +570,14 @@ class PedestrianSim:
             head.action = Marker.ADD
             head.pose.position.x = ped.map_x
             head.pose.position.y = ped.map_y
-            head.pose.position.z = floor + cfg.pedestrian_height + cfg.pedestrian_radius * 0.6
+            head.pose.position.z = floor + ped.height + ped.radius * 0.6
             head.pose.orientation.w = 1.0
-            head.scale.x = head.scale.y = head.scale.z = cfg.pedestrian_radius * 1.2
+            head.scale.x = head.scale.y = head.scale.z = ped.radius * 1.2
             head.color = ColorRGBA(r=rgb[0], g=rgb[1], b=rgb[2], a=0.9)
             markers.markers.append(head)
 
-        self._tracks_pub.publish(tracks)
+        if tracks is not None and self._tracks_pub is not None:
+            self._tracks_pub.publish(tracks)
         self._viz_pub.publish(markers)
 
     def nearest_robot_distance(self) -> float | None:

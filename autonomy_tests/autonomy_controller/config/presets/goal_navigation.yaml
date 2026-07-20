@@ -1,0 +1,13 @@
+# Overlay for RViz 2D Goal Pose navigation (open path, no lap repeat).
+# Usage:
+#   ros2 launch autonomy_controller controller_sim.launch.py \
+#     config_preset:=goal_navigation controller_id:=mppi
+
+controller_sim_node:
+  ros__parameters:
+    repeat_path: false
+    snap_robot_to_path_start: false
+    path_shape: "circle"
+    xy_goal_tolerance: 0.35
+    yaw_goal_tolerance: 0.6
+    mppi_viz_max_candidates: 40

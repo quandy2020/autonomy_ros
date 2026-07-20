@@ -4,7 +4,7 @@
   <name>autonomy_task</name>
   <version>0.1.0</version>
   <description>Multi-robot navigation and data collection task orchestration</description>
-  <maintainer email="duyongquan3@jd.com">q</maintainer>
+  <maintainer email="quandy2020@126.com">q</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>

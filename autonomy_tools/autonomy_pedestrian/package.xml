@@ -4,7 +4,7 @@
   <name>autonomy_pedestrian</name>
   <version>0.0.0</version>
   <description>Pedestrian simulation (pedsim + scenario XML) for autonomy_ros</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

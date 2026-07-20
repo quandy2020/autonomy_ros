@@ -16,7 +16,7 @@ ROS 2 仿真资源包：**Gazebo（TurtleBot3）**、**fake 差速小车**、**H
 
 ## Habitat 桥接
 
-加载 MP3D 场景（默认 `17DRP5sb8fy`），差速 `cmd_vel` 驱动机器人，发布相机、里程计、语义点云与占据栅格。
+加载 MP3D 场景（默认 `17DRP5sb8fy`），差速 `cmd_vel` 驱动机器人，发布相机、里程计、语义点云与占据栅格。车载相机默认 **1280×720**、水平 FOV **70°**、仿真 **20 Hz**（`param/habitat.yaml`）；俯视默认关闭。语义点云来自场景目录 **`{scene_id}_semantic.ply`**；`/map` 优先由 **`{scene_id}.navmesh`** 栅格化，无 navmesh 时从 PLY 高度切片生成。
 
 **主要话题**
 
@@ -29,17 +29,17 @@ ROS 2 仿真资源包：**Gazebo（TurtleBot3）**、**fake 差速小车**、**H
 | `semantic_pointcloud` / `map` | 语义点云 / 占据栅格 |
 | `habitat/graph` | NavMesh 拓扑 |
 
-**推荐启动（RViz + 行人 + 交互俯视）**
+**推荐启动（RViz + 行人；默认 720p 车载相机，俯视关）**
 
 ```bash
 ros2 launch autonomy_simulator simulator.launch.py \
   sim_mode:=habitat \
   use_rviz:=true \
-  topdown_enabled:=true \
-  topdown_mode:=interactive \
   pedestrians_enabled:=true \
   pedestrian_count:=5
 ```
+
+需要俯视时再开：`topdown_enabled:=true topdown_mode:=interactive`（见 `param/habitat.yaml` 中 `image_*` / `update_rate_hz`）。
 
 **俯视相机 `topdown_mode`**
 
@@ -51,21 +51,46 @@ ros2 launch autonomy_simulator simulator.launch.py \
 
 RViz 3D 主视图：左键旋转、滚轮缩放（`rviz/habitat.rviz`）。Image 面板仅 2D 缩放。
 
-## 动态行人（Humanoid）
+## 动态障碍（Humanoid / Robot）
 
-NavMesh 上游走 + 互避，Habitat 内 **URDF 人形 mesh** 渲染（TrackVLA 资源）。
+NavMesh 上游走 + 互避，Habitat 内原生渲染动态 actor。当前支持两类：
+
+- `dynamic_actor_kind:=humanoid`：TrackVLA 人形 URDF + 动作资源
+- `dynamic_actor_kind:=robot`：URDF 机器人资产（默认扫描 `autonomy_simulator/urdf/`）
+- RViz：`TrackedPersons`、`PedestrianVisualization`
+
+### Humanoid
 
 - 数据路径：`autonomy_lerobot/config/data_paths.yaml` → `humanoid_data_root`
 - 每人自动分配不同 avatar（扫描数据目录；可用 `humanoid_avatars` 限定列表）
-- RViz：`TrackedPersons`、`PedestrianVisualization`
 
 ```bash
-# 仅行人，无 RViz
+# 指定几种 humanoid avatar
 ros2 launch autonomy_simulator simulator.launch.py \
-  sim_mode:=habitat pedestrians_enabled:=true pedestrian_count:=5
+  sim_mode:=habitat \
+  pedestrians_enabled:=true \
+  pedestrian_count:=5 \
+  dynamic_actor_kind:=humanoid \
+  humanoid_avatars:=female_2,male_0,male_7
 ```
 
-参数见 `param/habitat.yaml`（`pedestrians_*`、`humanoid_*`、`topdown_*`）。
+### Robot
+
+- 默认资产根：`autonomy_simulator/urdf/`
+- 机器人类型来自 `.urdf` 文件名，例如 `turtlebot3_waffle`、`turtlebot3_waffle_gps`
+- 可用 `robot_asset_types` 限定候选列表
+
+```bash
+# 切换为动态机器人障碍
+ros2 launch autonomy_simulator simulator.launch.py \
+  sim_mode:=habitat \
+  pedestrians_enabled:=true \
+  pedestrian_count:=4 \
+  dynamic_actor_kind:=robot \
+  robot_asset_types:=turtlebot3_waffle,turtlebot3_waffle_gps
+```
+
+参数见 `param/habitat.yaml`（`pedestrians_*`、`humanoid_*`、`robot_*`、`topdown_*`）。
 
 ## 与 autonomy_ros 导航栈
 

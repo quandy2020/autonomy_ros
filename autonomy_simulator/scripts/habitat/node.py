@@ -25,12 +25,8 @@ from geometry_msgs.msg import PoseStamped, Twist
 from rclpy.node import Node
 from rclpy.qos import qos_profile_system_default
 
-from habitat.camera import CameraPublisher
 from habitat.config import load
-from habitat.navmesh import NavMeshPublisher
 from habitat.odom import OdomPublisher
-from habitat.ply import PlyPublisher
-from habitat.sim import Session
 
 
 class BridgeNode(Node):
@@ -42,6 +38,15 @@ class BridgeNode(Node):
         cfg = self._cfg = load(self)
         self._dt = 1.0 / cfg.update_rate_hz
         self._cmd_time = self.get_clock().now()
+
+        self.get_logger().info(
+            'Loading Habitat-Sim / scene (first launch can take 30–90s)...'
+        )
+        # Defer habitat_sim imports so launch logs show progress first.
+        from habitat.camera import CameraPublisher
+        from habitat.navmesh import NavMeshPublisher
+        from habitat.ply import PlyPublisher
+        from habitat.sim import Session
 
         self._cam = CameraPublisher(self, cfg)
         self._odom = OdomPublisher(self, cfg)
@@ -59,10 +64,48 @@ class BridgeNode(Node):
             self._topdown_interactive = TopdownInteractive(
                 self, cfg, self._session, self.get_logger(),
             )
-        self._pedestrians = None
-        if cfg.pedestrians_enabled and cfg.pedestrian_count > 0:
+        self._pedestrians: list[object] = []
+        if (
+            cfg.human_agent_count > 0
+            or cfg.robot_agent_count > 0
+            or (cfg.pedestrians_enabled and cfg.pedestrian_count > 0)
+        ):
             from habitat.pedestrians import PedestrianSim
-            self._pedestrians = PedestrianSim(self, cfg, self._session)
+            occupied_positions: list[tuple[float, float, float]] = []
+            if cfg.human_agent_count > 0:
+                human_sim = PedestrianSim(
+                    self,
+                    cfg,
+                    self._session,
+                    actor_kind='humanoid',
+                    agent_count=cfg.human_agent_count,
+                    goal_count=cfg.human_agent_goal_count,
+                    linear_speed=cfg.human_agent_linear_speed,
+                    seed=cfg.human_agent_seed,
+                    tracked_topic=cfg.human_agents_tracked_topic,
+                    viz_topic=cfg.human_agents_viz_topic,
+                    track_id_offset=0,
+                    blocked_positions=occupied_positions,
+                )
+                self._pedestrians.append(human_sim)
+                occupied_positions.extend(human_sim.positions())
+            if cfg.robot_agent_count > 0:
+                robot_sim = PedestrianSim(
+                    self,
+                    cfg,
+                    self._session,
+                    actor_kind='robot',
+                    agent_count=cfg.robot_agent_count,
+                    goal_count=cfg.robot_agent_goal_count,
+                    linear_speed=cfg.robot_agent_linear_speed,
+                    seed=cfg.robot_agent_seed,
+                    tracked_topic=cfg.robot_agents_tracked_topic,
+                    viz_topic=cfg.robot_agents_viz_topic,
+                    track_id_offset=10000,
+                    blocked_positions=occupied_positions,
+                )
+                self._pedestrians.append(robot_sim)
+                occupied_positions.extend(robot_sim.positions())
         self._navmesh = None
         if cfg.navmesh_rate_hz >= 0.0:
             self._navmesh = NavMeshPublisher(self, cfg, self._session)
@@ -84,10 +127,10 @@ class BridgeNode(Node):
             self._timer(1.0 if navmesh_hz == 0.0 else navmesh_hz, self._on_navmesh)
 
         self.get_logger().info(
-            f'[habitat] scene={cfg.scene_id} '
+            f'[habitat] BridgeNode ready scene={cfg.scene_id} '
             f'path={cfg.scene_dir()} cmd_vel={cfg.cmd_vel_topic}'
-            + (f' pedestrians={cfg.pedestrian_count}' if self._pedestrians else '')
-            + (f' pedestrian_render=humanoid' if self._pedestrians else '')
+            + (f' human_agents={cfg.human_agent_count}' if cfg.human_agent_count > 0 else '')
+            + (f' robot_agents={cfg.robot_agent_count}' if cfg.robot_agent_count > 0 else '')
             + (f' topdown={cfg.topdown_topic}' if cfg.topdown_enabled else '')
             + (
                 f' mode={cfg.topdown_mode}'
@@ -129,8 +172,13 @@ class BridgeNode(Node):
         stamp = self.get_clock().now()
         timed_out = self._timed_out()
         self._session.advance(self._dt, timed_out)
-        if self._pedestrians is not None:
-            self._pedestrians.step(self._dt, stamp)
+        snapshots = [sim.positions() for sim in self._pedestrians]
+        for idx, sim in enumerate(self._pedestrians):
+            external_positions = []
+            for other_idx, positions in enumerate(snapshots):
+                if other_idx != idx:
+                    external_positions.extend(positions)
+            sim.step(self._dt, stamp, external_positions=external_positions)
         obs = self._session.observe()
         self._pose_pub.publish(self._session.agent_pose(self._cfg.agent_pose_frame, stamp))
         self._odom.publish(stamp, self._session, timed_out)

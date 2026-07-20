@@ -1,0 +1,13 @@
+/**:
+  ros__parameters:
+    map_frame: "map"
+    camera_frame: "camera_optical_frame"
+    odom_topic: "odom"
+    depth_topic: "camera/depth/image_raw"
+    camera_info_topic: "camera/rgb/camera_info"
+    planner_period_sec: 0.5
+    waypoint_reach_dist: 0.6
+    max_linear_vel: 0.25
+    max_angular_vel: 0.6
+    enable_cmd_vel: true
+    exploration_config_dir: ""

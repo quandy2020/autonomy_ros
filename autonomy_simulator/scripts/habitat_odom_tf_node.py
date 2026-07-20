@@ -43,23 +43,60 @@ def _bootstrap_pythonpath() -> None:
 _bootstrap_pythonpath()
 
 import rclpy
+from nav_msgs.msg import Odometry
 from rclpy.node import Node
+from rclpy.qos import qos_profile_system_default
 
 from habitat.config import load
 from habitat.odom import OdomPublisher
 
 
 class OdomTfNode(Node):
-    """Publish odom TF while habitat_node blocks on GPU Session load."""
+    """Publish identity odom TF while habitat_node blocks on GPU Session load.
+
+    Exits once habitat_node starts publishing /odom so the two TFs no longer fight
+    (identity vs real pose) and stamped lookups stop seeing stale authorities.
+    """
 
     def __init__(self) -> None:
         super().__init__('habitat_odom_tf')
         cfg = load(self)
         self._odom = OdomPublisher(self, cfg)
-        self.create_timer(0.1, self._on_timer)
+        self._timer = self.create_timer(0.1, self._on_timer)
+        self._odom_sub = self.create_subscription(
+            Odometry, cfg.odom_topic, self._on_habitat_odom, qos_profile_system_default
+        )
+        self._shutting_down = False
+        self._exit_timer = None
 
     def _on_timer(self) -> None:
+        if self._shutting_down:
+            return
         self._odom.hold_tf_alive(self.get_clock().now())
+
+    def _on_habitat_odom(self, _msg: Odometry) -> None:
+        if self._shutting_down:
+            return
+        self._shutting_down = True
+        self.get_logger().info(
+            'habitat_node /odom detected — releasing hold TF to habitat_node'
+        )
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+        # Defer destroy so the subscription callback can return cleanly.
+        self._exit_timer = self.create_timer(0.01, self._finish)
+
+    def _finish(self) -> None:
+        if self._exit_timer is not None:
+            self._exit_timer.cancel()
+            self._exit_timer = None
+        try:
+            self.destroy_node()
+        except Exception:
+            pass
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -70,8 +107,11 @@ def main(argv: list[str] | None = None) -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
         if rclpy.ok():
+            try:
+                node.destroy_node()
+            except Exception:
+                pass
             rclpy.shutdown()
 
 

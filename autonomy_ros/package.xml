@@ -4,7 +4,7 @@
   <name>autonomy_ros</name>
   <version>0.0.0</version>
   <description>ROS 2 bridge to the autonomy navigation core (map, TF, sensors, planning, control)</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

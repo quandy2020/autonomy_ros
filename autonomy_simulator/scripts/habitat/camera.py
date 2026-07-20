@@ -24,7 +24,6 @@ from typing import Any
 
 import numpy as np
 import rclpy
-from habitat_sim.utils.viz_utils import semantic_to_rgb
 from rclpy.node import Node
 from rclpy.qos import qos_profile_system_default
 from sensor_msgs.msg import CameraInfo, Image
@@ -215,7 +214,14 @@ class CameraPublisher:
             )
             self._semantic_warned = True
 
-        colored = np.asarray(semantic_to_rgb(ids))[:, :, :3].astype(np.uint8)
+        colored = np.asarray(_semantic_to_rgb(ids))[:, :, :3].astype(np.uint8)
         self._send(
             stamp, self._cfg.semantic_camera_frame, colored, 'rgb8', 'semantic'
         )
+
+
+def _semantic_to_rgb(ids: np.ndarray) -> np.ndarray:
+    """Lazy-import to avoid pulling habitat_sim/torch at module import time."""
+    from habitat_sim.utils.viz_utils import semantic_to_rgb
+
+    return semantic_to_rgb(ids)

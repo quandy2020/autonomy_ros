@@ -28,13 +28,22 @@ from sensor_msgs_py import point_cloud2 as pc2
 
 
 def image_to_numpy(msg: Image) -> np.ndarray:
-    """Decode rgb8 or 32FC1 sensor_msgs/Image."""
+    """Decode common ROS image encodings into contiguous numpy arrays.
+
+    Depth images encoded as ``16UC1`` are interpreted as millimeters and
+    converted to ``float32`` meters so downstream visualization and pointcloud
+    code can use a single depth unit.
+    """
     if msg.encoding == 'rgb8':
         arr = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, 3)
         return np.ascontiguousarray(arr)
     if msg.encoding in ('32FC1', 'passthrough'):
         arr = np.frombuffer(msg.data, dtype=np.float32).reshape(msg.height, msg.width)
         return np.ascontiguousarray(arr)
+    if msg.encoding == '16UC1':
+        arr = np.frombuffer(msg.data, dtype=np.uint16).reshape(msg.height, msg.width)
+        depth_m = arr.astype(np.float32) / 1000.0
+        return np.ascontiguousarray(depth_m)
     raise ValueError(f'unsupported image encoding: {msg.encoding}')
 
 
@@ -186,6 +195,7 @@ def depth_rgb_to_pointcloud_array(
     camera_info: CameraInfo,
     *,
     rgb: np.ndarray | None = None,
+    valid_mask: np.ndarray | None = None,
     max_points: int = 4096,
     depth_min: float = 0.05,
     depth_max: float = 10.0,
@@ -208,6 +218,10 @@ def depth_rgb_to_pointcloud_array(
     uu, vv = np.meshgrid(u_coords, v_coords)
     z = depth[vv, uu].astype(np.float32)
     valid = np.isfinite(z) & (z > depth_min) & (z < depth_max)
+    if valid_mask is not None:
+        if valid_mask.shape != depth.shape:
+            raise ValueError('valid_mask must match depth shape')
+        valid = valid & valid_mask[vv, uu].astype(bool)
     if not np.any(valid):
         return np.zeros((max_points, 6), dtype=np.float32)
 

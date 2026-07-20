@@ -11,6 +11,7 @@ from autonomy_lerobot.conversions import (
     depth_rgb_to_pointcloud_array,
     depth_to_video_rgb,
     identity_extrinsic,
+    image_to_numpy,
     pose_to_action_matrix,
 )
 from autonomy_lerobot.observation import (
@@ -20,16 +21,20 @@ from autonomy_lerobot.observation import (
     KEY_DEPTH,
     KEY_POINTCLOUD,
     KEY_RGB,
+    KEY_SEMANTIC,
 )
 from autonomy_lerobot.collection_params import (
     JDROBOT_COLLECTION_ROS_PARAMS,
     jdrobot_collection_parameters,
 )
+from autonomy_lerobot.bag_to_lerobot import _yaw_from_pose_matrix
+from autonomy_lerobot.bag_postprocess import BagPostprocessConfig, BagPostprocessor
 from autonomy_lerobot.recorder import (
     _features_from_frame,
     dataset_schema_matches,
     lerobot_encoder_vcodec,
 )
+from autonomy_lerobot.sam3_segmenter import Sam3GroundSegmenter
 
 
 class TestJdrobotConversions(unittest.TestCase):
@@ -70,6 +75,22 @@ class TestJdrobotConversions(unittest.TestCase):
         self.assertEqual(int(rgb[1, 0, 0]), 255)
         self.assertEqual(int(rgb[1, 1, 0]), 0)
 
+    def test_image_to_numpy_16uc1_depth_mm_to_meters(self) -> None:
+        from sensor_msgs.msg import Image
+
+        msg = Image()
+        msg.height = 2
+        msg.width = 2
+        msg.encoding = '16UC1'
+        msg.data = np.array([[0, 1500], [2500, 10000]], dtype=np.uint16).tobytes()
+        depth = image_to_numpy(msg)
+        self.assertEqual(depth.shape, (2, 2))
+        self.assertEqual(depth.dtype, np.float32)
+        np.testing.assert_allclose(
+            depth,
+            np.array([[0.0, 1.5], [2.5, 10.0]], dtype=np.float32),
+        )
+
     def test_depth_rgb_to_pointcloud_center_pixel(self) -> None:
         from sensor_msgs.msg import CameraInfo
 
@@ -89,6 +110,58 @@ class TestJdrobotConversions(unittest.TestCase):
         self.assertEqual(int(cloud[0, 4]), 20)
         self.assertEqual(int(cloud[0, 5]), 30)
 
+    def test_depth_rgb_to_pointcloud_with_mask(self) -> None:
+        from sensor_msgs.msg import CameraInfo
+
+        info = CameraInfo()
+        info.k = [320.0, 0.0, 320.0, 0.0, 320.0, 240.0, 0.0, 0.0, 1.0]
+        depth = np.zeros((480, 640), dtype=np.float32)
+        depth[240, 320] = 2.0
+        mask = np.zeros((480, 640), dtype=bool)
+        cloud = depth_rgb_to_pointcloud_array(
+            depth,
+            info,
+            valid_mask=mask,
+            max_points=8,
+            depth_min=0.1,
+            depth_max=5.0,
+            stride=1,
+        )
+        self.assertTrue(np.allclose(cloud, 0.0))
+
+    def test_bag_postprocessor_adds_pointcloud_without_sam3(self) -> None:
+        from sensor_msgs.msg import CameraInfo
+
+        info = CameraInfo()
+        info.k = [320.0, 0.0, 320.0, 0.0, 320.0, 240.0, 0.0, 0.0, 1.0]
+        depth = np.zeros((480, 640), dtype=np.float32)
+        depth[240, 320] = 2.0
+        rgb = np.zeros((480, 640, 3), dtype=np.uint8)
+        rgb[240, 320] = [10, 20, 30]
+        frame: dict[str, np.ndarray | str] = {}
+        postprocessor = BagPostprocessor(
+            BagPostprocessConfig(
+                record_pointcloud=True,
+                save_segmentation_viz=False,
+                pointcloud_stride=1,
+                max_pointcloud_points=8,
+                depth_min_m=0.1,
+                depth_max_m=5.0,
+            )
+        )
+        postprocessor.process_frame(
+            frame=frame,
+            rgb=rgb,
+            depth=depth,
+            camera_info=info,
+        )
+        self.assertIn(KEY_POINTCLOUD, frame)
+        self.assertNotIn(KEY_SEMANTIC, frame)
+        cloud = frame[KEY_POINTCLOUD]
+        assert isinstance(cloud, np.ndarray)
+        self.assertEqual(cloud.shape, (8, 6))
+        self.assertAlmostEqual(cloud[0, 2], 2.0, places=4)
+
     def test_jdrobot_feature_schema_with_pointcloud(self) -> None:
         frame = {
             KEY_CAMERA_INTRINSIC: np.zeros(9, dtype=np.float32),
@@ -96,10 +169,12 @@ class TestJdrobotConversions(unittest.TestCase):
             KEY_ACTION: np.eye(4, dtype=np.float32).reshape(-1),
             KEY_RGB: np.zeros((480, 640, 3), dtype=np.uint8),
             KEY_DEPTH: np.zeros((480, 640, 3), dtype=np.uint8),
+            KEY_SEMANTIC: np.zeros((480, 640, 3), dtype=np.uint8),
             KEY_POINTCLOUD: np.zeros((4096, 6), dtype=np.float32),
         }
         features = _features_from_frame(frame, dataset_format='jdrobot')
         self.assertIn(KEY_POINTCLOUD, features)
+        self.assertIn(KEY_SEMANTIC, features)
         self.assertEqual(features[KEY_POINTCLOUD]['shape'], (4096, 6))
 
     def test_dataset_schema_matches_kujiale_with_optional_pointcloud(self) -> None:
@@ -112,6 +187,7 @@ class TestJdrobotConversions(unittest.TestCase):
                 'action': {'shape': [16]},
                 'observation.images.rgb': {'info': {'video.codec': 'av1'}},
                 'observation.images.depth': {'info': {'video.codec': 'av1'}},
+                'observation.images.semantic': {'info': {'video.codec': 'av1'}},
                 'observation.pointcloud': {'shape': [4096, 6]},
                 'timestamp': {},
             },
@@ -204,6 +280,28 @@ class TestJdrobotConversions(unittest.TestCase):
     def test_lerobot_encoder_vcodec_maps_av1(self) -> None:
         self.assertEqual(lerobot_encoder_vcodec('av1'), 'libsvtav1')
         self.assertEqual(lerobot_encoder_vcodec('h264'), 'h264')
+
+    def test_yaw_from_pose_matrix(self) -> None:
+        yaw = math.pi / 3.0
+        qw = math.cos(yaw / 2.0)
+        qz = math.sin(yaw / 2.0)
+        action = pose_to_action_matrix(0.0, 0.0, 0.0, 0.0, 0.0, qz, qw)
+        self.assertAlmostEqual(_yaw_from_pose_matrix(action), yaw, places=5)
+
+    def test_sam3_bottom_ground_prior(self) -> None:
+        segmenter = Sam3GroundSegmenter.__new__(Sam3GroundSegmenter)
+        segmenter._bottom_ground_ratio = 0.25
+        ground_mask = np.zeros((8, 4), dtype=np.uint8)
+        refined = segmenter._apply_bottom_ground_prior(ground_mask)
+        self.assertTrue(np.all(refined[6:, :] == 255))
+        self.assertTrue(np.all(refined[:6, :] == 0))
+
+    def test_sam3_default_prompts_cover_stairs(self) -> None:
+        prompts = set(Sam3GroundSegmenter.DEFAULT_PROMPTS)
+        self.assertIn('stair tread', prompts)
+        self.assertIn('stair step', prompts)
+        self.assertIn('stairs', prompts)
+        self.assertIn('flooring', prompts)
 
 
 if __name__ == '__main__':

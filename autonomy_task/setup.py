@@ -27,7 +27,7 @@ setup(
     install_requires=['setuptools', 'PyYAML'],
     zip_safe=True,
     maintainer='q',
-    maintainer_email='duyongquan3@jd.com',
+    maintainer_email='quandy2020@126.com',
     description='Multi-robot navigation and data collection orchestration',
     license='Apache-2.0',
     scripts=[

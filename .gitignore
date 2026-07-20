@@ -5,7 +5,56 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+*.egg-info/
 
 # Virtual environments
 .venv/
 venv/
+
+# Model weights / checkpoints
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+*.engine
+*.tflite
+*.pb
+*.h5
+*.npz
+*.npz.index
+
+# Common weight / checkpoint directories
+weights/
+checkpoints/
+pretrained/
+
+# Tokenizer / vocab dumps shipped with models
+**/model/*.txt.gz
+
+# SLAM vocab / bag-of-words
+*.fbow
+*.dbow2
+ORBvoc.txt
+ORBvoc.dbow2
+
+# Archives / datasets
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.bag
+*.mcap
+
+# Large video media
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Accidental screen recordings
+Peek*.gif
+Peek *.gif

@@ -126,6 +126,15 @@ def _launch_phased_stack(context, *args, **kwargs):
         nav_ready_sec=nav_ready_sec,
     )
 
+    pedestrians_enabled = LaunchConfiguration('pedestrians_enabled').perform(context)
+    pedestrian_count = LaunchConfiguration('pedestrian_count').perform(context)
+    human_agent_count = LaunchConfiguration('human_agent_count').perform(context)
+    pedestrian_linear_speed = LaunchConfiguration('pedestrian_linear_speed').perform(context)
+    pedestrian_goal_count = LaunchConfiguration('pedestrian_goal_count').perform(context)
+    humanoid_avatar = LaunchConfiguration('humanoid_avatar').perform(context)
+    humanoid_avatars = LaunchConfiguration('humanoid_avatars').perform(context)
+    dynamic_actor_kind = LaunchConfiguration('dynamic_actor_kind').perform(context)
+
     actions = [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(
@@ -143,6 +152,14 @@ def _launch_phased_stack(context, *args, **kwargs):
                 'habitat_load_penalty_sec': f'{habitat_load_penalty:.1f}',
                 'nav2_gap_sec': f'{nav2_gap:.1f}',
                 'nav2_startup_delay_step': f'{phases["nav2_stagger"]:.1f}',
+                'pedestrians_enabled': pedestrians_enabled,
+                'pedestrian_count': pedestrian_count,
+                'human_agent_count': human_agent_count,
+                'pedestrian_linear_speed': pedestrian_linear_speed,
+                'pedestrian_goal_count': pedestrian_goal_count,
+                'humanoid_avatar': humanoid_avatar,
+                'humanoid_avatars': humanoid_avatars,
+                'dynamic_actor_kind': dynamic_actor_kind,
             }.items(),
         ),
     ]
@@ -305,5 +322,45 @@ def generate_launch_description() -> LaunchDescription:
             ]),
         ),
         *timing_declares,
+        DeclareLaunchArgument(
+            'pedestrians_enabled',
+            default_value='false',
+            description='Enable dynamic humanoid pedestrians in Habitat-Sim',
+        ),
+        DeclareLaunchArgument(
+            'pedestrian_count',
+            default_value='5',
+            description='Number of dynamic humanoid agents',
+        ),
+        DeclareLaunchArgument(
+            'human_agent_count',
+            default_value='0',
+            description='Explicit humanoid agent count (overrides pedestrian_count when >0)',
+        ),
+        DeclareLaunchArgument(
+            'pedestrian_linear_speed',
+            default_value='1.0',
+            description='Humanoid walking speed (m/s)',
+        ),
+        DeclareLaunchArgument(
+            'pedestrian_goal_count',
+            default_value='4',
+            description='Number of waypoints per pedestrian cycle',
+        ),
+        DeclareLaunchArgument(
+            'humanoid_avatar',
+            default_value='female_2',
+            description='Fallback humanoid avatar name',
+        ),
+        DeclareLaunchArgument(
+            'humanoid_avatars',
+            default_value='',
+            description='Comma-separated avatar names; empty = auto-discover all',
+        ),
+        DeclareLaunchArgument(
+            'dynamic_actor_kind',
+            default_value='humanoid',
+            description='Dynamic actor renderer: humanoid | robot',
+        ),
         OpaqueFunction(function=_launch_phased_stack),
     ])

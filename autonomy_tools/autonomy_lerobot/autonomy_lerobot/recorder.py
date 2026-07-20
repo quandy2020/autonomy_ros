@@ -51,6 +51,7 @@ _JDROBOT_DATA_FEATURE_KEYS = frozenset({
 
 _JDROBOT_OPTIONAL_FEATURE_KEYS = frozenset({
     'observation.pointcloud',
+    'observation.images.semantic',
 })
 
 _META_FEATURE_KEYS = frozenset({

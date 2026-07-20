@@ -4,7 +4,7 @@
   <name>autonomy_simulator</name>
   <version>0.0.0</version>
   <description>TurtleBot3 Gazebo and fake-robot simulation for autonomy_ros</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
