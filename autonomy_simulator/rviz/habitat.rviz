@@ -34,6 +34,8 @@ Visualization Manager:
           Value: true
         camera_optical_frame:
           Value: true
+        dynamic_robot_0_base_link:
+          Value: true
         map:
           Value: true
         odom:
@@ -45,6 +47,8 @@ Visualization Manager:
       Show Names: false
       Tree:
         map:
+          dynamic_robot_0_base_link:
+            {}
           odom:
             base_footprint:
               base_link:
@@ -330,8 +334,52 @@ Visualization Manager:
         Value: /pedestrian_simulator/prediction_paths
       Value: false
     - Class: rviz_default_plugins/MarkerArray
-      Enabled: false
+      Enabled: true
       Name: PedestrianVisualization
+      Namespaces:
+        pedestrian_heads: true
+        pedestrians: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pedestrian_simulator/visualization
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /dynamic_robot_description
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        dynamic_robot_0_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: DynamicRobotModels
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: false
+      Name: RobotDebugBaseOnly
       Namespaces:
         {}
       Topic:
@@ -339,7 +387,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /pedestrian_simulator/visualization
+        Value: /robot_simulator/visualization
       Value: false
     - Class: rviz_default_plugins/MarkerArray
       Enabled: false
@@ -401,6 +449,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /camera/topdown/image_raw
       Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        robot_meshes: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_simulator/visualization
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -427,25 +487,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 14.147295951843262
+      Distance: 3.3843722343444824
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -3.0966503620147705
+        Y: 2.1184213161468506
+        Z: -0.3309202492237091
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8671977519989014
+      Pitch: 0.7371980547904968
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 0.965397834777832
+      Yaw: 1.6153972148895264
     Saved:
       - Angle: 0
         Class: rviz_default_plugins/TopDownOrtho

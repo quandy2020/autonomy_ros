@@ -4,12 +4,13 @@
   <name>autonomy_planning</name>
   <version>0.0.0</version>
   <description>Metapackage for autonomy planning ROS 2 packages</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>autonomy_internnav</exec_depend>
+  <exec_depend>autonomy_exploration</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

@@ -1,0 +1,32 @@
+# autonomy_planner — planner_sim_node defaults
+# Loaded by planner_sim.launch.py; launch args override these values.
+#
+# Algorithm tuning lives in autonomy install:
+#   share/autonomy/config/planner/planner.lua
+# Override with parameter configuration_directory if needed.
+
+planner_sim_node:
+  ros__parameters:
+    configuration_directory: ""
+
+    frame_id: "odom"
+    base_frame: "base_footprint"
+    odom_topic: "odom"
+    obstacle_cloud_topic: "planner_sim/obstacle_cloud"
+    goal_pose_topic: "goal_pose"
+
+    # Planner plugin: navfn_planner | dijkstra_planner | theta_star_planner
+    planner_id: "navfn_planner"
+
+    # Global costmap (PointCloud2 marking)
+    costmap_resolution: 0.05
+    costmap_width: 20.0
+    costmap_height: 20.0
+    costmap_update_frequency: 5.0
+    costmap_publish_hz: 5.0
+    robot_radius: 0.22
+    inflation_radius: 0.55
+    inflation_cost_scaling_factor: 3.0
+    obstacle_min_height: -1.0
+    obstacle_max_height: 2.0
+    raytrace_max_range: 25.0

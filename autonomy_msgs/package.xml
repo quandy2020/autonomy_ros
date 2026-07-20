@@ -4,7 +4,7 @@
   <name>autonomy_msgs</name>
   <version>0.1.0</version>
   <description>External autonomy API messages and RViz visualization plugins</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

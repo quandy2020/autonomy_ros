@@ -36,9 +36,9 @@ class Config:
     package_scene_dataset_config: str
 
     # Habitat camera sensor specs (defaults match param/habitat.yaml).
-    image_width: int = 640
-    image_height: int = 480
-    camera_horizontal_fov_deg: float = 90.0
+    image_width: int = 1280
+    image_height: int = 720
+    camera_horizontal_fov_deg: float = 70.0
     sensor_height: float = 0.6  # Habitat agent sensor Y offset.
 
     agent_pose_topic: str = 'habitat/agent_pose'
@@ -80,10 +80,6 @@ class Config:
     topdown_ortho_scale: float = 0.0  # 0 = auto from navmesh; meters (room mode ORTHOGRAPHIC)
 
     semantic_ply_path: str = ''  # Empty: use {scene_dir}/{scene_id}_semantic.ply.
-    kujiale_auto_convert: bool = True  # Build pointcloud.ply from scene .navmesh when needed.
-    kujiale_force_convert: bool = False  # Always overwrite pointcloud.ply on startup.
-    kujiale_reference_ply: str = ''  # Optional kujiale ref for /map stats logging.
-    kujiale_map_connect_close_cells: int = 0  # 0 = no morphological close on free space.
     semantic_pointcloud_topic: str = 'semantic_pointcloud'
     semantic_pointcloud_frame: str = 'map'
     semantic_pointcloud_downsample: int = 1
@@ -118,7 +114,7 @@ class Config:
     navmesh_color_by_island: bool = True
     navmesh_connect_diagonal: bool = False
 
-    update_rate_hz: float = 30.0  # Sim step + camera/odom publish rate.
+    update_rate_hz: float = 20.0  # Sim step + camera/odom publish rate.
 
     # Multi-robot spawn: each Habitat instance picks a dispersed navmesh point.
     spawn_mode: str = 'fixed'  # dispersed | random | fixed
@@ -153,6 +149,31 @@ class Config:
     humanoid_avatars: str = ''
     humanoid_infos_json: str = ''
     pedestrian_semantic_id: int = 250
+    dynamic_actor_kind: str = 'humanoid'  # humanoid | robot
+    human_agent_count: int = 0
+    human_agent_goal_count: int = 4
+    human_agent_linear_speed: float = 1.0
+    human_agent_seed: int = 0
+    human_agents_tracked_topic: str = 'pedestrian_visualizer/tracked_persons'
+    human_agents_viz_topic: str = 'pedestrian_simulator/visualization'
+    robot_asset_root: str = ''
+    robot_asset_type: str = 'turtlebot3_waffle'
+    # Comma-separated robot asset names; empty = auto-discover all under robot_asset_root
+    robot_asset_types: str = ''
+    # Comma-separated exact robot counts, e.g. "spot=2,jackal=1"
+    robot_asset_counts: str = ''
+    robot_semantic_id: int = 251
+    robot_agent_count: int = 0
+    robot_agent_goal_count: int = 4
+    robot_agent_linear_speed: float = 1.0
+    robot_agent_seed: int = 0
+    robot_agents_tracked_topic: str = 'robot_agent_visualizer/tracked_persons'
+    robot_agents_viz_topic: str = 'robot_simulator/visualization'
+    robot_agents_debug_mesh_viz: bool = False
+    # Comma-separated overrides, e.g. "jackal=0.32,husky=0.45"
+    robot_radius_overrides: str = ''
+    robot_height_overrides: str = ''
+    robot_semantic_id_overrides: str = ''
 
     def dataset_config(self) -> str:
         if self.scene_dataset_config:
@@ -215,6 +236,33 @@ def load(node: Node) -> Config:
     values['pedestrian_goal_count'] = max(1, int(values['pedestrian_goal_count']))
     values['pedestrian_seed'] = int(values['pedestrian_seed'])
     values['pedestrian_semantic_id'] = int(values['pedestrian_semantic_id'])
+    values['dynamic_actor_kind'] = str(values['dynamic_actor_kind']).strip().lower() or 'humanoid'
+    if values['dynamic_actor_kind'] not in ('humanoid', 'robot'):
+        values['dynamic_actor_kind'] = 'humanoid'
+    values['robot_semantic_id'] = int(values['robot_semantic_id'])
+    values['human_agent_count'] = max(0, int(values['human_agent_count']))
+    values['human_agent_goal_count'] = max(1, int(values['human_agent_goal_count']))
+    values['human_agent_seed'] = int(values['human_agent_seed'])
+    values['robot_agent_count'] = max(0, int(values['robot_agent_count']))
+    values['robot_agent_goal_count'] = max(1, int(values['robot_agent_goal_count']))
+    values['robot_agent_seed'] = int(values['robot_agent_seed'])
+    if values['human_agent_count'] == 0 and values['robot_agent_count'] == 0:
+        if bool(values['pedestrians_enabled']) and values['pedestrian_count'] > 0:
+            if values['dynamic_actor_kind'] == 'robot':
+                values['robot_agent_count'] = int(values['pedestrian_count'])
+                values['robot_agent_goal_count'] = int(values['pedestrian_goal_count'])
+                values['robot_agent_linear_speed'] = float(values['pedestrian_linear_speed'])
+                values['robot_agent_seed'] = int(values['pedestrian_seed'])
+            else:
+                values['human_agent_count'] = int(values['pedestrian_count'])
+                values['human_agent_goal_count'] = int(values['pedestrian_goal_count'])
+                values['human_agent_linear_speed'] = float(values['pedestrian_linear_speed'])
+                values['human_agent_seed'] = int(values['pedestrian_seed'])
+    values['pedestrians_enabled'] = bool(
+        values['pedestrians_enabled']
+        or values['human_agent_count'] > 0
+        or values['robot_agent_count'] > 0
+    )
     values['topdown_enabled'] = bool(values['topdown_enabled'])
     values['topdown_mode'] = str(values['topdown_mode']).strip().lower() or 'room'
     if values['topdown_mode'] not in ('room', 'oblique', 'overhead', 'interactive'):

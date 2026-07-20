@@ -63,15 +63,25 @@ def _bootstrap_pythonpath() -> None:
                 _prepend(os.path.join(prefix, pkg, rel))
 
 
+def _log(msg: str) -> None:
+    print(f'[habitat_node] {msg}', flush=True)
+
+
 _bootstrap_pythonpath()
+_log('bootstrapping ROS 2...')
 
 import rclpy
-
-from habitat.node import BridgeNode
 
 
 def main(argv: list[str] | None = None) -> None:
     rclpy.init(args=argv)
+    _log(
+        'importing Habitat-Sim (first launch can take 30–90s; wait for '
+        '"BridgeNode ready" — do not Ctrl-C yet)...'
+    )
+    # Heavy imports (torch/habitat_sim) happen here, after the early message.
+    from habitat.node import BridgeNode
+
     node = BridgeNode()
     try:
         rclpy.spin(node)

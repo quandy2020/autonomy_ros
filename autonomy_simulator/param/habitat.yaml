@@ -6,9 +6,10 @@
     scene_dataset_config: ""
     package_scene_dataset_config: ""
 
-    image_width: 640
-    image_height: 480
-    camera_horizontal_fov_deg: 90.0
+    # RGB / depth / semantic share resolution; 1280×720 + narrower FOV for sharper views.
+    image_width: 1280
+    image_height: 720
+    camera_horizontal_fov_deg: 70.0
     sensor_height: 0.6
 
     agent_pose_topic: "habitat/agent_pose"
@@ -30,6 +31,7 @@
     depth_topic: "camera/depth/image_raw"
     semantic_topic: "camera/semantic/image_raw"
 
+    # Extra COLOR pass each tick; keep false unless debugging overview (launch can override).
     topdown_enabled: false
     topdown_topic: "camera/topdown/image_raw"
     topdown_camera_info_topic: "camera/topdown/camera_info"
@@ -46,11 +48,8 @@
     topdown_room_margin: 1.18
     topdown_ortho_scale: 0.0
 
+    # Empty: {scene_dir}/{scene_id}_semantic.ply (MP3D dataset semantic mesh).
     semantic_ply_path: ""
-    kujiale_auto_convert: true
-    kujiale_force_convert: false
-    kujiale_reference_ply: ""
-    kujiale_map_connect_close_cells: 0
     semantic_pointcloud_topic: "semantic_pointcloud"
     semantic_pointcloud_frame: "map"
     semantic_pointcloud_downsample: 1
@@ -59,7 +58,7 @@
     occupancy_grid_topic: "map"
     occupancy_grid_frame: "map"
     occupancy_grid_resolution: 0.05
-    # Kujiale pointcloud height band (see semantic_ply_to_kujiale.py).
+    # PLY fallback slice when building /map without .navmesh.
     occupancy_grid_z_min: 0.0
     occupancy_grid_z_max: 0.55
     occupancy_grid_downsample: 1
@@ -86,7 +85,8 @@
     navmesh_color_by_island: true
     navmesh_connect_diagonal: false
 
-    update_rate_hz: 30.0
+    # Lower sim rate offsets 3-sensor 720p GPU cost vs former 640×480 @ 30 Hz.
+    update_rate_hz: 20.0
 
     spawn_mode: fixed
     spawn_index: 0
@@ -121,3 +121,35 @@
     humanoid_avatars: ""
     humanoid_infos_json: ""
     pedestrian_semantic_id: 250
+    dynamic_actor_kind: "humanoid"
+    # New split-agent mode: humans and robots can coexist and move independently.
+    # If both counts stay 0, legacy pedestrians_enabled + pedestrian_count +
+    # dynamic_actor_kind still work as before.
+    human_agent_count: 0
+    human_agent_goal_count: 4
+    human_agent_linear_speed: 1.0
+    human_agent_seed: 0
+    human_agents_tracked_topic: "pedestrian_visualizer/tracked_persons"
+    human_agents_viz_topic: "pedestrian_simulator/visualization"
+    # Empty: auto from autonomy_simulator/urdf
+    robot_asset_root: ""
+    robot_asset_type: "turtlebot3_waffle"
+    # Comma-separated types (turtlebot3_waffle,turtlebot3_waffle_gps,...)
+    robot_asset_types: ""
+    # Exact per-type counts, e.g. "spot=2,jackal=1". Higher priority than robot_asset_types.
+    robot_asset_counts: ""
+    # Per-type defaults are built in for turtlebot3 / jackal / husky / stretch.
+    # Fallbacks below are used for unknown robot types.
+    robot_semantic_id: 251
+    robot_agent_count: 0
+    robot_agent_goal_count: 4
+    robot_agent_linear_speed: 1.0
+    robot_agent_seed: 0
+    robot_agents_tracked_topic: "robot_agent_visualizer/tracked_persons"
+    robot_agents_viz_topic: "robot_simulator/visualization"
+    # False: show robots in RViz mainly via RobotModel instead of debug mesh markers.
+    robot_agents_debug_mesh_viz: false
+    # Comma-separated per-type overrides, e.g. "jackal=0.32,husky=0.45"
+    robot_radius_overrides: ""
+    robot_height_overrides: ""
+    robot_semantic_id_overrides: ""

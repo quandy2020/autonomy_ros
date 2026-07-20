@@ -1,0 +1,54 @@
+# autonomy_controller — controller_sim_node defaults
+# Loaded by controller_sim.launch.py; launch args override these values.
+#
+# Algorithm tuning lives in autonomy install:
+#   share/autonomy/config/control/controller.lua  (MPPI / RPP / Graceful)
+# Override with parameter configuration_directory if needed.
+
+controller_sim_node:
+  ros__parameters:
+    # Autonomy Lua bundle (empty → install share/autonomy/config)
+    configuration_directory: ""
+
+    # Frames & topics
+    frame_id: "odom"
+    base_frame: "base_footprint"
+    odom_topic: "odom"
+    cmd_vel_topic: "cmd_vel"
+    obstacle_cloud_topic: "controller_sim/obstacle_cloud"
+    goal_pose_topic: "goal_pose"
+
+    # Controller plugin: mppi | rpp | graceful
+    controller_id: "mppi"
+
+    # Closed-loop reference path (ignored after /goal_pose)
+    path_shape: "rectangle"          # circle | rectangle | figure_eight
+    path_center_x: 0.0
+    path_center_y: 0.0
+    path_radius: 3.5
+    path_width: 5.0
+    path_height: 3.0
+    figure_eight_scale: 2.0
+    path_pose_spacing: 0.05
+    repeat_path: true
+    snap_robot_to_path_start: false
+
+    # Goal checker (sim-local; mirrors controller.lua goal_checker)
+    xy_goal_tolerance: 0.35
+    yaw_goal_tolerance: 0.6
+
+    # Local rolling costmap (PointCloud2 marking)
+    costmap_resolution: 0.05
+    costmap_width: 12.0
+    costmap_height: 12.0
+    costmap_update_frequency: 20.0
+    robot_radius: 0.22
+    inflation_radius: 0.8
+    inflation_cost_scaling_factor: 3.0
+    obstacle_min_height: -1.0
+    obstacle_max_height: 2.0
+    raytrace_max_range: 25.0
+
+    # MPPI RViz visualization (/controller_sim/mppi_*)
+    mppi_viz_max_candidates: 40
+    mppi_viz_line_width: 0.008

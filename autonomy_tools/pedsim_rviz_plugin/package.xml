@@ -4,7 +4,7 @@
   <name>pedsim_rviz_plugin</name>
   <version>8.2.0</version>
   <description>RViz2 plugin for visualizing tracked persons (pedsim_msgs)</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

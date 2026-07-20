@@ -26,6 +26,7 @@ JDROBOT_COLLECTION_ROS_PARAMS: dict[str, Any] = {
     'record_pointcloud': True,
     'pointcloud_from_depth': True,
     'pointcloud_stride': 4,
+    'max_pointcloud_points': 4096,
     'record_camera_info': True,
     'record_nav2': False,
     'image_width': 640,

@@ -53,6 +53,18 @@ def generate_launch_description():
     pedestrians_enabled = LaunchConfiguration('pedestrians_enabled')
     pedestrian_count = LaunchConfiguration('pedestrian_count')
     trackvla_root = LaunchConfiguration('trackvla_root')
+    dynamic_actor_kind = LaunchConfiguration('dynamic_actor_kind')
+    humanoid_avatar = LaunchConfiguration('humanoid_avatar')
+    humanoid_avatars = LaunchConfiguration('humanoid_avatars')
+    human_agent_count = LaunchConfiguration('human_agent_count')
+    robot_agent_count = LaunchConfiguration('robot_agent_count')
+    robot_asset_root = LaunchConfiguration('robot_asset_root')
+    robot_asset_type = LaunchConfiguration('robot_asset_type')
+    robot_asset_types = LaunchConfiguration('robot_asset_types')
+    robot_asset_counts = LaunchConfiguration('robot_asset_counts')
+    robot_radius_overrides = LaunchConfiguration('robot_radius_overrides')
+    robot_height_overrides = LaunchConfiguration('robot_height_overrides')
+    robot_semantic_id_overrides = LaunchConfiguration('robot_semantic_id_overrides')
     topdown_enabled = LaunchConfiguration('topdown_enabled')
     topdown_mode = LaunchConfiguration('topdown_mode')
     use_rviz = LaunchConfiguration('use_rviz')
@@ -83,7 +95,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'semantic_ply_path',
             default_value='',
-            description='Override PLY path; empty = pointcloud.ply then *_semantic.ply',
+            description='Override semantic PLY; empty = {scene_dir}/{scene_id}_semantic.ply',
         ),
         DeclareLaunchArgument(
             'use_sim_time',
@@ -119,6 +131,66 @@ def generate_launch_description():
             'trackvla_root',
             default_value='',
             description='TrackVLA repo root for humanoid assets (default: TRACKVLA_ROOT env or sibling TrackVLA/)',
+        ),
+        DeclareLaunchArgument(
+            'dynamic_actor_kind',
+            default_value='humanoid',
+            description='Dynamic actor renderer: humanoid | robot',
+        ),
+        DeclareLaunchArgument(
+            'humanoid_avatar',
+            default_value='female_2',
+            description='Fallback humanoid avatar name',
+        ),
+        DeclareLaunchArgument(
+            'humanoid_avatars',
+            default_value='',
+            description='Comma-separated humanoid avatar names; empty = auto-discover all',
+        ),
+        DeclareLaunchArgument(
+            'human_agent_count',
+            default_value='0',
+            description='Number of dynamic humanoid agents',
+        ),
+        DeclareLaunchArgument(
+            'robot_agent_count',
+            default_value='0',
+            description='Number of dynamic robot agents',
+        ),
+        DeclareLaunchArgument(
+            'robot_asset_root',
+            default_value='',
+            description='Root directory containing robot URDF assets; empty = autonomy_simulator/urdf',
+        ),
+        DeclareLaunchArgument(
+            'robot_asset_type',
+            default_value='turtlebot3_waffle',
+            description='Fallback robot asset type (.urdf stem)',
+        ),
+        DeclareLaunchArgument(
+            'robot_asset_types',
+            default_value='',
+            description='Comma-separated robot asset types; empty = auto-discover all',
+        ),
+        DeclareLaunchArgument(
+            'robot_asset_counts',
+            default_value='',
+            description='Comma-separated exact robot counts, e.g. spot=2,jackal=1',
+        ),
+        DeclareLaunchArgument(
+            'robot_radius_overrides',
+            default_value='',
+            description='Comma-separated robot radius overrides, e.g. jackal=0.32,husky=0.45',
+        ),
+        DeclareLaunchArgument(
+            'robot_height_overrides',
+            default_value='',
+            description='Comma-separated robot height overrides, e.g. jackal=0.40,stretch=1.25',
+        ),
+        DeclareLaunchArgument(
+            'robot_semantic_id_overrides',
+            default_value='',
+            description='Comma-separated robot semantic id overrides, e.g. jackal=333,husky=334',
         ),
         DeclareLaunchArgument(
             'topdown_enabled',
@@ -186,6 +258,18 @@ def generate_launch_description():
                 'pedestrians_enabled': pedestrians_enabled,
                 'pedestrian_count': pedestrian_count,
                 'trackvla_root': trackvla_root,
+                'dynamic_actor_kind': dynamic_actor_kind,
+                'humanoid_avatar': humanoid_avatar,
+                'humanoid_avatars': humanoid_avatars,
+                'human_agent_count': human_agent_count,
+                'robot_agent_count': robot_agent_count,
+                'robot_asset_root': robot_asset_root,
+                'robot_asset_type': robot_asset_type,
+                'robot_asset_types': robot_asset_types,
+                'robot_asset_counts': robot_asset_counts,
+                'robot_radius_overrides': robot_radius_overrides,
+                'robot_height_overrides': robot_height_overrides,
+                'robot_semantic_id_overrides': robot_semantic_id_overrides,
                 'topdown_enabled': topdown_enabled,
                 'topdown_mode': topdown_mode,
             },

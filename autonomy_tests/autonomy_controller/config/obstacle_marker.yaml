@@ -1,0 +1,10 @@
+# InteractiveMarker obstacles → PointCloud2 for controller_sim
+
+obstacle_marker_node:
+  ros__parameters:
+    frame_id: "odom"
+    cloud_topic: "controller_sim/obstacle_cloud"
+    publish_rate_hz: 10.0
+    sample_resolution: 0.08
+    static_count: 2
+    dynamic_count: 1

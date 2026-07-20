@@ -40,6 +40,7 @@ class OdomPublisher:
     def __init__(self, node: Node, cfg: Config) -> None:
         qos = qos_profile_system_default
         self._cfg = cfg
+        self._node = node
         self._tf = TransformBroadcaster(node)
         self._static_tf = StaticTransformBroadcaster(node)
         self._odom_pub = node.create_publisher(Odometry, cfg.odom_topic, qos)
@@ -48,7 +49,7 @@ class OdomPublisher:
 
     def _pub_initial_odom_to_base(self) -> None:
         """Identity odom→base_footprint until the first sim tick (Session load is slow)."""
-        self.hold_tf_alive(rclpy.time.Time())
+        self.hold_tf_alive(self._node.get_clock().now())
 
     def hold_tf_alive(self, stamp: rclpy.time.Time) -> None:
         """Republish odom→base_footprint while Session loads (keeps Nav2 TF tree valid)."""

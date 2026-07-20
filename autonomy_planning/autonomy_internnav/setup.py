@@ -36,7 +36,7 @@ setup(
     install_requires=['setuptools', 'PyYAML'],
     zip_safe=True,
     maintainer='quandy',
-    maintainer_email='duyongquan3@jd.com',
+    maintainer_email='quandy2020@126.com',
     description='ROS 2 NavDP inference bridge and training for point-goal navigation',
     license='Apache-2.0',
     entry_points={

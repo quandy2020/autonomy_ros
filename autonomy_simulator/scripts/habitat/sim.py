@@ -84,10 +84,17 @@ class Session:
             self._angular = 0.0
 
         x, y, _, yaw_val = self.map_pose()
-        x += self._linear * math.cos(yaw_val) * dt
-        y += self._linear * math.sin(yaw_val) * dt
-        yaw_val += self._angular * dt
-        self._move_map(x, y, yaw_val)
+        new_yaw = yaw_val + self._angular * dt
+        # Prefer translation only when the step stays on navmesh; otherwise yaw-only
+        # so we do not scrape walls / jitter against snap_point.
+        if abs(self._linear) > 1e-4:
+            nx = x + self._linear * math.cos(yaw_val) * dt
+            ny = y + self._linear * math.sin(yaw_val) * dt
+            if not self._try_move_map(nx, ny, new_yaw):
+                self._move_map(x, y, new_yaw)
+                return
+            return
+        self._move_map(x, y, new_yaw)
 
     def observe(self) -> dict[str, Any]:
         if self._cfg.topdown_enabled:
@@ -102,7 +109,13 @@ class Session:
     def _needs_physics(cfg: Config) -> bool:
         if not (cfg.pedestrians_enabled and cfg.pedestrian_count > 0):
             return False
+        if str(cfg.dynamic_actor_kind).strip().lower() == 'robot':
+            from habitat.robot.paths import robot_assets_available
+
+            ok, _ = robot_assets_available(cfg)
+            return ok
         from habitat.humanoid.paths import humanoid_assets_available
+
         ok, _ = humanoid_assets_available(cfg)
         return ok
 
@@ -473,6 +486,24 @@ class Session:
             self._floor_height = float(snapped[1])
             return snapped
         return position
+
+    def _try_move_map(self, map_x: float, map_y: float, map_yaw: float) -> bool:
+        """Move if navmesh accepts the step; reject large sideways snaps (wall hits)."""
+        position = np.array([map_x, self._floor_height, -map_y], dtype=np.float32)
+        if not self._sim.pathfinder.is_loaded:
+            self._apply(position, quat(map_yaw))
+            return True
+        snapped = self._sim.pathfinder.snap_point(position)
+        if not self._sim.pathfinder.is_navigable(snapped):
+            return False
+        # Habitat snap can yank the agent sideways into a wall corridor — treat as blocked.
+        dx = float(snapped[0] - position[0])
+        dz = float(snapped[2] - position[2])
+        if math.hypot(dx, dz) > 0.22:
+            return False
+        self._floor_height = float(snapped[1])
+        self._apply(snapped, quat(map_yaw))
+        return True
 
     def _move_map(self, map_x: float, map_y: float, map_yaw: float) -> None:
         position = np.array([map_x, self._floor_height, -map_y], dtype=np.float32)

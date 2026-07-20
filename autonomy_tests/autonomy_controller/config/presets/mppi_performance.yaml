@@ -1,0 +1,8 @@
+# Lighter MPPI load for slower machines (Lua batch/time_steps still from controller.lua).
+# Reduce viz overhead; tune controller.lua batch_size/time_steps for algorithm cost.
+
+controller_sim_node:
+  ros__parameters:
+    mppi_viz_max_candidates: 50
+    mppi_viz_line_width: 0.006
+    costmap_update_frequency: 15.0

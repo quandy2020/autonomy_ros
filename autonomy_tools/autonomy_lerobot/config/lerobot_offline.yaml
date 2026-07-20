@@ -1,0 +1,31 @@
+offline:
+  input:
+    input_dir: /mnt/data4t/rosbag/real-stairs-l1w-15hz-part0
+    robot_type: jdrobot
+    task: navigate to goal
+    rgb_topic: /camera/color/image_raw
+    depth_topic: /camera/depth/image_raw
+    camera_info_topic: /camera/depth/camera_info
+    odom_topic: /odom
+    odom_fallback_topic: /robot/state_cmd/ekf
+  output:
+    dataset_root: /mnt/data4t/data/lerobot/collection/robot1
+    repo_id: local/habitat_collection_robot1
+    fps: 20.0
+    episode_seconds: 20.0
+    video_vcodec: av1
+  pointcloud:
+    pointcloud_stride: 4
+    max_pointcloud_points: 4096
+    depth_min_m: 0.2
+    depth_max_m: 6.0
+  sam3:
+    sam3_enable: true
+    sam3_device: cuda
+    sam3_confidence: 0.3
+    sam3_prompts: floor,stair tread,stair step,stairs,step
+    save_segmentation_viz: true
+  cleanup:
+    skip_stationary_runs: true
+    stationary_pos_threshold: 0.01
+    stationary_yaw_threshold: 0.01

@@ -4,7 +4,7 @@
   <name>autonomy_internnav</name>
   <version>0.2.0</version>
   <description>ROS 2 NavDP inference bridge for point-goal navigation</description>
-  <maintainer email="duyongquan3@jd.com">quandy</maintainer>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
   <depend>visualization_msgs</depend>

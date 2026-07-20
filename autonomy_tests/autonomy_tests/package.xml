@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>autonomy_tests</name>
+  <version>0.0.0</version>
+  <description>Metapackage for autonomy ROS 2 test packages</description>
+  <maintainer email="quandy2020@126.com">quandy</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>autonomy_controller</exec_depend>
+  <exec_depend>autonomy_planner</exec_depend>
+  <exec_depend>autonomy_simulator</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <metapackage/>
+  </export>
+</package>
