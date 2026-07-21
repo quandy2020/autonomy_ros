@@ -27,6 +27,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 # autonomy::autonomy PUBLIC interface (re-find when config lags behind rebuild)
 find_package(nlohmann_json QUIET)
 find_package(foxglove-sdk CONFIG QUIET)
@@ -46,11 +47,13 @@ set(_SIM_DEPS
   nav_msgs
   sensor_msgs
   visualization_msgs
+  tf2_ros
   autonomy_ros
 )
 
 add_executable(planner_sim_node
   src/planner_sim_node.cpp
+  src/planner_sim_utils.cpp
 )
 target_include_directories(planner_sim_node PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
