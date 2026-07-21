@@ -4,21 +4,35 @@
 # Algorithm tuning lives in autonomy install:
 #   share/autonomy/config/planner/planner.lua
 # Override with parameter configuration_directory if needed.
+#
+# Static maps live under autonomy share config:
+#   share/autonomy/config/data/<map_file>   (preferred)
+#   share/autonomy/config/map/<map_file>    (fallback)
 
 planner_sim_node:
   ros__parameters:
     configuration_directory: ""
 
+    # Robot odometry / planning TF chain: map -> odom -> base_footprint.
     frame_id: "odom"
     base_frame: "base_footprint"
+    # Static /map and global costmap are published in map_frame.
+    map_frame: "map"
     odom_topic: "odom"
     obstacle_cloud_topic: "planner_sim/obstacle_cloud"
+    initial_pose_topic: "initialpose"
     goal_pose_topic: "goal_pose"
 
     # Planner plugin: navfn_planner | dijkstra_planner | theta_star_planner
-    planner_id: "navfn_planner"
+    planner_id: "dijkstra_planner"
 
-    # Global costmap (PointCloud2 marking)
+    # Static map YAML (relative name resolved under config/data then config/map)
+    map_file: "Shanghai_2_1024.yaml"
+    # Must match RViz Map display topic (/map). Do not use the YAML basename.
+    map_topic: "map"
+
+    # Global costmap fallback size when map_file is missing.
+    # When map loads successfully, size/origin follow the YAML/PGM.
     costmap_resolution: 0.05
     costmap_width: 20.0
     costmap_height: 20.0

@@ -1,0 +1,15 @@
+driver_hub_node:
+  ros__parameters:
+    use_mock: false
+    configuration_directory: ""
+    configuration_file: "driver/autodriver_hardware.lua"
+    alignment_window_ms: 50
+    publish_period_ms: 10
+    buffer_capacity: 64
+    publish_ros_topics: true
+    ros_topics:
+      imu: "imu/data"
+      gps: "gps/fix"
+      odom: "odom"
+      laser: "scan"
+      range: "range/front"

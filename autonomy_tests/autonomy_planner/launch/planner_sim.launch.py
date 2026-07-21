@@ -28,6 +28,7 @@ def _launch_setup(context, *args, **kwargs):
     frame_id_arg = LaunchConfiguration('frame_id').perform(context).strip()
     base_frame_arg = LaunchConfiguration('base_frame').perform(context).strip()
     planner_id_arg = LaunchConfiguration('planner_id').perform(context).strip()
+    map_file_arg = LaunchConfiguration('map_file').perform(context).strip()
     static_count_arg = LaunchConfiguration('static_count').perform(context).strip()
     dynamic_count_arg = LaunchConfiguration('dynamic_count').perform(context).strip()
 
@@ -62,6 +63,7 @@ def _launch_setup(context, *args, **kwargs):
             'frame_id': frame_id_arg,
             'base_frame': base_frame_arg,
             'planner_id': planner_id_arg,
+            'map_file': map_file_arg,
         }.items() if v
     }
 
@@ -92,6 +94,11 @@ def generate_launch_description():
             default_value='',
             description='Optional override: navfn_planner | dijkstra_planner | '
                         'theta_star_planner'),
+        DeclareLaunchArgument(
+            'map_file',
+            default_value='',
+            description='Optional map YAML under autonomy config/data '
+                        '(e.g. map.yaml, turtlebot3_house.yaml)'),
         DeclareLaunchArgument(
             'use_rviz',
             default_value='true',

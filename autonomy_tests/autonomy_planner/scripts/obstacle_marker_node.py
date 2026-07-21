@@ -136,7 +136,7 @@ class ObstacleMarkerNode(Node):
         )
 
     def _seed_obstacles(self, n_static: int, n_dynamic: int) -> None:
-        static_xy = [(2.5, 1.0), (-2.0, 2.0), (1.5, -2.5), (-2.5, -1.5), (3.0, -1.0)]
+        static_xy = [(2.5, 1.0), (8.0, 6.0), (12.0, 3.5), (5.0, 14.0), (15.0, 10.0)]
         for i in range(max(0, n_static)):
             x, y = static_xy[i % len(static_xy)]
             self._world.obstacles.append(
@@ -155,13 +155,13 @@ class ObstacleMarkerNode(Node):
             self._world.obstacles.append(
                 Obstacle(
                     name=f'dynamic_{i}',
-                    x=3.5 * math.cos(phase),
-                    y=3.5 * math.sin(phase),
+                    x=10.0 + 3.5 * math.cos(phase),
+                    y=10.0 + 3.5 * math.sin(phase),
                     radius=0.28,
                     height=1.0,
                     dynamic=True,
-                    orbit_cx=0.0,
-                    orbit_cy=0.0,
+                    orbit_cx=10.0,
+                    orbit_cy=10.0,
                     orbit_r=3.5 + 0.15 * i,
                     orbit_omega=0.25 * (1.0 if i % 2 == 0 else -1.0),
                     orbit_phase=phase,

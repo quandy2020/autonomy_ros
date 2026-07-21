@@ -19,6 +19,7 @@
   <depend>nav_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>visualization_msgs</depend>
+  <depend>tf2_ros</depend>
 
   <exec_depend>autonomy_simulator</exec_depend>
   <exec_depend>rclpy</exec_depend>

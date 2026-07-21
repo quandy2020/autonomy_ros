@@ -1,0 +1,13 @@
+driver_hub_node:
+  ros__parameters:
+    use_mock: false
+    alignment_window_ms: 100
+    publish_period_ms: 20
+    buffer_capacity: 32
+    configuration_directory: ""
+    configuration_file: "driver/autodriver.lua"
+    publish_ros_topics: false
+    ros_drivers:
+      types: ["imu", "laser", "odom"]
+      topics: ["imu", "scan", "odom"]
+      sensor_ids: ["imu/primary", "lidar/front", "wheel_odom/primary"]
