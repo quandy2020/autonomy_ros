@@ -35,6 +35,7 @@ TEST(ControlOptions, LoadControllerLua)
     const auto opts = LoadFromInstalledConfig();
     EXPECT_GT(opts.controller_frequency(), 0.0);
     EXPECT_GE(opts.controller_plugins_size(), 1);
+    EXPECT_TRUE(opts.has_mppi_controller_options());
   } catch (const std::exception & ex) {
     GTEST_SKIP() << "controller.lua not available: " << ex.what();
   }

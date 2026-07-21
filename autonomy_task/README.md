@@ -97,6 +97,16 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
   use_rviz:=true
 ```
 
+启用 Habitat 动态行人（默认关闭）：
+
+```bash
+ros2 launch autonomy_task multi_robot_collection.launch.py \
+  num_robots:=1 \
+  use_rviz:=true \
+  pedestrians_enabled:=true \
+  pedestrian_count:=5
+```
+
 `num_robots` 由 launch 覆盖 yaml 中的 `num_robots`；每台机器人独立 graph、map、LeRobot 目录（`dataset_root/robotN`）。
 
 ## 路点状态
@@ -180,6 +190,29 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
   use_rviz:=true
 ```
 
+**带动态行人（Habitat humanoid）：**
+
+```bash
+ros2 launch autonomy_task multi_robot_collection.launch.py \
+  num_robots:=1 \
+  use_rviz:=true \
+  pedestrians_enabled:=true \
+  pedestrian_count:=5 \
+  pedestrian_linear_speed:=1.0 \
+  pedestrian_goal_count:=4 \
+  humanoid_avatar:=female_2
+```
+
+指定多个 avatar 或精确 agent 数量：
+
+```bash
+ros2 launch autonomy_task multi_robot_collection.launch.py \
+  num_robots:=1 use_rviz:=true \
+  pedestrians_enabled:=true \
+  human_agent_count:=8 \
+  humanoid_avatars:=female_2,male_1
+```
+
 常用 launch 参数：
 
 | 参数 | 默认 | 说明 |
@@ -196,6 +229,19 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 | `nav2_stagger_sec` | `12.0` | 各机器人 Nav2 错峰间隔 |
 | `lerobot_gap_sec` | `15.0` | 最后一台 Nav2 启动后再等多久开 LeRobot |
 | `nav_ready_sec` | `45.0` | 最后一台 Nav2 就绪后再开始分配 |
+
+**动态行人**（经 `navigation_nav2_multi.launch.py` 传入 Habitat-Sim，`pedestrians_enabled:=false` 时不生效）：
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `pedestrians_enabled` | `false` | 是否启用动态 humanoid 行人 |
+| `pedestrian_count` | `5` | 行人数量 |
+| `human_agent_count` | `0` | 显式 agent 数；`>0` 时覆盖 `pedestrian_count` |
+| `pedestrian_linear_speed` | `1.0` | 行走速度 (m/s) |
+| `pedestrian_goal_count` | `4` | 每个行人一轮路径的 waypoint 数 |
+| `humanoid_avatar` | `female_2` | 未指定列表时的默认 avatar |
+| `humanoid_avatars` | `''` | 逗号分隔 avatar 名；空则自动发现全部 |
+| `dynamic_actor_kind` | `humanoid` | 动态 actor 类型：`humanoid` \| `robot` |
 
 启动顺序：Habitat（错峰）→ Nav2（错峰）→ LeRobot bridge（在 Nav2 之后）→ coordinator。
 

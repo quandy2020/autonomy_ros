@@ -25,7 +25,7 @@ fake_robot ◄──────────────────────
 colcon build --packages-select autonomy autonomy_ros autonomy_simulator autonomy_controller --symlink-install
 source install/setup.bash
 
-# 默认 MPPI + 圆路径
+# 默认 MPPI + 矩形路径
 ros2 launch autonomy_controller controller_sim.launch.py
 
 # 切换控制器
@@ -38,7 +38,7 @@ ros2 launch autonomy_controller controller_sim.launch.py \
   static_count:=4 dynamic_count:=1
 ```
 
-`controller_id`：`mppi` | `rpp` | `graceful`
+`controller_id`：`mppi` | `rpp` | `graceful`（默认 `mppi`）
 
 ## 参数配置
 
@@ -51,13 +51,9 @@ ros2 launch autonomy_controller controller_sim.launch.py \
 | `config/presets/goal_navigation.yaml` | RViz 2D Goal 导航（`repeat_path: false`） |
 | `config/presets/mppi_performance.yaml` | 降低 viz / costmap 频率 |
 
-MPPI/RPP/Graceful **算法参数** 仍来自 `autonomy` 的 `config/control/controller.lua`（可通过 `configuration_directory` 覆盖）。
+MPPI/RPP/Graceful **算法参数** 来自 `autonomy` 的 `config/control/controller.lua`（可通过 `configuration_directory` 覆盖）。
 
 ```bash
-# Goal 导航预设
-ros2 launch autonomy_controller controller_sim.launch.py \
-  config_preset:=goal_navigation controller_id:=mppi
-
 # 性能预设 + 自定义障碍数
 ros2 launch autonomy_controller controller_sim.launch.py \
   config_preset:=mppi_performance static_count:=2

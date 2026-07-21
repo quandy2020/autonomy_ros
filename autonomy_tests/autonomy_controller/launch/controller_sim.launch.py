@@ -106,7 +106,8 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'controller_id',
             default_value='',
-            description='Optional override for controller_id in YAML: mppi | rpp | graceful'),
+            description='Optional override for controller_id in YAML: '
+                        'mppi | rpp | graceful'),
         DeclareLaunchArgument(
             'path_shape',
             default_value='',

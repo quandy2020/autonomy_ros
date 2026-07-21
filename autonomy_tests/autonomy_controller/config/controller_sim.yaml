@@ -22,7 +22,7 @@ controller_sim_node:
     controller_id: "mppi"
 
     # Closed-loop reference path (ignored after /goal_pose)
-    path_shape: "rectangle"          # circle | rectangle | figure_eight
+    path_shape: "rectangle"          # circle | rectangle | figure_eight | line
     path_center_x: 0.0
     path_center_y: 0.0
     path_radius: 3.5
@@ -31,7 +31,7 @@ controller_sim_node:
     figure_eight_scale: 2.0
     path_pose_spacing: 0.05
     repeat_path: true
-    snap_robot_to_path_start: false
+    snap_robot_to_path_start: true
 
     # Goal checker (sim-local; mirrors controller.lua goal_checker)
     xy_goal_tolerance: 0.35
