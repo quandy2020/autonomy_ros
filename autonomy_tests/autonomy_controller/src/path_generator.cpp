@@ -143,6 +143,9 @@ PathShape ParsePathShape(const std::string & name)
   if (key == "figure_eight" || key == "figure8" || key == "eight" || key == "8") {
     return PathShape::FigureEight;
   }
+  if (key == "line" || key == "straight") {
+    return PathShape::Line;
+  }
   throw std::runtime_error("unknown path_shape: " + name);
 }
 
@@ -223,6 +226,24 @@ Path GeneratePath(PathShape shape, const PathGeneratorParams & params)
             cy + a * s * std::cos(t));
         }
         return BuildFromSamples(pts, params.pose_spacing, frame, true);
+      }
+
+    case PathShape::Line: {
+        const double x0 = params.center_x - params.width * 0.5;
+        const double x1 = params.center_x + params.width * 0.5;
+        const double y = params.center_y;
+        const double yaw = std::atan2(0.0, x1 - x0);
+        Path path;
+        path.header.frame_id = frame;
+        const double dist = std::hypot(x1 - x0, y - y);
+        const int segments =
+            std::max(1, static_cast<int>(std::ceil(dist / params.pose_spacing)));
+        for (int s = 0; s <= segments; ++s) {
+            const double t = static_cast<double>(s) / segments;
+            path.poses.push_back(
+                MakePose(x0 + t * (x1 - x0), y, yaw, frame));
+        }
+        return path;
       }
   }
 

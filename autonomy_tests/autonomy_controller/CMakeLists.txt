@@ -101,7 +101,8 @@ if(BUILD_TESTING)
 
   foreach(_src IN LISTS _controller_tests)
     get_filename_component(_name ${_src} NAME_WE)
-    ament_add_gtest(${_name} ${_src})
+    set(_test_sources ${_src})
+    ament_add_gtest(${_name} ${_test_sources})
     target_include_directories(${_name} PRIVATE
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )

@@ -42,6 +42,7 @@ enum class PathShape
   Circle,
   Rectangle,
   FigureEight,
+  Line,
 };
 
 /**

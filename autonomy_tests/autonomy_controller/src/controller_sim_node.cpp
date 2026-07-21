@@ -26,6 +26,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -266,7 +267,8 @@ void ControllerSimNode::SetupController()
     controller_ = std::move(ctrl);
   } else {
     throw std::runtime_error(
-            "Unknown controller_id='" + id + "' (use mppi | rpp | graceful)");
+            "Unknown controller_id='" + id +
+            "' (use mppi | rpp | graceful)");
   }
 }
 
@@ -543,6 +545,22 @@ void ControllerSimNode::OnTick()
   pose.header.frame_id =
     pose.header.frame_id.empty() ? frame_id_ : pose.header.frame_id;
 
+  if (ClosedLoopTrackingMode() && reference_path_.poses.size() >= 2) {
+    double min_sq = std::numeric_limits<double>::max();
+    for (const auto & ref : reference_path_.poses) {
+      const double dx = pose.pose.position.x - ref.pose.position.x;
+      const double dy = pose.pose.position.y - ref.pose.position.y;
+      min_sq = std::min(min_sq, dx * dx + dy * dy);
+    }
+    if (min_sq > 1.5 * 1.5) {
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), 3000,
+        "Robot >1.5 m from reference path (%.2f m), resetting plan",
+        std::sqrt(min_sq));
+      ApplyReferencePlan(false);
+    }
+  }
+
   autonomy::commsgs::geometry_msgs::TwistStamped velocity;
   velocity.header.frame_id = base_frame_;
   velocity.twist = autonomy_ros::fromRos(odom.twist.twist);
@@ -567,6 +585,20 @@ void ControllerSimNode::OnTick()
       std::lock_guard<std::mutex> lock(costmap_mutex_);
       code = controller_->ComputeVelocityCommands(
         pose, velocity, cmd, &goal_checker_, message);
+    }
+    if (code != 0) {
+      if (ClosedLoopTrackingMode()) {
+        ApplyReferencePlan(false);
+        try {
+          std::lock_guard<std::mutex> lock(costmap_mutex_);
+          code = controller_->ComputeVelocityCommands(
+            pose, velocity, cmd, &goal_checker_, message);
+        } catch (const std::exception & retry_ex) {
+          RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "ComputeVelocityCommands retry failed: %s", retry_ex.what());
+        }
+      }
     }
     if (code != 0) {
       RCLCPP_WARN_THROTTLE(
