@@ -60,7 +60,7 @@
     <visual>
       <origin xyz="-0.064 0 0.0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://autonomy_ros/models/turtlebot3_model/meshes/waffle_base.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://autonomy_simulator/models/turtlebot3_model/meshes/waffle_base.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="light_black"/>
     </visual>
@@ -92,7 +92,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="1.57 0 0"/>
       <geometry>
-        <mesh filename="package://autonomy_ros/models/turtlebot3_model/meshes/tire.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://autonomy_simulator/models/turtlebot3_model/meshes/tire.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="dark"/>
     </visual>
@@ -124,7 +124,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="1.57 0 0"/>
       <geometry>
-        <mesh filename="package://autonomy_ros/models/turtlebot3_model/meshes/tire.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://autonomy_simulator/models/turtlebot3_model/meshes/tire.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="dark"/>
     </visual>
@@ -216,7 +216,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://autonomy_ros/models/turtlebot3_model/meshes/lds.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://autonomy_simulator/models/turtlebot3_model/meshes/lds.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="dark"/>
     </visual>

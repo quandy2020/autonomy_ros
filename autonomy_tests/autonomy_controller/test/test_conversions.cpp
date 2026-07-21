@@ -15,19 +15,19 @@ using autonomy_controller::test::MakeTwist;
 TEST(ControlConversions, Twist2Dto3DRoundTrip)
 {
   autonomy::commsgs::geometry_msgs::Twist2D in;
-  in.x = 0.4;
-  in.y = -0.1;
-  in.theta = 1.2;
+  in.x = 0.4f;
+  in.y = -0.1f;
+  in.theta = 1.2f;
 
   const auto twist3 = twist2Dto3D(in);
-  EXPECT_DOUBLE_EQ(twist3.linear.x, 0.4);
-  EXPECT_DOUBLE_EQ(twist3.linear.y, -0.1);
-  EXPECT_DOUBLE_EQ(twist3.angular.z, 1.2);
+  EXPECT_NEAR(twist3.linear.x, 0.4, 1e-6);
+  EXPECT_NEAR(twist3.linear.y, -0.1, 1e-6);
+  EXPECT_NEAR(twist3.angular.z, 1.2, 1e-6);
 
   const auto back = twist3Dto2D(twist3);
-  EXPECT_DOUBLE_EQ(back.x, in.x);
-  EXPECT_DOUBLE_EQ(back.y, in.y);
-  EXPECT_DOUBLE_EQ(back.theta, in.theta);
+  EXPECT_NEAR(back.x, in.x, 1e-6);
+  EXPECT_NEAR(back.y, in.y, 1e-6);
+  EXPECT_NEAR(back.theta, in.theta, 1e-6);
 }
 
 TEST(ControlConversions, Twist3Dto2DDropsUnusedAxes)
@@ -38,7 +38,7 @@ TEST(ControlConversions, Twist3Dto2DDropsUnusedAxes)
   twist.angular.y = 2.0;
 
   const auto t2 = twist3Dto2D(twist);
-  EXPECT_DOUBLE_EQ(t2.x, 0.5);
-  EXPECT_DOUBLE_EQ(t2.y, 0.2);
-  EXPECT_DOUBLE_EQ(t2.theta, -0.3);
+  EXPECT_NEAR(t2.x, 0.5, 1e-6);
+  EXPECT_NEAR(t2.y, 0.2, 1e-6);
+  EXPECT_NEAR(t2.theta, -0.3, 1e-6);
 }

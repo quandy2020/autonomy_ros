@@ -2,6 +2,21 @@
  * Copyright 2026 autonomy_ros contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file
+ * @brief Implements reference path generation for controller simulation.
  */
 
 #include "autonomy_controller/path_generator.hpp"
@@ -222,8 +237,8 @@ Path GenerateLinePath(
   if (spacing <= 0.0) {
     throw std::runtime_error("pose_spacing must be > 0");
   }
-  const std::string & frame = start.header.frame_id.empty()
-    ? goal.header.frame_id : start.header.frame_id;
+  const std::string & frame = start.header.frame_id.empty() ?
+    goal.header.frame_id : start.header.frame_id;
   const std::vector<std::pair<double, double>> segment = {
     {start.pose.position.x, start.pose.position.y},
     {goal.pose.position.x, goal.pose.position.y},

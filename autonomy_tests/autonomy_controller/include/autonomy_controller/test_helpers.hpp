@@ -2,7 +2,25 @@
  * Copyright 2026 autonomy_ros contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
+/**
+ * @file
+ * @brief Test fixtures for autonomy_controller unit tests.
+ */
+
+#ifndef AUTONOMY_CONTROLLER_TEST_HELPERS_HPP_
+#define AUTONOMY_CONTROLLER_TEST_HELPERS_HPP_
 
 #include <cmath>
 #include <string>
@@ -10,9 +28,21 @@
 #include "autonomy/commsgs/geometry_msgs.hpp"
 #include "autonomy/commsgs/planning_msgs.hpp"
 
-namespace autonomy_controller {
-namespace test {
+/**
+ * @namespace autonomy_controller::test
+ * @brief Inline helpers for controller plugin unit tests.
+ */
+namespace autonomy_controller
+{
+namespace test
+{
 
+/**
+ * @brief Build a planar pose with yaw about +z.
+ * @param x Position x [m].
+ * @param y Position y [m].
+ * @param yaw Heading [rad].
+ */
 inline autonomy::commsgs::geometry_msgs::Pose MakePose(
   double x, double y, double yaw = 0.0)
 {
@@ -27,6 +57,9 @@ inline autonomy::commsgs::geometry_msgs::Pose MakePose(
   return pose;
 }
 
+/**
+ * @brief Build a stamped pose in the given frame.
+ */
 inline autonomy::commsgs::geometry_msgs::PoseStamped MakePoseStamped(
   double x, double y, double yaw = 0.0, const std::string & frame = "odom")
 {
@@ -36,6 +69,9 @@ inline autonomy::commsgs::geometry_msgs::PoseStamped MakePoseStamped(
   return stamped;
 }
 
+/**
+ * @brief Build a body-frame twist (planar motion).
+ */
 inline autonomy::commsgs::geometry_msgs::Twist MakeTwist(
   double vx, double vy, double wz)
 {
@@ -46,6 +82,9 @@ inline autonomy::commsgs::geometry_msgs::Twist MakeTwist(
   return twist;
 }
 
+/**
+ * @brief Build a 2-D point with z = 0.
+ */
 inline autonomy::commsgs::geometry_msgs::Point MakePoint(double x, double y)
 {
   autonomy::commsgs::geometry_msgs::Point p;
@@ -55,6 +94,9 @@ inline autonomy::commsgs::geometry_msgs::Point MakePoint(double x, double y)
   return p;
 }
 
+/**
+ * @brief Build a straight polyline path with uniform spacing in pose count.
+ */
 inline autonomy::commsgs::planning_msgs::Path MakeStraightPath(
   double x0, double y0, double x1, double y1, int n = 10)
 {
@@ -70,3 +112,5 @@ inline autonomy::commsgs::planning_msgs::Path MakeStraightPath(
 
 }  // namespace test
 }  // namespace autonomy_controller
+
+#endif  // AUTONOMY_CONTROLLER_TEST_HELPERS_HPP_

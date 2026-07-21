@@ -96,6 +96,7 @@ void FakeRobotNode::initState()
 
   prev_update_time_ = now();
   last_cmd_vel_time_ = now();
+  syncOdomFromPose();
 }
 
 void FakeRobotNode::onSetPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
@@ -112,6 +113,17 @@ void FakeRobotNode::onSetPose(const geometry_msgs::msg::PoseStamped::SharedPtr m
   wheel_speed_cmd_ = {0.0, 0.0};
   goal_linear_ = 0.0;
   goal_angular_ = 0.0;
+  syncOdomFromPose();
+
+  const auto stamp = now();
+  if (publish_odom_) {
+    odom_.header.stamp = stamp;
+    odom_pub_->publish(odom_);
+  }
+  if (publish_tf_) {
+    publishTf(stamp);
+  }
+
   RCLCPP_INFO(
     get_logger(), "[fake_robot] pose reset to (%.3f, %.3f, %.3f)",
     pose_[0], pose_[1], pose_[2]);
@@ -195,6 +207,12 @@ bool FakeRobotNode::integrateOdometry(const rclcpp::Duration & duration)
   vel_[1] = 0.0F;
   vel_[2] = static_cast<float>(delta_theta / step_time);
 
+  syncOdomFromPose();
+  return true;
+}
+
+void FakeRobotNode::syncOdomFromPose()
+{
   odom_.pose.pose.position.x = pose_[0];
   odom_.pose.pose.position.y = pose_[1];
   odom_.pose.pose.position.z = 0.0;
@@ -208,8 +226,6 @@ bool FakeRobotNode::integrateOdometry(const rclcpp::Duration & duration)
 
   odom_.twist.twist.linear.x = vel_[0];
   odom_.twist.twist.angular.z = vel_[2];
-
-  return true;
 }
 
 void FakeRobotNode::publishJointStates(const rclcpp::Time & stamp)
