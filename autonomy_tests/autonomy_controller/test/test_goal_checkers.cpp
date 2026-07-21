@@ -20,7 +20,7 @@ TEST(GoalCheckers, SimpleGoalReachedWithinTolerance)
 {
   SimpleGoalChecker checker;
   checker.Initialize("simple", nullptr);
-  checker.SetTolerances(0.25, 0.25, true);
+  checker.SetTolerances(0.25, 0.25, false);
 
   const auto goal = MakePose(1.0, 2.0, 0.0);
   const auto near = MakePose(1.1, 2.05, 0.05);

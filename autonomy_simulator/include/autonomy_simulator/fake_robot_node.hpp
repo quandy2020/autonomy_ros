@@ -53,6 +53,7 @@ private:
   void onUpdate();
 
   bool integrateOdometry(const rclcpp::Duration & dt);
+  void syncOdomFromPose();
   void publishJointStates(const rclcpp::Time & stamp);
   void publishTf(const rclcpp::Time & stamp);
 

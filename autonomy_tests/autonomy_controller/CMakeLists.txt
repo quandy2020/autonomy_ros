@@ -51,6 +51,8 @@ set(_SIM_DEPS
 
 add_executable(controller_sim_node
   src/controller_sim_node.cpp
+  src/controller_sim_utils.cpp
+  src/mppi_trajectory_viz.cpp
   src/path_generator.cpp
 )
 target_include_directories(controller_sim_node PRIVATE

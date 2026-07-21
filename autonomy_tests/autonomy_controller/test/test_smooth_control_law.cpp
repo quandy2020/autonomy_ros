@@ -14,9 +14,9 @@ using autonomy_controller::test::MakePose;
 TEST(SmoothControlLaw, ForwardTowardTargetProducesPositiveVx)
 {
   SmoothControlLaw law(
-    /*k_phi=*/1.0, /*k_delta=*/2.0, /*beta=*/0.4, /*lambda=*/2.0,
-    /*slowdown_radius=*/0.5, /*deceleration_max=*/2.5,
-    /*v_linear_min=*/0.1, /*v_linear_max=*/0.5, /*v_angular_max=*/1.0);
+    /*k_phi=*/ 1.0, /*k_delta=*/ 2.0, /*beta=*/ 0.4, /*lambda=*/ 2.0,
+    /*slowdown_radius=*/ 0.5, /*deceleration_max=*/ 2.5,
+    /*v_linear_min=*/ 0.1, /*v_linear_max=*/ 0.5, /*v_angular_max=*/ 1.0);
 
   const auto current = MakePose(0.0, 0.0, 0.0);
   const auto target = MakePose(2.0, 0.0, 0.0);

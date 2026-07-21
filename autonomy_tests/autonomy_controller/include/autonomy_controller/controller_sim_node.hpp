@@ -2,14 +2,32 @@
  * Copyright 2026 autonomy_ros contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-#pragma once
+/**
+ * @file
+ * @brief ROS 2 node for closed-loop controller simulation.
+ */
+
+#ifndef AUTONOMY_CONTROLLER_CONTROLLER_SIM_NODE_HPP_
+#define AUTONOMY_CONTROLLER_CONTROLLER_SIM_NODE_HPP_
 
 #include <memory>
 #include <mutex>
 #include <string>
 
+#include "autonomy/commsgs/geometry_msgs.hpp"
+#include "autonomy/commsgs/planning_msgs.hpp"
 #include "autonomy/commsgs/sensor_msgs.hpp"
 #include "autonomy/control/checker/simple_goal_checker.hpp"
 #include "autonomy/control/common/controller_interface.hpp"
@@ -17,6 +35,7 @@
 #include "autonomy/control/proto/controller_options.pb.h"
 #include "autonomy/map/costmap_2d/costmap_2d_wrapper.hpp"
 #include "autonomy/transform/buffer.hpp"
+#include "autonomy_controller/mppi_trajectory_viz.hpp"
 #include "autonomy_controller/path_generator.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
@@ -25,34 +44,58 @@
 #include "nav_msgs/msg/path.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 
 namespace autonomy_controller
 {
 
+/**
+ * @class ControllerSimNode
+ * @brief Tracks a reference path with MPPI / RPP / Graceful on a rolling costmap.
+ *
+ * Default mode follows a generated closed path (circle, rectangle, figure-eight).
+ * /goal_pose switches to open-loop point-to-point navigation.
+ */
 class ControllerSimNode : public rclcpp::Node
 {
 public:
+  /** @brief Declares parameters, loads controller/costmap, starts control timer. */
   ControllerSimNode();
+
+  /** @brief Stops controller, publishes zero cmd_vel, tears down costmap. */
   ~ControllerSimNode() override;
 
 private:
+  struct LapProgress
+  {
+    bool armed_from_start{false};
+    bool left_goal_region{false};
+    double goal_initial_dist{0.0};
+  };
+
+  void DeclareParameters();
+  void LoadParameters();
+  void InitTransform();
+  void SetupRosInterfaces();
   void SetupCostmap();
   void SetupController();
   void SetupPath();
+
   bool ClosedLoopTrackingMode() const;
+  bool ShouldCheckGoalReached(
+    const autonomy::commsgs::geometry_msgs::PoseStamped & pose,
+    double xy_tolerance);
+
   void OnOdom(const nav_msgs::msg::Odometry::SharedPtr msg);
   void OnCloud(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
   void OnGoalPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void OnTick();
+
   void ApplyReferencePlan(bool reset_executed_path);
   void PublishSetPose(const autonomy::commsgs::geometry_msgs::PoseStamped & pose);
   void PublishReferencePath();
   void PublishZeroCmd();
-  /** Feed latest cloud (if any), update rolling costmap, publish OccupancyGrid. */
   void UpdateAndPublishCostmap();
-  /** Publish MPPI candidate (cyan) + optimal (orange) trajectories for RViz. */
-  void PublishMppiTrajectories(double robot_x, double robot_y);
+  void AppendExecutedPose(const nav_msgs::msg::Odometry & odom);
 
   std::string frame_id_;
   std::string base_frame_;
@@ -62,14 +105,9 @@ private:
   bool repeat_path_{true};
   bool snap_robot_to_path_start_{true};
   bool following_{false};
-  /** For closed paths: require leaving the goal neighborhood before lap complete. */
-  bool left_goal_region_{false};
-  /** Wait until robot is near path start (after set_pose) before arming lap logic. */
-  bool armed_from_start_{false};
-  /** True when navigating to a /goal_pose (open path, not closed loop). */
   bool goal_pose_mode_{false};
-  /** Straight-line distance to goal when the current goal_pose was issued. */
-  double goal_initial_dist_{0.0};
+
+  LapProgress lap_;
 
   autonomy_ros::PathShape path_shape_{autonomy_ros::PathShape::Circle};
   autonomy_ros::PathGeneratorParams path_params_;
@@ -78,7 +116,6 @@ private:
   std::shared_ptr<autonomy::transform::Buffer> tf_buffer_;
   std::shared_ptr<autonomy::map::costmap_2d::Costmap2DWrapper> costmap_;
   std::unique_ptr<autonomy::control::common::ControllerInterface> controller_;
-  /** Non-owning; set when controller_id is mppi. */
   autonomy::control::controller::mppi_controller::MPPIController * mppi_{nullptr};
   autonomy::control::checker::SimpleGoalChecker goal_checker_;
   autonomy::commsgs::planning_msgs::Path reference_path_;
@@ -91,7 +128,6 @@ private:
   autonomy::commsgs::sensor_msgs::PointCloud2 latest_cloud_;
   bool have_cloud_{false};
 
-  /** Serialize feed/updateMap vs control-cycle costmap reads. */
   std::mutex costmap_mutex_;
 
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
@@ -103,17 +139,12 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr executed_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_debug_pub_;
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
-    mppi_candidates_pub_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mppi_optimal_path_pub_;
   rclcpp::TimerBase::SharedPtr tick_timer_;
 
+  MppiTrajectoryVisualizer mppi_viz_;
   nav_msgs::msg::Path executed_path_;
-
-  /** Max LINE_STRIP count for /controller_sim/mppi_candidates. */
-  int mppi_viz_max_candidates_{40};
-  double mppi_viz_line_width_{0.008};
-  int mppi_viz_published_candidates_{0};
 };
 
 }  // namespace autonomy_controller
+
+#endif  // AUTONOMY_CONTROLLER_CONTROLLER_SIM_NODE_HPP_

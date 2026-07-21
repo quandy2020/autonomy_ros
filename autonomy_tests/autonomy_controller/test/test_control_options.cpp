@@ -11,7 +11,8 @@
 #include "autonomy/common/lua_parameter_dictionary.hpp"
 #include "autonomy/control/control_options.hpp"
 
-namespace {
+namespace
+{
 
 autonomy::control::proto::ControllerOptions LoadFromInstalledConfig()
 {

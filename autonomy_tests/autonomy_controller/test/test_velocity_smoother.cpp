@@ -10,7 +10,8 @@
 using autonomy::control::proto::VelocitySmootherOptions;
 using autonomy::control::utils::VelocitySmoother;
 
-namespace {
+namespace
+{
 
 VelocitySmoother MakeSmoother(double freq = 20.0)
 {
