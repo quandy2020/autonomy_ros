@@ -33,6 +33,7 @@ from habitat_sim.sensor import CameraSensorSpec, SensorSubType, SensorType
 from habitat.config import Config
 from habitat.coords import (
     from_pose,
+    habitat_xyz,
     map_forward_xy,
     quat,
     quat_look_at,
@@ -177,7 +178,137 @@ class Session:
             )
             return
         position, rotation = from_pose(pose, self._floor_height)
-        self._apply(self._snap(position), rotation)
+        self._apply(self._resolve_navigable_spawn(position, label='set_pose'), rotation)
+
+    def _resolve_navigable_spawn(
+        self,
+        position,
+        *,
+        label: str = 'spawn',
+        max_lateral: float = 0.35,
+    ) -> np.ndarray:
+        """Snap onto navmesh; reject wall-suction snaps and fallback to navigable samples."""
+        pf = self._sim.pathfinder
+        requested = habitat_xyz(position)
+        if not pf.is_loaded:
+            self._floor_height = float(requested[1])
+            return requested
+
+        snapped = habitat_xyz(pf.snap_point(requested))
+        if pf.is_navigable(snapped):
+            lateral = math.hypot(
+                float(snapped[0] - requested[0]),
+                float(snapped[2] - requested[2]),
+            )
+            if lateral <= max_lateral:
+                self._floor_height = float(snapped[1])
+                return snapped
+
+        mx_req, my_req = xy(requested)
+        for _ in range(80):
+            candidate = habitat_xyz(pf.snap_point(pf.get_random_navigable_point()))
+            if not pf.is_navigable(candidate):
+                continue
+            mx_c, my_c = xy(candidate)
+            self._logger.warning(
+                f'{label}: map ({mx_req:.2f}, {my_req:.2f}) is not on navigable '
+                f'navmesh; relocated to ({mx_c:.2f}, {my_c:.2f})',
+            )
+            self._floor_height = float(candidate[1])
+            return candidate
+
+        if pf.is_navigable(snapped):
+            self._logger.warning(
+                f'{label}: using coarse navmesh snap for ({mx_req:.2f}, {my_req:.2f})',
+            )
+            self._floor_height = float(snapped[1])
+            return snapped
+
+        self._logger.error(
+            f'{label}: no navigable point found near ({mx_req:.2f}, {my_req:.2f})',
+        )
+        self._floor_height = float(requested[1])
+        return requested
+
+    def _spawn_clearance(self, position) -> float:
+        pf = self._sim.pathfinder
+        if not pf.is_loaded:
+            return float('inf')
+        return float(pf.distance_to_closest_obstacle(habitat_xyz(position)))
+
+    def _finalize_spawn(self, point: np.ndarray) -> np.ndarray:
+        pos = habitat_xyz(point)
+        self._floor_height = float(pos[1])
+        return pos
+
+    def _find_clear_spawn(
+        self,
+        *,
+        label: str,
+        preferred=None,
+        max_lateral: float = 0.35,
+    ) -> np.ndarray:
+        """Pick a navigable pose with enough clearance for Nav2 footprint + inflation."""
+        pf = self._sim.pathfinder
+        min_clear = float(self._cfg.spawn_clearance_m)
+        best_point: np.ndarray | None = None
+        best_clear = -1.0
+
+        def consider(raw, lateral_limit: float = max_lateral) -> np.ndarray | None:
+            nonlocal best_point, best_clear
+            pos = habitat_xyz(pf.snap_point(habitat_xyz(raw)))
+            if not pf.is_navigable(pos):
+                return None
+            if preferred is not None:
+                pref = habitat_xyz(preferred)
+                lateral = math.hypot(
+                    float(pos[0] - pref[0]),
+                    float(pos[2] - pref[2]),
+                )
+                if lateral > lateral_limit:
+                    return None
+            clear = self._spawn_clearance(pos)
+            if clear > best_clear:
+                best_clear = clear
+                best_point = pos
+            if clear >= min_clear:
+                return pos
+            return None
+
+        if preferred is not None:
+            hit = consider(preferred, max_lateral)
+            if hit is not None:
+                return self._finalize_spawn(hit)
+            pref = habitat_xyz(preferred)
+            for radius in (1.0, 2.0, 4.0, 8.0):
+                for _ in range(40):
+                    near = pf.get_random_navigable_point_near(pref, radius)
+                    hit = consider(near, radius + max_lateral)
+                    if hit is not None:
+                        mx_p, my_p = xy(pref)
+                        mx_h, my_h = xy(hit)
+                        self._logger.warning(
+                            f'{label}: ({mx_p:.2f}, {my_p:.2f}) too close to obstacle; '
+                            f'moved to ({mx_h:.2f}, {my_h:.2f}) '
+                            f'clearance={self._spawn_clearance(hit):.2f}m',
+                        )
+                        return self._finalize_spawn(hit)
+
+        for _ in range(200):
+            hit = consider(pf.get_random_navigable_point())
+            if hit is not None:
+                return self._finalize_spawn(hit)
+
+        if best_point is not None:
+            mx, my = xy(best_point)
+            self._logger.warning(
+                f'{label}: no spawn with clearance>={min_clear:.2f}m; '
+                f'using best ({mx:.2f}, {my:.2f}) clearance={best_clear:.2f}m',
+            )
+            return self._finalize_spawn(best_point)
+
+        self._logger.error(f'{label}: failed to find navigable spawn')
+        return self._finalize_spawn(pf.get_random_navigable_point())
 
     def _assets(self) -> None:
         cfg = self._cfg
@@ -499,7 +630,8 @@ class Session:
         # Habitat snap can yank the agent sideways into a wall corridor — treat as blocked.
         dx = float(snapped[0] - position[0])
         dz = float(snapped[2] - position[2])
-        if math.hypot(dx, dz) > 0.22:
+        lateral = math.hypot(dx, dz)
+        if lateral > 0.35:
             return False
         self._floor_height = float(snapped[1])
         self._apply(snapped, quat(map_yaw))
@@ -508,6 +640,28 @@ class Session:
     def _move_map(self, map_x: float, map_y: float, map_yaw: float) -> None:
         position = np.array([map_x, self._floor_height, -map_y], dtype=np.float32)
         self._apply(self._snap(position), quat(map_yaw))
+
+    def ensure_spawn_on_free_map(self, grid, logger) -> None:
+        """Relocate spawn if the static /map cell is occupied (navmesh vs PLY mismatch)."""
+        from habitat.ply import is_navigable_map_cell
+
+        mx, my, _, yaw = self.map_pose()
+        if is_navigable_map_cell(grid, mx, my):
+            return
+        for _ in range(80):
+            point = self._find_clear_spawn(label='map-free spawn')
+            mx, my = xy(point)
+            if is_navigable_map_cell(grid, mx, my):
+                self._apply(point, quat(yaw))
+                logger.info(
+                    f'Respawned on free /map cell ({mx:.2f}, {my:.2f}) '
+                    f'clearance={self._spawn_clearance(point):.2f}m',
+                )
+                return
+        logger.warning(
+            f'Spawn ({mx:.2f}, {my:.2f}) not free on /map after 80 tries; '
+            f'Nav2 may fail to plan',
+        )
 
     def _spawn(self) -> None:
         """Place agent on navmesh (dispersed, random, or fixed pose)."""
@@ -522,23 +676,28 @@ class Session:
                 [self._cfg.spawn_x, self._floor_height, -self._cfg.spawn_y],
                 dtype=np.float32,
             )
-            point = self._snap(position)
+            point = self._find_clear_spawn(
+                label='fixed spawn', preferred=position,
+            )
             self._apply(point, quat(self._cfg.spawn_yaw))
             mx, my = xy(point)
             self._logger.info(
-                f'Fixed spawn at map ({mx:.2f}, {my:.2f}) yaw={self._cfg.spawn_yaw:.2f}')
+                f'Fixed spawn at map ({mx:.2f}, {my:.2f}) '
+                f'clearance={self._spawn_clearance(point):.2f}m '
+                f'yaw={self._cfg.spawn_yaw:.2f}',
+            )
             return
 
         if mode == 'dispersed':
             seed = self._cfg.spawn_seed or (hash(self._cfg.scene_id) & 0xFFFFFFFF)
             points = pick_dispersed_navigable_points(
-                lambda: self._snap(self._sim.pathfinder.get_random_navigable_point()),
+                lambda: self._find_clear_spawn(label='dispersed sample'),
                 self._cfg.spawn_count,
                 seed=seed,
             )
             if points:
                 idx = min(max(self._cfg.spawn_index, 0), len(points) - 1)
-                point = points[idx]
+                point = habitat_xyz(points[idx])
                 yaw = (
                     idx * (2.0 * math.pi / self._cfg.spawn_count)
                     if self._cfg.spawn_count > 1 else 0.0
@@ -547,10 +706,16 @@ class Session:
                 mx, my = xy(point)
                 self._logger.info(
                     f'Dispersed spawn [{idx + 1}/{self._cfg.spawn_count}] '
-                    f'at map ({mx:.2f}, {my:.2f}) yaw={yaw:.2f} seed={seed}')
+                    f'at map ({mx:.2f}, {my:.2f}) '
+                    f'clearance={self._spawn_clearance(point):.2f}m '
+                    f'yaw={yaw:.2f} seed={seed}',
+                )
                 return
 
-        point = self._snap(self._sim.pathfinder.get_random_navigable_point())
+        point = self._find_clear_spawn(label='random spawn')
         self._apply(point, quat(0.0))
         mx, my = xy(point)
-        self._logger.info(f'Random spawn at map ({mx:.2f}, {my:.2f})')
+        self._logger.info(
+            f'Random spawn at map ({mx:.2f}, {my:.2f}) '
+            f'clearance={self._spawn_clearance(point):.2f}m',
+        )

@@ -106,10 +106,12 @@ install(TARGETS autonomy_core autonomy_node
 
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch rviz config docs behavior_trees DESTINATION share/${PROJECT_NAME})
-install(
+  install(
   PROGRAMS
     scripts/cmd_vel_twist_stamped_relay.py
     scripts/multi_robot_navigate_to_pose.py
+    scripts/pedestrian_obstacle_bridge.py
+    scripts/tracked_persons_to_people_bridge.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

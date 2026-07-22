@@ -25,6 +25,9 @@ def generate_launch_description() -> LaunchDescription:
     use_respawn = LaunchConfiguration('use_respawn')
     lifecycle_bringup_delay = LaunchConfiguration('lifecycle_bringup_delay')
     log_level = LaunchConfiguration('log_level')
+    enable_social_layer = LaunchConfiguration('enable_social_layer')
+    tracked_persons_topic = LaunchConfiguration('tracked_persons_topic')
+    people_topic = LaunchConfiguration('people_topic')
 
     default_params = os.path.join(
         autonomy_ros_share, 'config', 'nav2_habitat_params.yaml'
@@ -63,6 +66,21 @@ def generate_launch_description() -> LaunchDescription:
             default_value='info',
             description='Nav2 node log level',
         ),
+        DeclareLaunchArgument(
+            'enable_social_layer',
+            default_value='false',
+            description='Bridge TrackedPersons to pedsim_msgs for SocialLayer',
+        ),
+        DeclareLaunchArgument(
+            'tracked_persons_topic',
+            default_value='pedestrian_visualizer/tracked_persons',
+            description='Habitat TrackedPersons topic (relative to namespace)',
+        ),
+        DeclareLaunchArgument(
+            'people_topic',
+            default_value='local_costmap/people',
+            description='pedsim_msgs/People topic for SocialLayer (relative to robot ns)',
+        ),
     ]
 
     nav2_stack = GroupAction([
@@ -86,6 +104,9 @@ def generate_launch_description() -> LaunchDescription:
                 'use_respawn': use_respawn,
                 'lifecycle_bringup_delay': lifecycle_bringup_delay,
                 'log_level': log_level,
+                'enable_social_layer': enable_social_layer,
+                'tracked_persons_topic': tracked_persons_topic,
+                'people_topic': people_topic,
             }.items(),
         ),
     ])

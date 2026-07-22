@@ -117,19 +117,21 @@ class Config:
     update_rate_hz: float = 20.0  # Sim step + camera/odom publish rate.
 
     # Multi-robot spawn: each Habitat instance picks a dispersed navmesh point.
-    spawn_mode: str = 'fixed'  # dispersed | random | fixed
+    spawn_mode: str = 'dispersed'  # dispersed | random | fixed
     spawn_index: int = 0
     spawn_count: int = 1
     spawn_seed: int = 0  # 0 = derive from scene_id
     spawn_x: float = 0.0
     spawn_y: float = 0.0
     spawn_yaw: float = 0.0
+    # Min navmesh distance to walls/obstacles (≈ robot_radius + costmap inflation).
+    spawn_clearance_m: float = 0.50
 
     # Dynamic pedestrians (evt_bench-style oracle nav on navmesh).
     pedestrians_enabled: bool = False
     pedestrian_count: int = 5
     pedestrian_goal_count: int = 4
-    pedestrian_linear_speed: float = 1.0
+    pedestrian_linear_speed: float = 0.5
     pedestrian_angular_speed: float = 1.5
     pedestrian_dist_thresh: float = 0.5
     pedestrian_turn_thresh: float = 0.3
@@ -137,6 +139,8 @@ class Config:
     pedestrian_robot_activate_dist: float = -1.0
     pedestrian_avoid_dist: float = 2.0
     pedestrian_spawn_min_robot_dist: float = 2.5
+    robot_avoid_radius: float = 0.35
+    pedestrian_robot_avoid_dist: float = 0.0  # 0 = only nudge when nearly touching
     pedestrian_radius: float = 0.35
     pedestrian_height: float = 1.7
     pedestrian_seed: int = 0
@@ -152,7 +156,7 @@ class Config:
     dynamic_actor_kind: str = 'humanoid'  # humanoid | robot
     human_agent_count: int = 0
     human_agent_goal_count: int = 4
-    human_agent_linear_speed: float = 1.0
+    human_agent_linear_speed: float = 0.5
     human_agent_seed: int = 0
     human_agents_tracked_topic: str = 'pedestrian_visualizer/tracked_persons'
     human_agents_viz_topic: str = 'pedestrian_simulator/visualization'
@@ -165,7 +169,7 @@ class Config:
     robot_semantic_id: int = 251
     robot_agent_count: int = 0
     robot_agent_goal_count: int = 4
-    robot_agent_linear_speed: float = 1.0
+    robot_agent_linear_speed: float = 0.5
     robot_agent_seed: int = 0
     robot_agents_tracked_topic: str = 'robot_agent_visualizer/tracked_persons'
     robot_agents_viz_topic: str = 'robot_simulator/visualization'
@@ -231,6 +235,7 @@ def load(node: Node) -> Config:
     values['spawn_x'] = float(values['spawn_x'])
     values['spawn_y'] = float(values['spawn_y'])
     values['spawn_yaw'] = float(values['spawn_yaw'])
+    values['spawn_clearance_m'] = max(0.0, float(values['spawn_clearance_m']))
     values['spawn_mode'] = str(values['spawn_mode']).strip().lower() or 'fixed'
     values['pedestrian_count'] = max(0, int(values['pedestrian_count']))
     values['pedestrian_goal_count'] = max(1, int(values['pedestrian_goal_count']))

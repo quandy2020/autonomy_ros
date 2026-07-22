@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import sys
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -29,6 +30,11 @@ from launch_ros.actions import LoadComposableNodes
 from launch_ros.actions import Node, PushRosNamespace
 from launch_ros.descriptions import ComposableNode, ParameterFile
 from nav2_common.launch import RewrittenYaml
+
+_launch_dir = os.path.dirname(os.path.abspath(__file__))
+if _launch_dir not in sys.path:
+    sys.path.insert(0, _launch_dir)
+from rosidl_pythonpath import pythonpath_env
 
 
 def generate_launch_description():
@@ -123,6 +129,44 @@ def generate_launch_description():
         ),
     )
 
+    enable_social_layer = LaunchConfiguration('enable_social_layer')
+    tracked_persons_topic = LaunchConfiguration('tracked_persons_topic')
+    people_topic = LaunchConfiguration('people_topic')
+
+    declare_enable_social_layer_cmd = DeclareLaunchArgument(
+        'enable_social_layer',
+        default_value='false',
+        description=(
+            'Start TrackedPersons->People bridge for autonomy_pedestrian social layer'
+        ),
+    )
+    declare_tracked_persons_topic_cmd = DeclareLaunchArgument(
+        'tracked_persons_topic',
+        default_value='pedestrian_visualizer/tracked_persons',
+        description='Habitat pedsim TrackedPersons topic (relative to namespace)',
+    )
+    declare_people_topic_cmd = DeclareLaunchArgument(
+        'people_topic',
+        default_value='local_costmap/people',
+        description=(
+            'pedsim_msgs/People topic for SocialLayer bridge output '
+            '(relative to robot namespace; must match social_layer.people_topic resolution)'
+        ),
+    )
+
+    social_layer_bridge_node = Node(
+        condition=IfCondition(enable_social_layer),
+        package='autonomy_ros',
+        executable='tracked_persons_to_people_bridge.py',
+        name='tracked_persons_to_people_bridge',
+        output='screen',
+        additional_env=pythonpath_env('pedsim_msgs'),
+        parameters=[{
+            'input_topic': tracked_persons_topic,
+            'output_topic': people_topic,
+        }],
+    )
+
     lifecycle_manager_node = Node(
         package='nav2_lifecycle_manager',
         executable='lifecycle_manager',
@@ -137,6 +181,7 @@ def generate_launch_description():
     load_nodes = GroupAction(
         condition=IfCondition(PythonExpression(['not ', use_composition])),
         actions=[
+            social_layer_bridge_node,
             Node(
                 package='nav2_controller',
                 executable='controller_server',
@@ -293,6 +338,9 @@ def generate_launch_description():
     ld.add_action(declare_use_respawn_cmd)
     ld.add_action(declare_log_level_cmd)
     ld.add_action(declare_lifecycle_bringup_delay_cmd)
+    ld.add_action(declare_enable_social_layer_cmd)
+    ld.add_action(declare_tracked_persons_topic_cmd)
+    ld.add_action(declare_people_topic_cmd)
     # Add the actions to launch all of the navigation nodes
     ld.add_action(load_nodes)
     ld.add_action(load_composable_nodes)

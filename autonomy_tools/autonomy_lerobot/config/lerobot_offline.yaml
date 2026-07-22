@@ -12,13 +12,21 @@ offline:
     dataset_root: /mnt/data4t/data/lerobot/collection/robot1
     repo_id: local/habitat_collection_robot1
     fps: 20.0
-    episode_seconds: 20.0
+    # nav: odom motion segments (same as autonomy_task); fixed: time windows
+    episode_split_mode: nav
+    # used only when episode_split_mode=fixed (default = record_before + max_nav + record_after)
+    episode_seconds: 41.5
     video_vcodec: av1
+  episode:
+    record_before_sec: 0.5
+    record_after_sec: 1.0
+    max_nav_sec: 40.0
+    stall_move_m: 0.3
   pointcloud:
     pointcloud_stride: 4
     max_pointcloud_points: 4096
-    depth_min_m: 0.2
-    depth_max_m: 6.0
+    depth_min_m: 0.0
+    depth_max_m: 10.0
   sam3:
     sam3_enable: true
     sam3_device: cuda

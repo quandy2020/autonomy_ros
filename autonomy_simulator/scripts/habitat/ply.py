@@ -49,6 +49,32 @@ def _semantic_ply_path(cfg: Config) -> str:
     return os.path.join(cfg.scene_dir(), f'{cfg.scene_id}_semantic.ply')
 
 
+def map_cell_value(grid: OccupancyGrid, x: float, y: float) -> int | None:
+    """OccupancyGrid cell at map (x, y), or None if outside."""
+    res = grid.info.resolution
+    if res <= 0.0:
+        return None
+    col = int((x - grid.info.origin.position.x) / res)
+    row = int((y - grid.info.origin.position.y) / res)
+    if col < 0 or row < 0 or col >= grid.info.width or row >= grid.info.height:
+        return None
+    return int(grid.data[row * grid.info.width + col])
+
+
+def is_navigable_map_cell(
+    grid: OccupancyGrid,
+    x: float,
+    y: float,
+    *,
+    free_threshold: int = 0,
+    occupied_threshold: int = 50,
+) -> bool:
+    cell = map_cell_value(grid, x, y)
+    if cell is None:
+        return False
+    return free_threshold <= cell < occupied_threshold
+
+
 def _occupancy_from_navmesh(
     navmesh_path: str,
     *,
@@ -62,6 +88,9 @@ def _occupancy_from_navmesh(
     pf = habitat_sim.PathFinder()
     if not pf.load_nav_mesh(navmesh_path):
         raise ValueError(f'failed to load navmesh: {navmesh_path}')
+
+    if abs(floor_height) < 1e-6:
+        floor_height = float(pf.get_random_navigable_point()[1])
 
     lo, hi = pf.get_bounds()
     origin_x = float(min(lo[0], hi[0]))
@@ -109,9 +138,17 @@ def _occupancy_from_ply_xyz(
 class PlyPublisher:
     """Load semantic PLY once; publish point cloud and occupancy grid."""
 
-    def __init__(self, node: Node, cfg: Config, logger: Any) -> None:
+    def __init__(
+        self,
+        node: Node,
+        cfg: Config,
+        logger: Any,
+        *,
+        map_floor_height: float | None = None,
+    ) -> None:
         self._cfg = cfg
         self._logger = logger
+        self._map_floor_height = map_floor_height
         self._msgs: dict[str, object | None] = {'cloud': None, 'map': None}
         self._pubs: dict[str, object | None] = {'cloud': None, 'map': None}
 
@@ -230,13 +267,27 @@ class PlyPublisher:
         cloud.is_dense = True
         return cloud
 
-    def _grid(self, xyz: np.ndarray) -> OccupancyGrid:
+    @property
+    def map_grid(self) -> OccupancyGrid | None:
+        grid = self._msgs.get('map')
+        return grid if isinstance(grid, OccupancyGrid) else None
+
+    def _grid(self, xyz: np.ndarray) -> tuple[OccupancyGrid, str]:
         cfg = self._cfg
         res = float(cfg.occupancy_grid_resolution)
+        ply_path = _semantic_ply_path(cfg)
         navmesh = os.path.join(cfg.scene_dir(), f'{cfg.scene_id}.navmesh')
+        floor_h = 0.0 if self._map_floor_height is None else float(self._map_floor_height)
+        island = float(cfg.navmesh_eps)
         if os.path.isfile(navmesh):
             try:
-                cells, ox, oy = _occupancy_from_navmesh(navmesh, map_resolution=res)
+                cells, ox, oy = _occupancy_from_navmesh(
+                    navmesh,
+                    map_resolution=res,
+                    floor_height=floor_h,
+                    island_radius=island,
+                )
+                source = navmesh
             except Exception as exc:
                 self._logger.warning(
                     f'Navmesh occupancy failed ({exc}); using semantic PLY slice',
@@ -247,6 +298,7 @@ class PlyPublisher:
                     z_min=float(cfg.occupancy_grid_z_min),
                     z_max=float(cfg.occupancy_grid_z_max),
                 )
+                source = ply_path
         else:
             cells, ox, oy = _occupancy_from_ply_xyz(
                 xyz,
@@ -254,6 +306,7 @@ class PlyPublisher:
                 z_min=float(cfg.occupancy_grid_z_min),
                 z_max=float(cfg.occupancy_grid_z_max),
             )
+            source = ply_path
 
         h, w = cells.shape
         grid = OccupancyGrid()
@@ -265,7 +318,7 @@ class PlyPublisher:
         grid.info.origin.position.y = oy
         grid.info.origin.orientation.w = 1.0
         grid.data = cells.reshape(-1).tolist()
-        return grid
+        return grid, source
 
     def _init_cloud(
         self,
@@ -298,7 +351,8 @@ class PlyPublisher:
             xyz = xyz[::stride]
 
         try:
-            grid = self._msgs['map'] = self._grid(xyz)
+            grid, map_source = self._grid(xyz)
+            self._msgs['map'] = grid
         except ValueError as exc:
             self._logger.error(str(exc))
             return
@@ -309,7 +363,7 @@ class PlyPublisher:
         )
         self._logger.info(
             f'Built occupancy grid {grid.info.width}x{grid.info.height} '
-            f'from {path} on {cfg.occupancy_grid_topic}'
+            f'from {map_source} on {cfg.occupancy_grid_topic}'
         )
         if rate <= 0.0:
             self.publish_map(node.get_clock().now())

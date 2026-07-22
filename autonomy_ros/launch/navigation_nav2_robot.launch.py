@@ -49,6 +49,8 @@ def _launch_robot(context, *args, **kwargs):
     humanoid_avatar = LaunchConfiguration('humanoid_avatar').perform(context)
     humanoid_avatars = LaunchConfiguration('humanoid_avatars').perform(context)
     dynamic_actor_kind = LaunchConfiguration('dynamic_actor_kind').perform(context)
+    use_rviz = LaunchConfiguration('use_rviz').perform(context)
+    enable_social_layer = LaunchConfiguration('enable_social_layer').perform(context)
 
     nav2_launch = os.path.join(
         autonomy_ros_share, 'launch', 'nav2_namespaced.launch.py'
@@ -73,6 +75,7 @@ def _launch_robot(context, *args, **kwargs):
             'humanoid_avatar': humanoid_avatar,
             'humanoid_avatars': humanoid_avatars,
             'dynamic_actor_kind': dynamic_actor_kind,
+            'use_rviz': use_rviz,
         }.items(),
     )
     nav2_stack = TimerAction(
@@ -89,6 +92,7 @@ def _launch_robot(context, *args, **kwargs):
                     'use_respawn': use_respawn,
                     'lifecycle_bringup_delay': lifecycle_bringup_delay,
                     'log_level': log_level,
+                    'enable_social_layer': enable_social_layer,
                 }.items(),
             ),
         ],
@@ -200,8 +204,8 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             'pedestrian_linear_speed',
-            default_value='1.0',
-            description='Humanoid walking speed (m/s)',
+            default_value='0.5',
+            description='Humanoid walking speed (m/s); spawn uses 0.8–1.2× → ~0.4–0.6 m/s',
         ),
         DeclareLaunchArgument(
             'pedestrian_goal_count',
@@ -222,6 +226,16 @@ def generate_launch_description() -> LaunchDescription:
             'dynamic_actor_kind',
             default_value='humanoid',
             description='Dynamic actor renderer: humanoid | robot',
+        ),
+        DeclareLaunchArgument(
+            'use_rviz',
+            default_value='false',
+            description='Launch habitat.launch RViz (prefer outer launch RViz when false)',
+        ),
+        DeclareLaunchArgument(
+            'enable_social_layer',
+            default_value='false',
+            description='Bridge TrackedPersons to pedsim_msgs for Nav2 SocialLayer',
         ),
         OpaqueFunction(function=_launch_robot),
     ])

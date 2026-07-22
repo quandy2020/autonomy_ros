@@ -36,6 +36,11 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Gaussian.msg"
   "msg/ObstacleGMM.msg"
   "msg/ObstacleArray.msg"
+  "msg/People.msg"
+  "msg/Person.msg"
+  "msg/PersonStamped.msg"
+  "msg/PositionMeasurement.msg"
+  "msg/PositionMeasurementArray.msg"
   DEPENDENCIES builtin_interfaces geometry_msgs nav_msgs std_msgs
 )
 

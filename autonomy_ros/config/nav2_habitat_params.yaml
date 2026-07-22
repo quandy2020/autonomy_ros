@@ -67,11 +67,11 @@ bt_navigator_navigate_to_pose_rclcpp_node:
 controller_server:
   ros__parameters:
     use_sim_time: False
-    controller_frequency: 30.0
+    controller_frequency: 20.0
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.3
+    failure_tolerance: 0.6
     progress_checker_plugin: "progress_checker"
     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
     controller_plugins: ["FollowPath"]
@@ -79,8 +79,8 @@ controller_server:
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.25
-      movement_time_allowance: 12.0
+      required_movement_radius: 0.15
+      movement_time_allowance: 20.0
     # Goal checker parameters
     #precise_goal_checker:
     #  plugin: "nav2_controller::SimpleGoalChecker"
@@ -92,29 +92,29 @@ controller_server:
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.3
       yaw_goal_tolerance: 0.5
-    # MPPI parameters (DiffDrive, tuned for Habitat static map + narrow doorways)
+    # MPPI parameters (Nav2 official defaults; consider_footprint=false for robot_radius costmap)
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.05
-      batch_size: 1500
+      batch_size: 2500
       iteration_count: 1
       vx_std: 0.2
-      vy_std: 0.0
-      wz_std: 0.4
-      vx_max: 0.8
-      vx_min: 0.0
-      vy_max: 0.0
-      wz_max: 1.0
+      vy_std: 0.2
+      wz_std: 0.5
+      vx_max: 0.5
+      vx_min: -0.35
+      vy_max: 0.5
+      wz_max: 1.9
       temperature: 0.3
       gamma: 0.015
       motion_model: "DiffDrive"
-      visualize: false
-      regenerate_noises: true
+      visualize: true
+      regenerate_noises: false
       retry_attempt_limit: 1
       reset_period: 1.0
-      prune_distance: 1.5
-      transform_tolerance: 0.2
+      prune_distance: 1.7
+      transform_tolerance: 0.1
       TrajectoryVisualizer:
         trajectory_step: 5
         time_step: 3
@@ -143,19 +143,19 @@ controller_server:
       CostCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 3.81
-        critical_cost: 300.0
+        cost_weight: 8.0
+        critical_cost: 220.0
         consider_footprint: false
         collision_cost: 1000000.0
-        near_goal_distance: 0.8
+        near_goal_distance: 1.0
         trajectory_point_step: 2
-        inflation_layer_name: "inflation_layer"
       PathAlignCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 16.0
-        max_path_occupancy_ratio: 0.05
-        trajectory_point_step: 4
+        cost_weight: 14.0
+        # Disable path align when pedestrians block the path; keep follow/avoid critics.
+        max_path_occupancy_ratio: 0.12
+        trajectory_point_step: 3
         threshold_to_consider: 0.5
         offset_from_furthest: 20
         use_path_orientations: false
@@ -183,18 +183,36 @@ local_costmap:
       robot_base_frame: base_footprint
       use_sim_time: False
       rolling_window: true
-      width: 4
-      height: 4
+      width: 5
+      height: 5
       resolution: 0.05
-      robot_radius: 0.2
-      plugins: ["static_layer", "inflation_layer"]
+      robot_radius: 0.15
+      plugins: ["static_layer", "social_layer", "inflation_layer"]
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
+      social_layer:
+        plugin: "nav2_social_costmap_plugin::SocialLayer"
+        people_topic: "people"
+        enabled: True
+        # Local MPPI: stronger social costs for hard dynamic avoidance.
+        cutoff: 40.0
+        amplitude: 180.0
+        publish_occgrid: False
+        use_passing: False
+        use_vel_factor: True
+        speed_factor_multiplier: 2.0
+        covariance_front_height: 0.09
+        covariance_front_width: 0.07
+        covariance_rear_height: 0.07
+        covariance_rear_width: 0.07
+        covariance_right_height: 0.09
+        covariance_right_width: 0.07
+        covariance_when_still: 0.07
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.25
+        cost_scaling_factor: 4.0
+        inflation_radius: 0.18
       always_send_full_costmap: True
 
 global_costmap:
@@ -205,17 +223,36 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_footprint
       use_sim_time: False
-      robot_radius: 0.2
+      robot_radius: 0.15
       resolution: 0.05
       track_unknown_space: true
-      plugins: ["static_layer", "inflation_layer"]
+      # Global: soft social bias only (amplitude + inflation must stay << 253/inscribed).
+      # Local social_layer keeps strong costs for MPPI hard avoidance.
+      plugins: ["static_layer", "social_layer", "inflation_layer"]
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
+      social_layer:
+        plugin: "nav2_social_costmap_plugin::SocialLayer"
+        people_topic: "people"
+        enabled: True
+        cutoff: 65.0
+        amplitude: 85.0
+        publish_occgrid: False
+        use_passing: False
+        use_vel_factor: False
+        speed_factor_multiplier: 1.0
+        covariance_front_height: 0.05
+        covariance_front_width: 0.04
+        covariance_rear_height: 0.04
+        covariance_rear_width: 0.04
+        covariance_right_height: 0.05
+        covariance_right_width: 0.04
+        covariance_when_still: 0.04
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.25
+        cost_scaling_factor: 2.5
+        inflation_radius: 0.12
       always_send_full_costmap: True
 
 map_server:
@@ -240,7 +277,7 @@ planner_server:
     planner_plugins: ["GridBased"]
     GridBased:
       plugin: "nav2_navfn_planner/NavfnPlanner"
-      tolerance: 1.0
+      tolerance: 1.5
       use_astar: true
       allow_unknown: true
 
@@ -308,13 +345,13 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.8, 0.0, 1.0]
-    min_velocity: [-0.8, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    max_velocity: [0.9, 0.0, 1.0]
+    min_velocity: [-0.15, 0.0, -1.0]
+    max_accel: [2.0, 0.0, 2.5]
+    max_decel: [-2.0, 0.0, -2.5]
     odom_topic: "odom"
     odom_duration: 0.1
-    deadband_velocity: [0.0, 0.0, 0.0]
+    deadband_velocity: [0.05, 0.0, 0.08]
     velocity_timeout: 1.0
 
 lifecycle_manager_navigation:

@@ -14,6 +14,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+find_package(nav2_costmap_2d REQUIRED)
+find_package(pluginlib REQUIRED)
+
+set(SOCIAL_LAYER_LIB nav2_social_costmap_plugin_core)
+
 set(EXTERNAL_DEPS
   rclcpp
   std_msgs
@@ -92,11 +97,27 @@ add_executable(pedestrian_simulator_node src/simulator/ros2_pedestrian_simulator
 target_link_libraries(pedestrian_simulator_node pedestrian_simulator_core)
 ament_target_dependencies(pedestrian_simulator_node ${EXTERNAL_DEPS})
 
+add_library(${SOCIAL_LAYER_LIB} SHARED
+  src/social_costmap/social_layer.cpp
+)
+target_include_directories(${SOCIAL_LAYER_LIB} PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+)
+ament_target_dependencies(${SOCIAL_LAYER_LIB}
+  rclcpp
+  nav2_costmap_2d
+  pluginlib
+  pedsim_msgs
+  nav_msgs
+)
+
 install(TARGETS
   rapidxml
   pedsim_original
   pedestrians
   pedestrian_simulator_core
+  ${SOCIAL_LAYER_LIB}
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -115,6 +136,11 @@ install(DIRECTORY third_party/rapidxml/include/
 install(DIRECTORY launch config scenarios scripts rviz behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
+install(FILES social_layer.xml
+  DESTINATION share/${PROJECT_NAME}
+)
+
+pluginlib_export_plugin_description_file(nav2_costmap_2d social_layer.xml)
 
 install(PROGRAMS
   scripts/pedestrian_demo.py
@@ -125,5 +151,5 @@ install(PROGRAMS
 
 ament_export_include_directories(include)
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(${EXTERNAL_DEPS} Eigen3)
+ament_export_dependencies(${EXTERNAL_DEPS} Eigen3 nav2_costmap_2d pluginlib)
 ament_package()

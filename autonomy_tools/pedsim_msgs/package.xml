@@ -3,7 +3,7 @@
 <package format="3">
   <name>pedsim_msgs</name>
   <version>0.0.1</version>
-  <description>Messages for pedsim pedestrian simulation and RViz visualization</description>
+  <description>Pedsim simulation messages and Nav2 social-layer people messages</description>
   <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>BSD</license>
 

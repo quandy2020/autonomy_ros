@@ -46,6 +46,11 @@ class OdomPublisher:
         self._odom_pub = node.create_publisher(Odometry, cfg.odom_topic, qos)
         self._pub_map_to_odom_static()
         self._pub_initial_odom_to_base()
+        # Re-latch map→odom for RViz/Nav2 that start after habitat_node (TRANSIENT_LOCAL edge cases).
+        self._static_tf_timer = node.create_timer(2.0, self._refresh_map_to_odom_static)
+
+    def _refresh_map_to_odom_static(self) -> None:
+        self._pub_map_to_odom_static(self._node.get_clock().now())
 
     def _pub_initial_odom_to_base(self) -> None:
         """Identity odom→base_footprint until the first sim tick (Session load is slow)."""
@@ -66,10 +71,10 @@ class OdomPublisher:
         self._pub_odom_to_base(stamp, x, y, z, yaw_val)
         self._pub_odom(stamp, x, y, z, yaw_val, lin, ang)
 
-    def _pub_map_to_odom_static(self) -> None:
+    def _pub_map_to_odom_static(self, stamp: rclpy.time.Time | None = None) -> None:
         """map and odom share the same origin (identity, latched for early RViz/Nav2)."""
         msg = TransformStamped()
-        msg.header.stamp = rclpy.time.Time().to_msg()
+        msg.header.stamp = (stamp or self._node.get_clock().now()).to_msg()
         msg.header.frame_id = self._cfg.map_frame
         msg.child_frame_id = self._cfg.odom_frame
         msg.transform.rotation.w = 1.0

@@ -198,7 +198,7 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
   use_rviz:=true \
   pedestrians_enabled:=true \
   pedestrian_count:=5 \
-  pedestrian_linear_speed:=1.0 \
+  pedestrian_linear_speed:=0.5 \
   pedestrian_goal_count:=4 \
   humanoid_avatar:=female_2
 ```
@@ -227,6 +227,9 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 | `habitat_load_sec` | `8.0` | 单台 Habitat Session 预计加载时间 |
 | `habitat_load_penalty_sec` | `12.0` | 每多一台机器人额外增加的 Nav2 等待（GPU 争用） |
 | `nav2_stagger_sec` | `12.0` | 各机器人 Nav2 错峰间隔 |
+| `use_rviz` | `false` | 启动 RViz（`nav2_multi_habitat_collection.rviz`：地图/行人/costmap/路点） |
+| `rviz_robot` | `robot1` | RViz TF 绑定命名空间（重映射 `/tf` → `/robot1/tf`） |
+| `rviz_delay_sec` | `20.0` | 最后一台 Nav2 启动后延迟打开 RViz（秒） |
 | `lerobot_gap_sec` | `15.0` | 最后一台 Nav2 启动后再等多久开 LeRobot |
 | `nav_ready_sec` | `45.0` | 最后一台 Nav2 就绪后再开始分配 |
 
@@ -237,7 +240,7 @@ ros2 launch autonomy_task multi_robot_collection.launch.py \
 | `pedestrians_enabled` | `false` | 是否启用动态 humanoid 行人 |
 | `pedestrian_count` | `5` | 行人数量 |
 | `human_agent_count` | `0` | 显式 agent 数；`>0` 时覆盖 `pedestrian_count` |
-| `pedestrian_linear_speed` | `1.0` | 行走速度 (m/s) |
+| `pedestrian_linear_speed` | `0.5` | 行走速度 (m/s)，spawn 随机 0.8–1.2× → **0.4–0.6 m/s** |
 | `pedestrian_goal_count` | `4` | 每个行人一轮路径的 waypoint 数 |
 | `humanoid_avatar` | `female_2` | 未指定列表时的默认 avatar |
 | `humanoid_avatars` | `''` | 逗号分隔 avatar 名；空则自动发现全部 |
@@ -265,9 +268,14 @@ ros2 run autonomy_task collection_coordinator_node --ros-args \
 # 开始（所有机器人）
 ros2 service call /collection_coordinator/start_recording std_srvs/srv/Trigger {}
 
-# 停止并保存（所有机器人）
+# 停止并保存（所有机器人，采集调度继续）
 ros2 service call /collection_coordinator/stop_recording std_srvs/srv/Trigger {}
+
+# 彻底停止采集：停录保存 + 取消导航 + 停止分配路点
+ros2 service call /collection_coordinator/stop_collection std_srvs/srv/Trigger {}
 ```
+
+`stop_collection` 会同步等待 LeRobot 落盘（默认最长 120 s），并将 `finished: true` 写入 `collection_status`。节点保持运行但不再自动分配；需重启 coordinator 才能恢复自动采集。
 
 ### 单机调试
 
@@ -344,6 +352,7 @@ ros2 run autonomy_lerobot cleanup_lerobot_dataset.py
 | `/collection_coordinator/waypoint_markers` | `visualization_msgs/MarkerArray` | RViz 路点 |
 | `/collection_coordinator/start_recording` | `std_srvs/Trigger` | 一键开始录制 |
 | `/collection_coordinator/stop_recording` | `std_srvs/Trigger` | 一键停录并保存 |
+| `/collection_coordinator/stop_collection` | `std_srvs/Trigger` | 彻底停止采集（停录+取消导航+停分配） |
 | `/{robot}/navigate_to_pose` | Nav2 Action | 导航 |
 | `/{robot}/lerobot_bridge_node/set_recording` | `std_srvs/SetBool` | 单机录制开关 |
 
@@ -352,12 +361,13 @@ ros2 run autonomy_lerobot cleanup_lerobot_dataset.py
 | 现象 | 处理 |
 |------|------|
 | `no waypoint (outside_bucket:1-2)` 刷屏 | 更新到最新 `autonomy_task`（含分桶 fallback / `stuck_assign_sec`）；或临时改 `assignment_strategy: dispersed` |
-| `lerobot_save_failed` | 检查 bridge 日志、`meta/info.json` episode 索引；重启 launch；`cleanup_lerobot_dataset.py` 或 `rm -rf robotN` 后重采 |
+| `lerobot_save_failed` / parquet 损坏 | 更新 `autonomy_lerobot`（save 时串行编码 + 重建 meta/episodes）；`stop_recording` 后检查 `meta/episodes/`；`cleanup_lerobot_dataset.py` 或 `rm -rf robotN` 后重采 |
 | `state.json` 条数 > LeRobot episodes | 历史数据；新版本仅在 save 成功后写入 state |
 | 大量 `tmp*` 目录占磁盘 | 重启 coordinator（`cleanup_tmp_on_start: true`）或手动 `rm -rf data/lerobot/collection/robot*/tmp*` |
 | `waiting for graph` / `waiting for map` | 等待 Habitat、Nav2 就绪；可调大 `graph.wait_sec` |
 | `collection exhausted` | 降低 `min_spacing_m` / `min_peer_spacing_m`；检查 `min_distance_m` |
 | Ctrl-C 中断后 parquet 损坏 | 删除损坏的 `file-*.parquet` 或整目录重建；正常退出以便 bridge `finalize()` |
+| `nav stalled` / 机器人不动 | global costmap `inflation_radius` 须 ≥ footprint 内切半径（0.28）；采集 launch 默认 `spawn_mode:=dispersed`；查 `/robot1/cmd_vel` 是否有输出 |
 | `start_recording` 服务无响应 | `colcon build` 后重启；确认服务在 `/collection_coordinator/` 下 |
 
 ## 测试

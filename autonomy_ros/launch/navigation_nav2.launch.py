@@ -33,6 +33,8 @@ def generate_launch_description() -> LaunchDescription:
     namespace = LaunchConfiguration('namespace')
     use_namespace = LaunchConfiguration('use_namespace')
     scene_data_path = LaunchConfiguration('scene_data_path')
+    pedestrians_enabled = LaunchConfiguration('pedestrians_enabled')
+    pedestrian_count = LaunchConfiguration('pedestrian_count')
 
     default_params = os.path.join(
         autonomy_ros_share, 'config', 'nav2_habitat_params.yaml'
@@ -83,6 +85,16 @@ def generate_launch_description() -> LaunchDescription:
             default_value=default_scene,
             description='MP3D scene directory',
         ),
+        DeclareLaunchArgument(
+            'pedestrians_enabled',
+            default_value='false',
+            description='Enable Habitat dynamic humanoid pedestrians',
+        ),
+        DeclareLaunchArgument(
+            'pedestrian_count',
+            default_value='5',
+            description='Number of dynamic humanoid pedestrians',
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(
@@ -98,6 +110,8 @@ def generate_launch_description() -> LaunchDescription:
                 'autostart': autostart,
                 'nav2_startup_delay': nav2_startup_delay,
                 'occupancy_grid_rate_hz': '0.0',
+                'pedestrians_enabled': pedestrians_enabled,
+                'pedestrian_count': pedestrian_count,
             }.items(),
         ),
         Node(

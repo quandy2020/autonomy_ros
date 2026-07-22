@@ -139,8 +139,10 @@ class HumanoidAvatar:
     ) -> None:
         """Replay walk mocap; pedestrian logic owns world translation."""
         self.set_base_from_habitat(mn.Vector3(habitat_pos), yaw_rad)
-        self._controller.obj_transform_base = self.base_transformation
-        if moving and float(np.linalg.norm(rel_hab_xz)) > 1e-3:
+        locked_base = self.base_transformation
+        self._controller.obj_transform_base = locked_base
+        rel_len = float(np.linalg.norm(rel_hab_xz))
+        if moving and rel_len > 0.08:
             # distance_multiplier=0: animate joints without controller base drift.
             self._controller.calculate_walk_pose_directional(
                 mn.Vector3(float(rel_hab_xz[0]), 0.0, float(rel_hab_xz[1])),
@@ -148,8 +150,9 @@ class HumanoidAvatar:
             )
         else:
             self._controller.calculate_stop_pose()
+        # Keep world base fixed; mocap only drives joint/offset (avoids in-place shake).
         self.set_joint_transform(
             self._controller.joint_pose,
             self._controller.obj_transform_offset,
-            self._controller.obj_transform_base,
+            locked_base,
         )

@@ -33,7 +33,12 @@ import cv2
 import numpy as np
 
 from autonomy_lerobot.bag_postprocess import BagPostprocessConfig, BagPostprocessor
-from autonomy_lerobot.collection_params import JDROBOT_COLLECTION_ROS_PARAMS
+from autonomy_lerobot.collection_params import (
+    JDROBOT_COLLECTION_ROS_PARAMS,
+    JDROBOT_EPISODE_TIMING,
+    jdrobot_max_episode_seconds,
+)
+from autonomy_lerobot.episode_split import EpisodeSplitConfig, assign_episode_indices
 from autonomy_lerobot.conversions import (
     camera_info_to_intrinsic,
     depth_to_video_rgb,
@@ -74,6 +79,11 @@ class ConvertConfig:
     task: str
     fps: float
     episode_seconds: float
+    episode_split_mode: str
+    record_before_sec: float
+    record_after_sec: float
+    max_nav_sec: float
+    stall_move_m: float
     video_vcodec: str
     overwrite: bool
     rgb_topic: str = TOPIC_RGB
@@ -169,22 +179,21 @@ def iter_sampled_observations(
     odom_topic: str | None,
     odom_fallback_topic: str | None,
     fps: float,
-    episode_seconds: float,
+    split_cfg: EpisodeSplitConfig,
 ) -> Iterable[SampledObservation]:
     """Yield aligned observations sampled on the RGB timeline."""
     buffers = BufferedTopics()
-    episode_start_ts: float | None = None
-    next_sample_ts: float | None = None
-    episode_index = 0
-    frames_in_episode = 0
     sample_period = 1.0 / fps
+    pending: list[tuple[float, Any, Any, Any, Any | None]] = []
 
     for topic, stamp, msg in reader.iter_messages():
         buffers.append(topic, stamp, msg)
         if topic != rgb_topic:
             continue
-        if next_sample_ts is None:
+        if not pending:
             next_sample_ts = stamp
+        else:
+            next_sample_ts = pending[-1][0] + sample_period
         while next_sample_ts is not None and stamp >= next_sample_ts:
             sample_ts = next_sample_ts
             next_sample_ts += sample_period
@@ -198,26 +207,27 @@ def iter_sampled_observations(
                     odom_msg = buffers.nearest(odom_fallback_topic, sample_ts)
             if rgb_msg is None or depth_msg is None or camera_info_msg is None:
                 continue
-            if episode_start_ts is None:
-                episode_start_ts = sample_ts
-            if (
-                episode_seconds > 0.0
-                and episode_start_ts is not None
-                and (sample_ts - episode_start_ts) >= episode_seconds
-                and frames_in_episode > 0
-            ):
-                episode_index += 1
-                episode_start_ts = sample_ts
-                frames_in_episode = 0
-            yield SampledObservation(
-                sample_ts=sample_ts,
-                episode_index=episode_index,
-                rgb_msg=rgb_msg,
-                depth_msg=depth_msg,
-                camera_info_msg=camera_info_msg,
-                odom_msg=odom_msg,
-            )
-            frames_in_episode += 1
+            pending.append((sample_ts, rgb_msg, depth_msg, camera_info_msg, odom_msg))
+
+    if not pending:
+        return
+
+    timestamps = [item[0] for item in pending]
+    odom_msgs = [item[4] for item in pending]
+    episode_indices = assign_episode_indices(timestamps, odom_msgs, split_cfg)
+    for (sample_ts, rgb_msg, depth_msg, camera_info_msg, odom_msg), episode_index in zip(
+        pending, episode_indices, strict=True,
+    ):
+        if episode_index is None:
+            continue
+        yield SampledObservation(
+            sample_ts=sample_ts,
+            episode_index=episode_index,
+            rgb_msg=rgb_msg,
+            depth_msg=depth_msg,
+            camera_info_msg=camera_info_msg,
+            odom_msg=odom_msg,
+        )
 
 
 def _yaw_from_pose_matrix(flatten_pose: np.ndarray) -> float:
@@ -350,6 +360,14 @@ class BagConverter:
         frames_in_episode = 0
 
         self._recorder.prepare_for_recording()
+        split_cfg = EpisodeSplitConfig(
+            mode=self._cfg.episode_split_mode,
+            record_before_sec=self._cfg.record_before_sec,
+            record_after_sec=self._cfg.record_after_sec,
+            max_nav_sec=self._cfg.max_nav_sec,
+            stall_move_m=self._cfg.stall_move_m,
+            episode_seconds=self._cfg.episode_seconds,
+        )
         for observation in iter_sampled_observations(
             reader,
             rgb_topic=self._cfg.rgb_topic,
@@ -358,7 +376,7 @@ class BagConverter:
             odom_topic=self._cfg.odom_topic,
             odom_fallback_topic=self._cfg.odom_fallback_topic,
             fps=self._cfg.fps,
-            episode_seconds=self._cfg.episode_seconds,
+            split_cfg=split_cfg,
         ):
             if observation.odom_msg is None:
                 continue
@@ -431,7 +449,14 @@ class BagConverter:
             'scene_name': self._cfg.scene_name,
             'repo_id': self._cfg.repo_id,
             'fps': self._cfg.fps,
+            'episode_split_mode': self._cfg.episode_split_mode,
             'episode_seconds': self._cfg.episode_seconds,
+            'record_before_sec': self._cfg.record_before_sec,
+            'record_after_sec': self._cfg.record_after_sec,
+            'max_nav_sec': self._cfg.max_nav_sec,
+            'stall_move_m': self._cfg.stall_move_m,
+            'depth_min_m': self._cfg.depth_min_m,
+            'depth_max_m': self._cfg.depth_max_m,
             'total_runs': self._run_index,
             'sam3_enable': self._cfg.sam3_enable,
             'inline_postprocess': self._cfg.inline_postprocess,
@@ -525,7 +550,38 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument('--robot-type', default='jdrobot')
     parser.add_argument('--task', default='navigate to goal')
     parser.add_argument('--fps', type=float, default=JDROBOT_COLLECTION_ROS_PARAMS['record_fps'])
-    parser.add_argument('--episode-seconds', type=float, default=20.0)
+    parser.add_argument(
+        '--episode-split-mode',
+        choices=('nav', 'fixed'),
+        default='nav',
+        help='nav mirrors autonomy_task pre/nav/post; fixed uses --episode-seconds windows',
+    )
+    parser.add_argument(
+        '--episode-seconds',
+        type=float,
+        default=jdrobot_max_episode_seconds(),
+        help='fixed-mode slice length; capped at record_before + max_nav + record_after',
+    )
+    parser.add_argument(
+        '--record-before-sec',
+        type=float,
+        default=JDROBOT_EPISODE_TIMING['record_before_sec'],
+    )
+    parser.add_argument(
+        '--record-after-sec',
+        type=float,
+        default=JDROBOT_EPISODE_TIMING['record_after_sec'],
+    )
+    parser.add_argument(
+        '--max-nav-sec',
+        type=float,
+        default=JDROBOT_EPISODE_TIMING['max_nav_sec'],
+    )
+    parser.add_argument(
+        '--stall-move-m',
+        type=float,
+        default=JDROBOT_EPISODE_TIMING['stall_move_m'],
+    )
     parser.add_argument('--video-vcodec', default=JDROBOT_COLLECTION_ROS_PARAMS['video_vcodec'])
     parser.add_argument('--overwrite', action='store_true')
     parser.add_argument('--rgb-topic', default=TOPIC_RGB)
@@ -593,6 +649,11 @@ def _config_from_args(args: argparse.Namespace) -> ConvertConfig:
         task=args.task,
         fps=args.fps,
         episode_seconds=args.episode_seconds,
+        episode_split_mode=args.episode_split_mode,
+        record_before_sec=args.record_before_sec,
+        record_after_sec=args.record_after_sec,
+        max_nav_sec=args.max_nav_sec,
+        stall_move_m=args.stall_move_m,
         video_vcodec=args.video_vcodec,
         overwrite=args.overwrite,
         rgb_topic=args.rgb_topic,
@@ -654,6 +715,11 @@ def _iter_bag_jobs(cfg: ConvertConfig) -> list[ConvertConfig]:
                 task=cfg.task,
                 fps=cfg.fps,
                 episode_seconds=cfg.episode_seconds,
+                episode_split_mode=cfg.episode_split_mode,
+                record_before_sec=cfg.record_before_sec,
+                record_after_sec=cfg.record_after_sec,
+                max_nav_sec=cfg.max_nav_sec,
+                stall_move_m=cfg.stall_move_m,
                 video_vcodec=cfg.video_vcodec,
                 overwrite=cfg.overwrite,
                 rgb_topic=cfg.rgb_topic,

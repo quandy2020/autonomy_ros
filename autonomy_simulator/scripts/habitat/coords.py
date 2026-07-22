@@ -46,6 +46,11 @@ def ros_yaw_from_quat(q: np.quaternion) -> float:
     return ros_yaw_from_habitat(yaw(q))
 
 
+def habitat_xyz(position) -> np.ndarray:
+    """Convert Habitat pathfinder / agent positions to float32 [x, y, z]."""
+    return np.array(position, dtype=np.float32)
+
+
 def quat(ros_yaw_val: float) -> np.quaternion:
     """ROS map yaw (Z rotation) -> Habitat agent quaternion (Y rotation)."""
     half = habitat_yaw(ros_yaw_val) * 0.5

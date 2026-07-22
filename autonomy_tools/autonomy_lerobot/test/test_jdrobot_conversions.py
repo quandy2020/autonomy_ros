@@ -270,6 +270,8 @@ class TestJdrobotConversions(unittest.TestCase):
         self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['dataset_format'], 'jdrobot')
         self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['record_fps'], 20.0)
         self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['video_vcodec'], 'av1')
+        self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['depth_min_m'], 0.0)
+        self.assertEqual(JDROBOT_COLLECTION_ROS_PARAMS['depth_max_m'], 10.0)
         self.assertFalse(JDROBOT_COLLECTION_ROS_PARAMS['record_nav2'])
         self.assertTrue(JDROBOT_COLLECTION_ROS_PARAMS['record_pointcloud'])
         self.assertTrue(JDROBOT_COLLECTION_ROS_PARAMS['pointcloud_from_depth'])

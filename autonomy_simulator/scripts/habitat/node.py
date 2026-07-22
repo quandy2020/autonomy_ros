@@ -50,11 +50,19 @@ class BridgeNode(Node):
 
         self._cam = CameraPublisher(self, cfg)
         self._odom = OdomPublisher(self, cfg)
-        self._ply = None
-        if cfg.semantic_pointcloud_rate_hz >= 0.0 or cfg.occupancy_grid_rate_hz >= 0.0:
-            self._ply = PlyPublisher(self, cfg, self.get_logger())
         # habitat_odom_tf_node keeps map→odom→base_footprint alive while Session() blocks here.
         self._session = Session(cfg, self.get_logger())
+        self._ply = None
+        if cfg.semantic_pointcloud_rate_hz >= 0.0 or cfg.occupancy_grid_rate_hz >= 0.0:
+            self._ply = PlyPublisher(
+                self,
+                cfg,
+                self.get_logger(),
+                map_floor_height=self._session.floor_height,
+            )
+            grid = self._ply.map_grid
+            if grid is not None:
+                self._session.ensure_spawn_on_free_map(grid, self.get_logger())
         self._scene_bounds = None
         from habitat.scene_bounds import SceneBoundsPublisher
         self._scene_bounds = SceneBoundsPublisher(self, cfg, self._session, self.get_logger())
@@ -179,6 +187,7 @@ class BridgeNode(Node):
                 if other_idx != idx:
                     external_positions.extend(positions)
             sim.step(self._dt, stamp, external_positions=external_positions)
+            snapshots[idx] = sim.positions()
         obs = self._session.observe()
         self._pose_pub.publish(self._session.agent_pose(self._cfg.agent_pose_frame, stamp))
         self._odom.publish(stamp, self._session, timed_out)
