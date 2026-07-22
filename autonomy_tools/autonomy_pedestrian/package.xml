@@ -3,7 +3,7 @@
 <package format="3">
   <name>autonomy_pedestrian</name>
   <version>0.0.0</version>
-  <description>Pedestrian simulation (pedsim + scenario XML) for autonomy_ros</description>
+  <description>Pedestrian simulation and Nav2 social costmap layer</description>
   <maintainer email="quandy2020@126.com">quandy</maintainer>
   <license>Apache-2.0</license>
 
@@ -19,6 +19,8 @@
   <depend>pedsim_msgs</depend>
   <depend>ros_tools</depend>
   <depend>tf2_ros</depend>
+  <depend>nav2_costmap_2d</depend>
+  <depend>pluginlib</depend>
   <depend>eigen</depend>
 
   <exec_depend>launch</exec_depend>

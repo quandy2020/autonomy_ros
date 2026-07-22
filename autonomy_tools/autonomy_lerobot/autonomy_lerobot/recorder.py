@@ -462,6 +462,9 @@ class DatasetRecorder:
             changed = True
             self._logger.warning(
                 f'pruned meta/episodes to episode_index < {count} at {root}')
+
+        if data_count > meta_count:
+            self._ensure_episodes_meta(root)
         return changed
 
     def _repair_info_episode_count_legacy(self, root: Path) -> bool:
@@ -486,6 +489,25 @@ class DatasetRecorder:
         self._logger.warning(
             f'repaired meta/info.json total_episodes {old} -> {count} at {root}')
         return True
+
+    def _ensure_episodes_meta(self, root: Path) -> None:
+        """Write meta/episodes when LeRobot save_episode skipped episode metadata."""
+        if self._has_episodes_meta(root):
+            data_indices = self._episode_indices_from_parquet(root, 'data')
+            meta_indices = self._episode_indices_from_parquet(root, 'meta/episodes')
+            if data_indices is not None and meta_indices is not None:
+                data_count = self._contiguous_episode_count(data_indices)
+                meta_count = self._contiguous_episode_count(meta_indices)
+                if meta_count >= data_count:
+                    return
+        try:
+            from autonomy_lerobot.dataset_cleanup import rebuild_episodes_meta
+
+            rows = rebuild_episodes_meta(root)
+            if rows:
+                self._logger.info(f'rebuilt meta/episodes ({rows} rows) at {root}')
+        except Exception as exc:
+            self._logger.warning(f'failed to rebuild meta/episodes at {root}: {exc}')
 
     def _repo_id_from_info(self, root: Path) -> str | None:
         info_path = root / 'meta' / 'info.json'
@@ -682,6 +704,24 @@ class DatasetRecorder:
                 pass
         self._lerobot.episode_buffer = self._lerobot.create_episode_buffer()
 
+    def _clear_episode_buffer_unlocked(self) -> None:
+        if self._lerobot is not None:
+            encoder = getattr(self._lerobot, '_streaming_encoder', None)
+            if encoder is not None:
+                try:
+                    encoder.cancel_episode()
+                except Exception:
+                    pass
+            self._lerobot.episode_buffer = self._lerobot.create_episode_buffer()
+        self._buffered_frames = 0
+        self._fallback_frames.clear()
+
+    def discard_episode(self) -> str:
+        """Drop buffered frames without writing an episode to disk."""
+        with self._lock:
+            self._clear_episode_buffer_unlocked()
+            return 'discarded'
+
     def prepare_for_recording(self) -> None:
         """Reset in-memory episode state before starting a new recording session."""
         with self._lock:
@@ -693,15 +733,10 @@ class DatasetRecorder:
                             f'cannot open existing LeRobot dataset at {root} for append; '
                             'stop the bridge gracefully (finalize) or set overwrite_dataset:=true')
             if self._lerobot is None:
+                self._fallback_frames.clear()
+                self._buffered_frames = 0
                 return
-            encoder = getattr(self._lerobot, '_streaming_encoder', None)
-            if encoder is not None:
-                try:
-                    encoder.cancel_episode()
-                except Exception:
-                    pass
-            self._lerobot.episode_buffer = self._lerobot.create_episode_buffer()
-            self._buffered_frames = 0
+            self._clear_episode_buffer_unlocked()
 
     def _check_lerobot(self) -> bool:
         try:
@@ -762,14 +797,44 @@ class DatasetRecorder:
             self._fallback_frames.append(frame)
             self._buffered_frames += 1
 
+    def _streaming_encoder(self) -> Any | None:
+        if self._lerobot is None:
+            return None
+        encoder = getattr(self._lerobot, '_streaming_encoder', None)
+        if encoder is not None:
+            return encoder
+        writer = getattr(self._lerobot, 'writer', None)
+        if writer is not None:
+            return getattr(writer, '_streaming_encoder', None)
+        return None
+
+    def _flush_streaming_encoder(self) -> None:
+        """Drain in-flight encoder frames before/after save_episode."""
+        encoder = self._streaming_encoder()
+        if encoder is None:
+            return
+        for name in ('flush', 'finalize_episode', 'wait_until_idle', 'drain'):
+            method = getattr(encoder, name, None)
+            if not callable(method):
+                continue
+            try:
+                method()
+                self._logger.debug(f'flushed streaming encoder via {name}()')
+                return
+            except Exception as exc:
+                self._logger.debug(f'streaming encoder {name}() failed: {exc}')
+
     def save_episode(self) -> str:
         with self._lock:
             if self._buffered_frames == 0 and not self._fallback_frames:
                 return 'no frames to save'
             if self._lerobot is not None:
                 try:
-                    self._lerobot.save_episode(
-                        parallel_encoding=self._parallel_video_encoding)
+                    if self._streaming_encoding:
+                        self._flush_streaming_encoder()
+                    self._lerobot.save_episode(parallel_encoding=False)
+                    if self._streaming_encoding:
+                        self._flush_streaming_encoder()
                     self._episode_index += 1
                     self._buffered_frames = 0
                 except Exception as exc:
@@ -779,6 +844,7 @@ class DatasetRecorder:
                     return f'save failed: {exc}'
                 root = self._resolve_lerobot_root()
                 self._sync_info_json_video_codecs(root)
+                self._ensure_episodes_meta(root)
                 videos = sorted((root / 'videos').rglob('*.mp4')) if (root / 'videos').is_dir() else []
                 if videos:
                     latest = videos[-1]
@@ -823,4 +889,6 @@ class DatasetRecorder:
                 self._lerobot.finalize()
             except Exception as exc:
                 self._logger.warning(f'LeRobot finalize: {exc}')
-            self._sync_info_json_video_codecs(self._resolve_lerobot_root())
+            root = self._resolve_lerobot_root()
+            self._sync_info_json_video_codecs(root)
+            self._ensure_episodes_meta(root)

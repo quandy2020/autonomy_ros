@@ -105,6 +105,9 @@ def _launch_phased_stack(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration('use_sim_time').perform(context)
     params_file = LaunchConfiguration('params_file').perform(context)
     scene_data_path = LaunchConfiguration('scene_data_path').perform(context)
+    rviz_config = LaunchConfiguration('rviz_config').perform(context)
+    rviz_robot = LaunchConfiguration('rviz_robot').perform(context)
+    rviz_delay_sec = float(LaunchConfiguration('rviz_delay_sec').perform(context))
 
     habitat_stagger = float(LaunchConfiguration('habitat_stagger_sec').perform(context))
     habitat_load = float(LaunchConfiguration('habitat_load_sec').perform(context))
@@ -134,6 +137,11 @@ def _launch_phased_stack(context, *args, **kwargs):
     humanoid_avatar = LaunchConfiguration('humanoid_avatar').perform(context)
     humanoid_avatars = LaunchConfiguration('humanoid_avatars').perform(context)
     dynamic_actor_kind = LaunchConfiguration('dynamic_actor_kind').perform(context)
+    enable_social_layer = (
+        'true'
+        if LaunchConfiguration('pedestrians_enabled').perform(context).lower() == 'true'
+        else 'false'
+    )
 
     actions = [
         IncludeLaunchDescription(
@@ -152,6 +160,8 @@ def _launch_phased_stack(context, *args, **kwargs):
                 'habitat_load_penalty_sec': f'{habitat_load_penalty:.1f}',
                 'nav2_gap_sec': f'{nav2_gap:.1f}',
                 'nav2_startup_delay_step': f'{phases["nav2_stagger"]:.1f}',
+                'spawn_mode': 'dispersed',
+                'enable_social_layer': enable_social_layer,
                 'pedestrians_enabled': pedestrians_enabled,
                 'pedestrian_count': pedestrian_count,
                 'human_agent_count': human_agent_count,
@@ -217,17 +227,25 @@ def _launch_phased_stack(context, *args, **kwargs):
         ),
     ]
     if use_rviz:
-        default_rviz = os.path.join(
-            autonomy_ros_share, 'rviz', 'nav2_multi_habitat.rviz')
         use_sim_time_bool = use_sim_time.lower() == 'true'
-        coordinator_nodes.append(
-            Node(
-                package='rviz2',
-                executable='rviz2',
-                name='rviz2',
-                output='screen',
-                arguments=['-d', default_rviz],
-                parameters=[{'use_sim_time': use_sim_time_bool}],
+        tf_ns = rviz_robot.strip('/') or f'{prefix}1'
+        actions.append(
+            TimerAction(
+                period=max(phases['last_nav2'] + rviz_delay_sec, 5.0),
+                actions=[
+                    Node(
+                        package='rviz2',
+                        executable='rviz2',
+                        name='rviz2',
+                        output='screen',
+                        arguments=['-d', rviz_config],
+                        parameters=[{'use_sim_time': use_sim_time_bool}],
+                        remappings=[
+                            ('/tf', f'/{tf_ns}/tf'),
+                            ('/tf_static', f'/{tf_ns}/tf_static'),
+                        ],
+                    ),
+                ],
             ),
         )
     actions.append(
@@ -294,6 +312,22 @@ def generate_launch_description() -> LaunchDescription:
         SetEnvironmentVariable('FASTDDS_BUILTIN_TRANSPORTS', 'UDPv4'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('use_rviz', default_value='false'),
+        DeclareLaunchArgument(
+            'rviz_config',
+            default_value=os.path.join(
+                autonomy_ros_share, 'rviz', 'nav2_multi_habitat_collection.rviz'),
+            description='RViz layout (map, pedestrians, costmaps, collection waypoints)',
+        ),
+        DeclareLaunchArgument(
+            'rviz_robot',
+            default_value='robot1',
+            description='Namespace for RViz TF remap (e.g. robot1 -> /robot1/tf)',
+        ),
+        DeclareLaunchArgument(
+            'rviz_delay_sec',
+            default_value='20.0',
+            description='Start RViz this many seconds after last Nav2 stack launch',
+        ),
         DeclareLaunchArgument('num_robots', default_value='3'),
         DeclareLaunchArgument('robot_name_prefix', default_value='robot'),
         DeclareLaunchArgument('params_file', default_value=default_nav2_params),
@@ -339,8 +373,8 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             'pedestrian_linear_speed',
-            default_value='1.0',
-            description='Humanoid walking speed (m/s)',
+            default_value='0.5',
+            description='Humanoid walking speed (m/s); spawn uses 0.8–1.2× → ~0.4–0.6 m/s',
         ),
         DeclareLaunchArgument(
             'pedestrian_goal_count',

@@ -43,6 +43,11 @@ except ImportError:  # pragma: no cover - optional at edit time
     TrackedPersons = None  # type: ignore[misc, assignment]
 
 
+def _lerp_angle(current: float, target: float, alpha: float) -> float:
+    delta = (target - current + math.pi) % (2.0 * math.pi) - math.pi
+    return current + delta * alpha
+
+
 def _map_to_habitat(map_x: float, map_y: float, floor: float) -> np.ndarray:
     return np.array([map_x, floor, -map_y], dtype=np.float32)
 
@@ -102,7 +107,9 @@ class _Pedestrian:
     stall_steps: int = 0
     sidestep_sign: float = 1.0
     nav_rel_map: np.ndarray | None = None
+    smooth_rel: np.ndarray | None = None
     robot_far: bool = False
+    moving: bool = False
 
 
 class PedestrianSim:
@@ -187,6 +194,41 @@ class PedestrianSim:
             self._humanoids = None
         self.reset()
 
+    def _min_spawn_clearance(self) -> float:
+        return float(self._cfg.spawn_clearance_m)
+
+    def _clear_spawn(
+        self,
+        *,
+        label: str,
+        preferred: np.ndarray | None = None,
+    ) -> np.ndarray:
+        return self._session._find_clear_spawn(  # noqa: SLF001
+            label=label,
+            preferred=preferred,
+        )
+
+    def _spawn_point_ok(
+        self,
+        point: np.ndarray,
+        robot_x: float,
+        robot_y: float,
+        actor_radius: float,
+    ) -> tuple[float, float] | None:
+        """Return map (x, y) when *point* is a valid pedestrian spawn."""
+        cfg = self._cfg
+        if self._session._spawn_clearance(point) < self._min_spawn_clearance():  # noqa: SLF001
+            return None
+        mx, my = _habitat_to_map(point)
+        if math.hypot(mx - robot_x, my - robot_y) < cfg.pedestrian_spawn_min_robot_dist:
+            return None
+        for bx, by, br in self._blocked_positions:
+            if math.hypot(mx - bx, my - by) < max(
+                cfg.pedestrian_avoid_dist * 0.6, actor_radius + br,
+            ):
+                return None
+        return mx, my
+
     def reset(self) -> None:
         cfg = self._cfg
         session = self._session
@@ -201,12 +243,13 @@ class PedestrianSim:
         seed = self._seed or (hash((cfg.scene_id, self._actor_kind)) & 0xFFFFFFFF)
 
         def sample() -> np.ndarray:
-            return session._snap(pf.get_random_navigable_point())  # noqa: SLF001
+            return self._clear_spawn(label=f'{self._actor_kind} spawn sample')
 
         spawn_pts = pick_dispersed_navigable_points(
             sample,
-            self._agent_count + 1,
+            max(self._agent_count + 1, 4),
             seed=seed,
+            pool_size=max(self._agent_count * 60, 200),
         )
         avatar_plan = (
             self._humanoids.pick_avatars(self._agent_count, seed)
@@ -216,10 +259,9 @@ class PedestrianSim:
         self._people = []
         rng = np.random.default_rng(seed + 17)
         pid = 1 + self._track_id_offset
-        for point in spawn_pts:
-            mx, my = _habitat_to_map(point)
-            if math.hypot(mx - robot_x, my - robot_y) < cfg.pedestrian_spawn_min_robot_dist:
-                continue
+
+        def try_add_at(point: np.ndarray) -> bool:
+            nonlocal pid
             actor_radius = cfg.pedestrian_radius
             actor_height = cfg.pedestrian_height
             avatar = (
@@ -234,13 +276,10 @@ class PedestrianSim:
             ):
                 actor_radius = self._humanoids.actor_radius(avatar)
                 actor_height = self._humanoids.actor_height(avatar)
-            blocked = False
-            for bx, by, br in self._blocked_positions:
-                if math.hypot(mx - bx, my - by) < max(cfg.pedestrian_avoid_dist * 0.6, actor_radius + br):
-                    blocked = True
-                    break
-            if blocked:
-                continue
+            xy_spawn = self._spawn_point_ok(point, robot_x, robot_y, actor_radius)
+            if xy_spawn is None:
+                return False
+            mx, my = xy_spawn
             goals = self._sample_goals(point, floor, pf, rng)
             speed = self._linear_speed * float(rng.uniform(0.8, 1.2))
             self._people.append(_Pedestrian(
@@ -254,16 +293,42 @@ class PedestrianSim:
                 height=actor_height,
                 lin_speed=speed,
                 sidestep_sign=1.0 if pid % 2 == 0 else -1.0,
+                smooth_rel=np.zeros(2, dtype=np.float64),
             ))
             pid += 1
-            if len(self._people) >= self._agent_count:
+            return True
+
+        for point in spawn_pts:
+            if try_add_at(point) and len(self._people) >= self._agent_count:
                 break
 
+        extra_attempts = 0
+        while len(self._people) < self._agent_count and extra_attempts < 400:
+            extra_attempts += 1
+            if try_add_at(self._clear_spawn(label=f'{self._actor_kind} spawn retry')):
+                continue
+
+        clearances = [
+            self._session._spawn_clearance(  # noqa: SLF001
+                _map_to_habitat(p.map_x, p.map_y, floor),
+            )
+            for p in self._people
+        ]
         avatar_summary = ', '.join(p.avatar for p in self._people)
+        clear_s = (
+            f', clearance={min(clearances):.2f}-{max(clearances):.2f}m'
+            if clearances else ''
+        )
         self._logger.info(
             f'Spawned {len(self._people)} dynamic actors kind={self._actor_kind} '
-            f'(goals={self._goal_count}, seed={seed}, assets={avatar_summary})',
+            f'(goals={self._goal_count}, seed={seed}, assets={avatar_summary}{clear_s})',
         )
+        if len(self._people) < self._agent_count:
+            self._logger.warning(
+                f'Only {len(self._people)}/{self._agent_count} {self._actor_kind} agents '
+                f'with clearance>={self._min_spawn_clearance():.2f}m; '
+                f'lower spawn_clearance_m or pedestrian_spawn_min_robot_dist',
+            )
         if self._robot_model is not None and self._people:
             self._robot_model.set_assets([ped.avatar for ped in self._people])
         if self._humanoids is not None and self._humanoids.active:
@@ -287,21 +352,28 @@ class PedestrianSim:
         robot_x, robot_y, _, _ = self._session.map_pose()
         robot_xy = (robot_x, robot_y)
 
-        positions = self.positions()
-        if external_positions:
-            positions.extend(external_positions)
+        positions = list(self.positions())
+        external = list(external_positions or [])
         for idx, ped in enumerate(self._people):
             ped.old_map_xy = (ped.map_x, ped.map_y)
             ped.nav_rel_map = None
             ped.robot_far = False
-            self._step_one(ped, dt, robot_xy, positions, floor, pf, cfg)
+            others = [
+                (positions[j][0], positions[j][1], positions[j][2])
+                for j in range(len(self._people))
+                if j != idx
+            ]
+            others.extend(external)
+            self._step_one(ped, dt, robot_xy, others, floor, pf, cfg)
+            positions[idx] = (ped.map_x, ped.map_y, ped.radius)
             if self._humanoids is not None and self._humanoids.active:
                 rel = ped.nav_rel_map if ped.nav_rel_map is not None else np.zeros(2)
                 self._humanoids.set_nav_rel(idx, rel)
 
         if self._humanoids is not None and self._humanoids.active:
             robot_far = [p.robot_far for p in self._people]
-            self._humanoids.sync(self._people, floor, robot_far)
+            moving = [p.moving for p in self._people]
+            self._humanoids.sync(self._people, floor, robot_far, moving)
         if self._robot_model is not None and self._people:
             joint_states = None
             if self._actor_kind == 'robot' and self._humanoids is not None:
@@ -323,9 +395,16 @@ class PedestrianSim:
     ) -> list[np.ndarray]:
         cfg = self._cfg
         goals: list[np.ndarray] = []
+        min_clear = self._min_spawn_clearance()
         for _ in range(self._goal_count):
             for _try in range(200):
-                candidate = pf.get_random_navigable_point()
+                preferred = pf.get_random_navigable_point()
+                candidate = self._clear_spawn(
+                    label='pedestrian goal',
+                    preferred=preferred,
+                )
+                if self._session._spawn_clearance(candidate) < min_clear:  # noqa: SLF001
+                    continue
                 if goals and map_dist(candidate, goals[-1]) < cfg.pedestrian_waypoint_min_dist:
                     continue
                 if map_dist(candidate, start) < cfg.pedestrian_waypoint_min_dist:
@@ -344,6 +423,116 @@ class PedestrianSim:
             return list(path.points)
         return [start, end]
 
+    def _snap_habitat(
+        self,
+        hab: np.ndarray,
+        pf: Any,
+        *,
+        max_lateral: float = 0.35,
+        min_clearance: float = 0.0,
+    ) -> np.ndarray | None:
+        requested = np.array(hab, dtype=np.float32)
+        snapped = np.array(pf.snap_point(requested), dtype=np.float32)
+        if not pf.is_navigable(snapped):
+            return None
+        lateral = math.hypot(
+            float(snapped[0] - requested[0]),
+            float(snapped[2] - requested[2]),
+        )
+        if lateral > max_lateral:
+            return None
+        if min_clearance > 0.0:
+            clear = float(pf.distance_to_closest_obstacle(snapped))
+            if clear < min_clearance:
+                return None
+        return snapped
+
+    def _clamp_to_navmesh(self, ped: _Pedestrian, floor: float, pf: Any) -> bool:
+        """Pull logic pose back onto navmesh; return False if current cell is invalid."""
+        snapped = self._snap_habitat(_map_to_habitat(ped.map_x, ped.map_y, floor), pf)
+        if snapped is None:
+            return False
+        sx, sy = _habitat_to_map(snapped)
+        if math.hypot(sx - ped.map_x, sy - ped.map_y) > 0.04:
+            ped.map_x, ped.map_y = sx, sy
+        return True
+
+    def _try_advance(
+        self,
+        ped: _Pedestrian,
+        prev_x: float,
+        prev_y: float,
+        intended_x: float,
+        intended_y: float,
+        rel: np.ndarray,
+        step: float,
+        floor: float,
+        pf: Any,
+        relax_lateral: bool = False,
+    ) -> bool:
+        """Accept step only if navmesh snap stays near the intended motion (no wall suction)."""
+        snapped = self._snap_habitat(_map_to_habitat(intended_x, intended_y, floor), pf)
+        if snapped is None:
+            return False
+        snap_x, snap_y = _habitat_to_map(snapped)
+        snap_corr = math.hypot(snap_x - intended_x, snap_y - intended_y)
+        if snap_corr > max(0.22, 0.75 * step):
+            return False
+        mx = snap_x - prev_x
+        my = snap_y - prev_y
+        moved = math.hypot(mx, my)
+        if moved < 1e-4:
+            return False
+        rx, ry = float(rel[0]), float(rel[1])
+        r_norm = math.hypot(rx, ry)
+        if r_norm > 1e-4:
+            rx, ry = rx / r_norm, ry / r_norm
+            forward = mx * rx + my * ry
+            lateral = abs(mx * (-ry) + my * rx)
+            if forward < 0.02 * step and lateral > 0.18:
+                return False
+            if lateral > (max(0.45, 1.8 * step) if relax_lateral else max(0.28, 1.2 * step)):
+                return False
+        ped.map_x, ped.map_y = snap_x, snap_y
+        return True
+
+    def _relocate_ped(
+        self,
+        ped: _Pedestrian,
+        floor: float,
+        pf: Any,
+        cfg: Config,
+        robot_xy: tuple[float, float],
+    ) -> None:
+        """Teleport off-wall agents back to a random navigable point."""
+        min_clear = self._min_spawn_clearance()
+        hab = _map_to_habitat(ped.map_x, ped.map_y, floor)
+        snapped = self._snap_habitat(hab, pf, min_clearance=min_clear * 0.85)
+        if snapped is not None:
+            sx, sy = _habitat_to_map(snapped)
+            if math.hypot(sx - ped.map_x, sy - ped.map_y) < 0.35:
+                ped.map_x, ped.map_y = sx, sy
+                ped.stall_steps = 0
+                ped.smooth_rel = None
+                return
+        min_robot = max(cfg.pedestrian_spawn_min_robot_dist * 0.5, 1.0)
+        for _ in range(80):
+            point = self._clear_spawn(label=f'relocate {self._actor_kind} {ped.track_id}')
+            if self._session._spawn_clearance(point) < min_clear:  # noqa: SLF001
+                continue
+            mx, my = _habitat_to_map(point)
+            if math.hypot(mx - robot_xy[0], my - robot_xy[1]) < min_robot:
+                continue
+            ped.map_x, ped.map_y = mx, my
+            ped.stall_steps = 0
+            ped.smooth_rel = None
+            self._refresh_goals(ped, floor, pf)
+            self._logger.info(
+                f'Relocated {self._actor_kind} track {ped.track_id} to ({mx:.2f}, {my:.2f}) '
+                f'clearance={self._session._spawn_clearance(point):.2f}m',
+            )
+            return
+
     @staticmethod
     def _nav_direction(
         rel_targ: np.ndarray,
@@ -352,6 +541,8 @@ class PedestrianSim:
         cfg: Config,
         self_radius: float,
         sidestep_sign: float,
+        *,
+        robot_xy: tuple[float, float] | None = None,
     ) -> np.ndarray:
         """Goal attraction + pairwise repulsion; tangential sidestep if blocked."""
         targ_norm = float(np.linalg.norm(rel_targ))
@@ -361,25 +552,45 @@ class PedestrianSim:
             direction = np.array([1.0, 0.0], dtype=np.float64)
 
         repulse = np.zeros(2, dtype=np.float64)
-        personal = self_radius * 2.2
         for ox, oy, other_radius in others:
             off = np.array([self_xy[0] - ox, self_xy[1] - oy], dtype=np.float64)
             dist = float(np.linalg.norm(off))
-            avoid_dist = max(cfg.pedestrian_avoid_dist, self_radius + other_radius)
+            pair_clear = self_radius + other_radius + 0.12
+            avoid_dist = max(cfg.pedestrian_avoid_dist, pair_clear * 1.8)
             if dist > avoid_dist:
                 continue
             if dist < 1e-3:
                 off = np.array([sidestep_sign, 0.3 * sidestep_sign], dtype=np.float64)
                 dist = float(np.linalg.norm(off))
-            pair_personal = max(personal, (self_radius + other_radius) * 1.2)
-            repulse += off / dist * max((pair_personal - dist) / pair_personal, 0.15)
+            strength = max((avoid_dist - dist) / avoid_dist, 0.0)
+            if strength <= 0.0:
+                continue
+            away = off / dist
+            repulse += away * strength * 1.1
+            # Head-on: add tangential sidestep so agents pass instead of blocking.
+            approach = -float(np.dot(direction, away))
+            if approach > 0.45 and dist < avoid_dist * 0.85:
+                tangent = np.array([-away[1], away[0]], dtype=np.float64)
+                if float(np.dot(tangent, direction)) < 0.0:
+                    tangent = -tangent
+                repulse += tangent * strength * 0.55
 
-        combined = direction + 1.8 * repulse
+        if robot_xy is not None:
+            off = np.array(
+                [self_xy[0] - robot_xy[0], self_xy[1] - robot_xy[1]],
+                dtype=np.float64,
+            )
+            dist = float(np.linalg.norm(off))
+            if dist > 1e-3:
+                pair_clear = self_radius + cfg.robot_avoid_radius + 0.08
+                avoid_dist = max(cfg.pedestrian_robot_avoid_dist, pair_clear)
+                if dist < avoid_dist:
+                    strength = max((pair_clear - dist) / pair_clear, 0.0)
+                    if strength > 0.0:
+                        repulse += (off / dist) * strength * 0.25
+
+        combined = direction + repulse
         comb_norm = float(np.linalg.norm(combined))
-        if comb_norm < 0.2:
-            tangent = np.array([-direction[1], direction[0]], dtype=np.float64)
-            combined = direction * 0.2 + tangent * sidestep_sign
-            comb_norm = float(np.linalg.norm(combined))
         if comb_norm < 1e-4:
             return direction
         return combined / comb_norm
@@ -395,11 +606,14 @@ class PedestrianSim:
         ped: _Pedestrian,
         dt: float,
         robot_xy: tuple[float, float],
-        all_xy: list[tuple[float, float, float]],
+        others: list[tuple[float, float, float]],
         floor: float,
         pf: Any,
         cfg: Config,
     ) -> None:
+        if not self._clamp_to_navmesh(ped, floor, pf):
+            self._relocate_ped(ped, floor, pf, cfg, robot_xy)
+            return
         self_xy = (ped.map_x, ped.map_y)
         robot_dist = math.hypot(robot_xy[0] - self_xy[0], robot_xy[1] - self_xy[1])
         if (
@@ -417,8 +631,26 @@ class PedestrianSim:
         next_x, next_y = _habitat_to_map(next_hab)
         rel = np.array([next_x - ped.map_x, next_y - ped.map_y], dtype=np.float64)
 
-        others = [p for p in all_xy if (p[0], p[1]) != self_xy]
-        rel = self._nav_direction(rel, self_xy, others, cfg, ped.radius, ped.sidestep_sign)
+        rel = self._nav_direction(
+            rel, self_xy, others, cfg, ped.radius, ped.sidestep_sign,
+            robot_xy=robot_xy,
+        )
+        near_other = any(
+            math.hypot(ox - self_xy[0], oy - self_xy[1])
+            < max(cfg.pedestrian_avoid_dist, ped.radius + orad + 0.12)
+            for ox, oy, orad in others
+        )
+        if ped.smooth_rel is None:
+            ped.smooth_rel = rel.copy()
+        else:
+            alpha = 0.35
+            ped.smooth_rel = (1.0 - alpha) * ped.smooth_rel + alpha * rel
+            s_norm = float(np.linalg.norm(ped.smooth_rel))
+            if s_norm > 1e-4:
+                ped.smooth_rel = ped.smooth_rel / s_norm
+            else:
+                ped.smooth_rel = rel.copy()
+        rel = ped.smooth_rel.copy()
         ped.nav_rel_map = rel.copy()
 
         goal_x, goal_y = _habitat_to_map(goal)
@@ -431,24 +663,27 @@ class PedestrianSim:
 
         step = ped.lin_speed * dt
         prev_x, prev_y = ped.map_x, ped.map_y
-        ped.map_x += float(rel[0]) * step
-        ped.map_y += float(rel[1]) * step
-        snapped = self._session._snap(  # noqa: SLF001
-            _map_to_habitat(ped.map_x, ped.map_y, floor),
-        )
-        ped.map_x, ped.map_y = _habitat_to_map(snapped)
-        ped.yaw = math.atan2(rel[1], rel[0])
+        intended_x = ped.map_x + float(rel[0]) * step
+        intended_y = ped.map_y + float(rel[1]) * step
+        if not self._try_advance(
+            ped, prev_x, prev_y, intended_x, intended_y, rel, step, floor, pf,
+            relax_lateral=near_other,
+        ):
+            ped.map_x, ped.map_y = prev_x, prev_y
+
+        target_yaw = math.atan2(rel[1], rel[0])
+        ped.yaw = _lerp_angle(ped.yaw, target_yaw, 0.25)
 
         moved = math.hypot(ped.map_x - prev_x, ped.map_y - prev_y)
-        if moved < 0.02 * step / max(dt, 1e-3):
+        ped.moving = moved > max(0.015, 0.25 * step)
+        if not ped.moving:
             ped.stall_steps += 1
         else:
             ped.stall_steps = 0
 
-        if ped.stall_steps > 30:
-            ped.sidestep_sign *= -1.0
-            ped.yaw += ped.sidestep_sign * 0.8
-            self._refresh_goals(ped, floor, pf)
+        if ped.stall_steps > 45:
+            self._relocate_ped(ped, floor, pf, cfg, robot_xy)
+            return
 
     def _publish(self, stamp: rclpy.time.Time, dt: float) -> None:
         cfg = self._cfg
@@ -476,8 +711,7 @@ class PedestrianSim:
             if ped.old_map_xy is not None and dt > 0.0:
                 vx = (ped.map_x - ped.old_map_xy[0]) / dt
                 vy = (ped.map_y - ped.old_map_xy[1]) / dt
-            speed = math.hypot(vx, vy)
-            yaw = math.atan2(vy, vx) if speed > 0.05 else ped.yaw
+            yaw = ped.yaw
             half = yaw * 0.5
             track.pose.pose.orientation.z = math.sin(half)
             track.pose.pose.orientation.w = math.cos(half)
@@ -547,6 +781,13 @@ class PedestrianSim:
                             continue
                         markers.markers.append(mesh)
                     continue
+            # Humanoid meshes render in Habitat-Sim; skip RViz cylinder overlays.
+            if (
+                self._humanoids is not None
+                and self._humanoids.active
+                and self._actor_kind == 'humanoid'
+            ):
+                continue
             body = Marker()
             body.header = header
             body.ns = 'pedestrians'

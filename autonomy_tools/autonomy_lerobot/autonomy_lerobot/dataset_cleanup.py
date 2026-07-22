@@ -153,6 +153,27 @@ def _episode_lengths_from_counts(
     return {new: counts[old] for old, new in old_to_new.items()}
 
 
+def rebuild_episodes_meta(root: str | Path) -> int:
+    """Rebuild meta/episodes from data/*.parquet when LeRobot omitted episode metadata."""
+    root = Path(root)
+    counts = _episode_frame_counts(root)
+    if not counts:
+        return 0
+
+    info_path = root / 'meta' / 'info.json'
+    fps = 10.0
+    if info_path.is_file():
+        info = json.loads(info_path.read_text(encoding='utf-8'))
+        fps = float(info.get('fps', 10) or 10)
+
+    valid_eps = sorted(counts)
+    old_to_new = {old: index for index, old in enumerate(valid_eps)}
+    ep_lengths = _episode_lengths_from_counts(counts, old_to_new)
+    rows = _rebuild_meta_from_lengths(root, ep_lengths, fps=fps, dry_run=False)
+    _update_info(root, len(valid_eps), sum(ep_lengths.values()), dry_run=False)
+    return rows
+
+
 def _remove_corrupt_parquet(directory: Path, dry_run: bool) -> int:
     import pyarrow.parquet as pq
 

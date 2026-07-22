@@ -129,16 +129,22 @@ class CoordinatorNode(Node):
         self._status_pub = self.create_publisher(String, '~/collection_status', 10)
         self._marker_pub = self.create_publisher(MarkerArray, '~/waypoint_markers', 10)
 
+        control_cb = ReentrantCallbackGroup()
+        self.create_service(
+            Trigger, '~/stop_collection', self._on_stop_collection,
+            callback_group=control_cb)
+        self.get_logger().info(
+            'control service: /collection_coordinator/stop_collection')
+
         # Register recording services before any blocking work so they are
         # discoverable as soon as the executor spins.
         if self._cfg.record.enabled:
-            recording_cb = ReentrantCallbackGroup()
             self.create_service(
                 Trigger, '~/start_recording', self._on_start_recording,
-                callback_group=recording_cb)
+                callback_group=control_cb)
             self.create_service(
                 Trigger, '~/stop_recording', self._on_stop_recording,
-                callback_group=recording_cb)
+                callback_group=control_cb)
             self.get_logger().info(
                 'recording services: /collection_coordinator/start_recording, '
                 '/collection_coordinator/stop_recording')
@@ -300,6 +306,16 @@ class CoordinatorNode(Node):
             response.message = 'recording disabled in config'
             return response
         ok, message = self._coord.stop_recording()
+        response.success = ok
+        response.message = message
+        return response
+
+    def _on_stop_collection(
+        self,
+        _request: Trigger.Request,
+        response: Trigger.Response,
+    ) -> Trigger.Response:
+        ok, message = self._coord.stop_collection()
         response.success = ok
         response.message = message
         return response

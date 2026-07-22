@@ -114,10 +114,18 @@ class HumanoidMeshManager:
                 [float(rel_map[0]), float(-rel_map[1])], dtype=np.float64,
             )
 
-    def sync(self, people: list[Any], floor: float, robot_far: list[bool]) -> None:
+    def sync(
+        self,
+        people: list[Any],
+        floor: float,
+        robot_far: list[bool],
+        moving: list[bool] | None = None,
+    ) -> None:
         if not self._active or len(self._avatars) != len(people):
             return
+        if moving is None:
+            moving = [not far for far in robot_far]
         for idx, (ped, avatar) in enumerate(zip(people, self._avatars)):
             hab = _map_to_habitat(ped.map_x, ped.map_y, floor)
-            moving = not robot_far[idx]
-            avatar.sync_walk(hab, self._rel_hab[idx], ped.yaw, moving)
+            is_moving = moving[idx] and not robot_far[idx]
+            avatar.sync_walk(hab, self._rel_hab[idx], ped.yaw, is_moving)

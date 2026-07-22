@@ -41,6 +41,9 @@
   <exec_depend>nav2_constrained_smoother</exec_depend>
   <exec_depend>nav2_smoother</exec_depend>
   <exec_depend>navigation2</exec_depend>
+  <exec_depend>autonomy_pedestrian</exec_depend>
+  <exec_depend>pedsim_msgs</exec_depend>
+  <exec_depend>pedsim_rviz_plugin</exec_depend>
   <exec_depend>rviz2</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>

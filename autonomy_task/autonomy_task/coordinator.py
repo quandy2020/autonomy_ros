@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
@@ -51,6 +52,7 @@ class Coordinator:
         self._graph_ready = cfg.waypoint_source != 'graph'
         self._assign_log_tick = 0
         self._assign_fail_ticks: dict[str, int] = {name: 0 for name in cfg.robot_names()}
+        self._lock = threading.Lock()
         if self._wps:
             self._init_waypoints()
 
@@ -126,6 +128,10 @@ class Coordinator:
         return all(r.wait_ready(t) for r in self._robots)
 
     def tick(self) -> None:
+        with self._lock:
+            self._tick_unlocked()
+
+    def _tick_unlocked(self) -> None:
         if self._done or not self._graph_ready:
             return
         if not any(r.pose() is not None for r in self._robots):
@@ -214,6 +220,32 @@ class Coordinator:
     def stop_recording(self, timeout: float | None = None) -> tuple[bool, str]:
         timeout = timeout if timeout is not None else self._cfg.record.save_timeout_sec
         return self._sync_recording(False, timeout)
+
+    def stop_collection(self, timeout: float | None = None) -> tuple[bool, str]:
+        """Halt all robots: cancel nav, stop/save recording, stop assigning waypoints."""
+        with self._lock:
+            if self._done:
+                return True, 'collection already stopped'
+            self._done = True
+            timeout = timeout if timeout is not None else self._cfg.record.save_timeout_sec
+            lines: list[str] = []
+            ok_all = True
+            for robot in self._robots:
+                wp = robot.active
+                if wp is not None:
+                    wp.status = Status.PENDING
+                    wp.robot = ''
+                ok, msg = robot.halt(timeout=timeout)
+                ok_all = ok_all and ok
+                level = self._node.get_logger().info if ok else self._node.get_logger().warning
+                level(f'{robot.namespace}: halt ({msg or "stopped"})')
+                lines.append(f'{robot.namespace}: {msg or "halted"}')
+            save(self._cfg.state_file, self._state)
+            self._log_wp_stats('collection stopped')
+            self._node.get_logger().info('collection stopped by user request')
+            if self._on_update:
+                self._on_update()
+            return ok_all, '; '.join(lines)
 
     def pending_graph_robots(self) -> list[str]:
         if self._cfg.waypoint_source != 'graph' or not self._cfg.graph.per_robot:
@@ -364,7 +396,7 @@ class Coordinator:
         return False
 
     def _assign(self, robot: Robot, *, exclude: set[str] | None = None) -> bool:
-        if not robot.idle() or self._target_reached():
+        if self._done or not robot.idle() or self._target_reached():
             return False
         if robot.pose() is None:
             return False
@@ -461,13 +493,13 @@ class Coordinator:
             f'duration={stats["duration_sec"]:.1f}s')
         if target > 0:
             self._node.get_logger().info(f'progress: {collected_n}/{target} episodes')
-        if self._cfg.thresholds.parallel and not self._target_reached():
+        if not self._done and self._cfg.thresholds.parallel and not self._target_reached():
             self._assign(robot)
 
     def _fail(self, robot: Robot, *, reason: str = '') -> None:
         wp = robot.done
         if wp is None:
-            if not self._target_reached():
+            if not self._done and not self._target_reached():
                 self._assign(robot)
             return
         wp.attempts += 1
@@ -500,7 +532,7 @@ class Coordinator:
             self._node.get_logger().warning(
                 f'{robot.namespace}: skip {wp.id} ({skip}), reassigning next')
         robot.done = None
-        if not self._target_reached():
+        if not self._done and not self._target_reached():
             self._assign(robot, exclude=exclude)
 
     def _is_done(self) -> bool:
@@ -585,7 +617,7 @@ class Coordinator:
             if on:
                 ok, msg = robot.set_recording_sync(True, timeout=timeout)
             elif robot.recording_active:
-                ok, msg = robot.stop_recording_sync()
+                ok, msg = robot.stop_recording_sync(timeout=timeout)
             else:
                 ok, msg = True, 'not recording'
             ok_all = ok_all and ok

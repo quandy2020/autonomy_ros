@@ -39,6 +39,8 @@ from autonomy_lerobot.bag_to_lerobot import (
     clean_stationary_runs,
     run_conversion,
 )
+from autonomy_lerobot.collection_params import JDROBOT_EPISODE_TIMING, jdrobot_max_episode_seconds
+from autonomy_lerobot.episode_split import EpisodeSplitConfig
 from autonomy_lerobot.conversions import image_to_numpy
 from autonomy_lerobot.sam3_segmenter import Sam3GroundSegmenter
 
@@ -153,10 +155,34 @@ def _run_postprocess(args: argparse.Namespace, logger: logging.Logger) -> None:
 
     fps = float(args.fps or scene_info.get('fps', 0.0))
     episode_seconds = float(args.episode_seconds or scene_info.get('episode_seconds', 0.0))
+    episode_split_mode = str(
+        getattr(args, 'episode_split_mode', '') or scene_info.get('episode_split_mode', 'nav')
+    ).strip() or 'nav'
     if fps <= 0.0:
         raise ValueError('postprocess requires positive fps')
     if episode_seconds <= 0.0:
-        raise ValueError('postprocess requires positive episode_seconds')
+        episode_seconds = jdrobot_max_episode_seconds()
+
+    split_cfg = EpisodeSplitConfig(
+        mode=episode_split_mode,
+        record_before_sec=float(
+            getattr(args, 'record_before_sec', 0.0)
+            or scene_info.get('record_before_sec', JDROBOT_EPISODE_TIMING['record_before_sec'])
+        ),
+        record_after_sec=float(
+            getattr(args, 'record_after_sec', 0.0)
+            or scene_info.get('record_after_sec', JDROBOT_EPISODE_TIMING['record_after_sec'])
+        ),
+        max_nav_sec=float(
+            getattr(args, 'max_nav_sec', 0.0)
+            or scene_info.get('max_nav_sec', JDROBOT_EPISODE_TIMING['max_nav_sec'])
+        ),
+        stall_move_m=float(
+            getattr(args, 'stall_move_m', 0.0)
+            or scene_info.get('stall_move_m', JDROBOT_EPISODE_TIMING['stall_move_m'])
+        ),
+        episode_seconds=episode_seconds,
+    )
 
     postprocessor = BagPostprocessor(
         BagPostprocessConfig(
@@ -187,7 +213,7 @@ def _run_postprocess(args: argparse.Namespace, logger: logging.Logger) -> None:
         odom_topic=None,
         odom_fallback_topic=None,
         fps=fps,
-        episode_seconds=episode_seconds,
+        split_cfg=split_cfg,
     ):
         if current_episode_index != observation.episode_index:
             current_episode_index = observation.episode_index

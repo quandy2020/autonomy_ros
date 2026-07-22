@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from autonomy_lerobot.collection_params import JDROBOT_EPISODE_TIMING
 from autonomy_lerobot.data_paths import (
     collection_state_file,
     collection_repo_id,
@@ -27,7 +28,7 @@ class NavConfig:
     stall_move_m: float = 0.3
     stall_goal_progress_m: float = 0.25
     # Hard cap per waypoint attempt; fail and reassign even if Nav2 BT keeps recovering.
-    max_nav_sec: float = 45.0
+    max_nav_sec: float = 40.0
     # Force fail if cancel_goal does not complete (avoids blocking reassignment).
     cancel_timeout_sec: float = 5.0
     # Long idle in map frame (TF map→base) triggers habitat/lerobot reset.
@@ -47,8 +48,8 @@ class Thresholds:
     assignment_strategy: str = 'farthest'  # nearest | farthest | dispersed | bucket
     min_peer_spacing_m: float = 3.0
     arrival_radius_m: float = 0.2
-    record_before_sec: float = 0.5
-    record_after_sec: float = 1.0
+    record_before_sec: float = JDROBOT_EPISODE_TIMING['record_before_sec']
+    record_after_sec: float = JDROBOT_EPISODE_TIMING['record_after_sec']
     max_retries: int = 2
     parallel: bool = True
     target_episodes: int = 0
@@ -264,8 +265,18 @@ def _thresholds(data: dict[str, Any]) -> Thresholds:
         assignment_strategy=str(data.get('assignment_strategy', 'farthest')),
         min_peer_spacing_m=float(data.get('min_peer_spacing_m', 3.0)),
         arrival_radius_m=float(data.get('arrival_radius_m', 0.2)),
-        record_before_sec=float(data.get('record_before_nav_sec', data.get('record_before_sec', 0.5))),
-        record_after_sec=float(data.get('record_after_arrival_sec', data.get('record_after_sec', 1.0))),
+        record_before_sec=float(
+            data.get(
+                'record_before_nav_sec',
+                data.get('record_before_sec', JDROBOT_EPISODE_TIMING['record_before_sec']),
+            )
+        ),
+        record_after_sec=float(
+            data.get(
+                'record_after_arrival_sec',
+                data.get('record_after_sec', JDROBOT_EPISODE_TIMING['record_after_sec']),
+            )
+        ),
         max_retries=int(data.get('max_retries', 2)),
         parallel=bool(data.get('parallel', True)),
         target_episodes=int(data.get('target_episodes', 0)),
@@ -311,7 +322,7 @@ def load_config(path: str | Path) -> TaskConfig:
             stall_sec=float(nav.get('stall_sec', 10.0)),
             stall_move_m=float(nav.get('stall_move_m', 0.3)),
             stall_goal_progress_m=float(nav.get('stall_goal_progress_m', 0.25)),
-            max_nav_sec=float(nav.get('max_nav_sec', 45.0)),
+            max_nav_sec=float(nav.get('max_nav_sec', JDROBOT_EPISODE_TIMING['max_nav_sec'])),
             cancel_timeout_sec=float(nav.get('cancel_timeout_sec', 5.0)),
             idle_reset_sec=float(nav.get('idle_reset_sec', 90.0)),
             idle_move_m=float(nav.get('idle_move_m', 0.25)),

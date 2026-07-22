@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import threading
+
 import rclpy
 from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import OccupancyGrid, Odometry, Path
@@ -63,6 +65,8 @@ class BridgeNode(Node):
                 '(namespaced nodes need /** in YAML or jdrobot_collection_parameters() in launch)')
         self._latest = Latest()
         self._recording = False
+        self._saving = False
+        self._record_lock = threading.Lock()
         self._record_fatal: str | None = None
         self._wait_ticks = 0
         self._recorder: DatasetRecorder | None = None
@@ -81,6 +85,9 @@ class BridgeNode(Node):
             callback_group=service_cb)
         self.create_service(
             Trigger, '~/reset_robot', self._on_reset_robot,
+            callback_group=service_cb)
+        self.create_service(
+            Trigger, '~/discard_recording', self._on_discard_recording,
             callback_group=service_cb)
 
         try:
@@ -205,15 +212,39 @@ class BridgeNode(Node):
     def _buffered_frames(self) -> int:
         return self._recorder.buffered_frames if self._recorder is not None else 0
 
+    def _stop_and_save_recording(self) -> tuple[bool, str]:
+        """Stop capture, flush encoder, save one durable episode."""
+        with self._record_lock:
+            if not self._recording:
+                return True, 'not recording'
+            self._saving = True
+            try:
+                if self._recorder is None:
+                    return False, self._record_fatal or 'recorder not initialized'
+                saved = self._recorder.save_episode()
+                if saved.startswith('save failed'):
+                    return False, saved
+                if saved == 'no frames to save':
+                    return True, saved
+                return True, saved
+            finally:
+                self._recording = False
+                self._saving = False
+                if self._recorder is not None:
+                    try:
+                        self._recorder.prepare_for_recording()
+                    except Exception as exc:
+                        self.get_logger().warning(
+                            f'prepare_for_recording after save failed: {exc}')
+
     def _on_set_recording(self, request: SetBool.Request, response: SetBool.Response):
         if self._recorder is None:
             response.success = False
             response.message = self._record_fatal or 'recorder not initialized'
             return response
         if self._recording and not request.data:
-            saved = self._recorder.save_episode()
-            if saved.startswith('save failed'):
-                self._recording = False
+            ok, saved = self._stop_and_save_recording()
+            if not ok:
                 self.get_logger().error(f'recording stop failed: {saved}')
                 response.success = False
                 response.message = saved
@@ -222,27 +253,53 @@ class BridgeNode(Node):
                 self.get_logger().info(f'auto-saved on stop: {saved}')
             else:
                 self.get_logger().info('recording stopped (no buffered frames)')
-        elif request.data:
-            if self._recording:
+            response.success = True
+            response.message = saved if saved != 'not recording' else 'recording stopped'
+            return response
+        with self._record_lock:
+            if request.data:
+                if self._recording:
+                    response.success = True
+                    response.message = (
+                        f'already recording (buffered={self._buffered_frames()})')
+                    return response
+                self._record_fatal = None
+                try:
+                    self._recorder.prepare_for_recording()
+                except Exception as exc:
+                    self._record_fatal = str(exc)
+                    self.get_logger().error(f'recording disabled: {exc}')
+                    response.success = False
+                    response.message = str(exc)
+                    return response
+                self._recording = True
+                self.get_logger().info(
+                    f'recording started (buffered={self._buffered_frames()})')
                 response.success = True
-                response.message = (
-                    f'already recording (buffered={self._buffered_frames()})')
+                response.message = 'recording started'
                 return response
-            self._record_fatal = None
-            try:
-                self._recorder.prepare_for_recording()
-            except Exception as exc:
-                self._record_fatal = str(exc)
-                self.get_logger().error(f'recording disabled: {exc}')
-                response.success = False
-                response.message = str(exc)
+            response.success = True
+            response.message = 'not recording'
+            return response
+
+    def _on_discard_recording(
+        self, _request: Trigger.Request, response: Trigger.Response,
+    ) -> Trigger.Response:
+        if self._recorder is None:
+            response.success = False
+            response.message = self._record_fatal or 'recorder not initialized'
+            return response
+        with self._record_lock:
+            if not self._recording and self._buffered_frames() == 0:
+                response.success = True
+                response.message = 'not recording'
                 return response
-        self._recording = request.data
-        state = 'started' if self._recording else 'stopped'
-        self.get_logger().info(
-            f'recording {state} (buffered={self._buffered_frames()})')
+            message = self._recorder.discard_episode()
+            self._recording = False
+            self._saving = False
+        self.get_logger().info(f'recording discarded ({message})')
         response.success = True
-        response.message = f'recording {state}'
+        response.message = message
         return response
 
     def _on_save_episode(self, _request: Trigger.Request, response: Trigger.Response):
@@ -268,10 +325,9 @@ class BridgeNode(Node):
     def _reset_robot_state(self) -> tuple[bool, str]:
         """Resync habitat agent pose / TF and clear LeRobot frame cache."""
         if self._recording and self._recorder is not None:
-            saved = self._recorder.save_episode()
-            if saved.startswith('save failed'):
+            ok, saved = self._stop_and_save_recording()
+            if not ok:
                 self.get_logger().error(f'reset: recording save failed: {saved}')
-            self._recording = False
 
         zero = Twist()
         if hasattr(self, '_cmd_vel_pub'):
@@ -299,31 +355,32 @@ class BridgeNode(Node):
         )
 
     def _on_record_tick(self) -> None:
-        if not self._recording:
+        with self._record_lock:
+            if not self._recording or self._saving:
+                self._wait_ticks = 0
+                return
+            if not self._latest.ready(self._cfg):
+                self._wait_ticks += 1
+                if self._wait_ticks == 1 or self._wait_ticks % 50 == 0:
+                    missing = self._latest.missing_fields(self._cfg)
+                    self.get_logger().warning(
+                        f'recording but no frames yet (missing {", ".join(missing)})')
+                return
             self._wait_ticks = 0
-            return
-        if not self._latest.ready(self._cfg):
-            self._wait_ticks += 1
-            if self._wait_ticks == 1 or self._wait_ticks % 50 == 0:
-                missing = self._latest.missing_fields(self._cfg)
-                self.get_logger().warning(
-                    f'recording but no frames yet (missing {", ".join(missing)})')
-            return
-        self._wait_ticks = 0
-        if self._record_fatal is not None:
-            return
-        if self._recorder is None:
-            return
-        try:
-            self._recorder.add_frame(build_frame(self._latest, self._cfg))
-        except (ValueError, KeyError) as exc:
-            self.get_logger().warning(f'skip frame: {exc}')
-        except Exception as exc:
-            self._record_fatal = str(exc)
-            self.get_logger().error(f'recording disabled: {exc}')
-            self._recording = False
-            if self._recorder is not None:
-                self._recorder.prepare_for_recording()
+            if self._record_fatal is not None:
+                return
+            if self._recorder is None:
+                return
+            try:
+                self._recorder.add_frame(build_frame(self._latest, self._cfg))
+            except (ValueError, KeyError) as exc:
+                self.get_logger().warning(f'skip frame: {exc}')
+            except Exception as exc:
+                self._record_fatal = str(exc)
+                self.get_logger().error(f'recording disabled: {exc}')
+                self._recording = False
+                if self._recorder is not None:
+                    self._recorder.prepare_for_recording()
 
     def get_observation(self) -> dict:
         """Return the latest observation for policy inference."""

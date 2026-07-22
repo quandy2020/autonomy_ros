@@ -11,6 +11,21 @@ from __future__ import annotations
 
 from typing import Any
 
+# Episode timing shared with autonomy_task/config/collection_task.yaml
+JDROBOT_EPISODE_TIMING: dict[str, float] = {
+    'record_before_sec': 0.5,
+    'record_after_sec': 1.0,
+    'max_nav_sec': 40.0,
+    'stall_move_m': 0.3,
+}
+
+
+def jdrobot_max_episode_seconds() -> float:
+    """Upper bound for one online/offline episode (pre-record + nav + post-record)."""
+    timing = JDROBOT_EPISODE_TIMING
+    return timing['record_before_sec'] + timing['max_nav_sec'] + timing['record_after_sec']
+
+
 # kujiale_0003 / LeRobot v3 jdrobot schema
 JDROBOT_COLLECTION_ROS_PARAMS: dict[str, Any] = {
     'dataset_format': 'jdrobot',

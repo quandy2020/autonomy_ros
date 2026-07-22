@@ -28,8 +28,11 @@ def active_tmp_dirs(root: Path) -> list[Path]:
 
 def repair_dataset(root: Path) -> dict:
     """Rebuild missing meta/episodes and remove encoder tmp dirs."""
-    from autonomy_lerobot.dataset_cleanup import cleanup_dataset
+    from autonomy_lerobot.dataset_cleanup import cleanup_dataset, rebuild_episodes_meta
 
+    root = root.expanduser().resolve()
+    if has_frame_data(root) and not has_episodes_meta(root):
+        rebuild_episodes_meta(root)
     return cleanup_dataset(root, min_frames=1, max_frames=10_000_000, dry_run=False)
 
 

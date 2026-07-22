@@ -29,7 +29,7 @@ collection_task:
     base_frame: base_footprint
 
   collection:
-    target_episodes: 2000
+    target_episodes: 100
     allow_revisit: true
     spacing_vs_collected: false
     min_distance_m: 1.0
@@ -38,7 +38,7 @@ collection_task:
     dedupe_radius_m: 0.3
     assignment_strategy: bucket
     min_peer_spacing_m: 1.0
-    record_before_nav_sec: 0.5
+    record_before_nav_sec: 0.0
     record_after_arrival_sec: 1.0
     max_retries: 2
     parallel: true
@@ -61,7 +61,7 @@ collection_task:
     cleanup_tmp_on_start: true
 
   filter:
-    require_navigable: false
+    require_navigable: true
     enforce_map_bounds: true
     map_margin_m: 0.5
     planner_margin_m: 1.0

@@ -96,10 +96,13 @@ class Robot:
 
         node.create_subscription(Odometry, f'/{ns}/odom', self._on_odom, 10)
         self._rec_cli = None
+        self._discard_cli = None
         self._reset_cli = None
         if cfg.record.enabled:
             base = f'/{ns}/{cfg.record.bridge}'
             self._rec_cli = node.create_client(SetBool, f'{base}/set_recording', callback_group=cb)
+            self._discard_cli = node.create_client(
+                Trigger, f'{base}/discard_recording', callback_group=cb)
             self._reset_cli = node.create_client(Trigger, f'{base}/reset_robot', callback_group=cb)
 
         self.phase = Phase.IDLE
@@ -107,6 +110,7 @@ class Robot:
         self.done: Waypoint | None = None
         self._goal_frame = cfg.nav_goal_frame(ns)
         self._recording_active = False
+        self._recording_armed = False
         self._nav_ok = False
 
     @property
@@ -167,7 +171,7 @@ class Robot:
         return True
 
     def start(self, wp: Waypoint) -> bool:
-        """Begin pre-record / nav for *wp*. Returns False if recording could not start."""
+        """Begin optional pre-nav delay / nav for *wp*. Recording starts when Nav2 accepts the goal."""
         self.active = wp
         wp.status = Status.IN_PROGRESS
         wp.robot = self._ns
@@ -176,15 +180,6 @@ class Robot:
         self._last_xy = None
         self._start_pose = self._pose
         t = self._cfg.thresholds
-        if self._cfg.record.enabled and self._rec_cli is not None:
-            if not self._ensure_recording_started():
-                self._node.get_logger().error(
-                    f'{self._ns}: recording failed for {wp.id}, aborting assign')
-                wp.status = Status.PENDING
-                wp.robot = ''
-                self.active = None
-                self._episode_t0 = None
-                return False
         if t.record_before_sec > 0.0:
             self.phase = Phase.PRE_RECORD
             self._deadline = self._after(t.record_before_sec)
@@ -275,11 +270,64 @@ class Robot:
             self._recording_active = on
         return ok, msg
 
-    def stop_recording_sync(self) -> tuple[bool, str]:
+    def stop_recording_sync(self, timeout: float | None = None) -> tuple[bool, str]:
         """Stop recording and wait for lerobot_bridge to finish save_episode."""
         if not self._recording_active:
             return True, ''
-        return self.set_recording_sync(False)
+        return self.set_recording_sync(False, timeout=timeout)
+
+    def discard_recording_sync(self, timeout: float | None = None) -> tuple[bool, str]:
+        """Drop in-memory frames without writing an episode (nav failure / halt)."""
+        if not self._rec_cli:
+            return False, 'recording disabled'
+        if not self._recording_active:
+            return True, 'not recording'
+        if not rclpy.ok() or not self._node.context.ok:
+            return False, 'shutting down'
+        if timeout is None:
+            timeout = self._cfg.record.save_timeout_sec
+        if self._discard_cli is None:
+            return False, 'discard_recording unavailable'
+        if not self._discard_cli.service_is_ready():
+            if not self._discard_cli.wait_for_service(timeout_sec=timeout):
+                return False, 'discard_recording not ready'
+        future = self._discard_cli.call_async(Trigger.Request())
+        deadline = time.monotonic() + timeout
+        while rclpy.ok() and not future.done():
+            if time.monotonic() >= deadline:
+                return False, 'discard_recording timed out'
+            time.sleep(0.02)
+        if not future.done():
+            return False, 'discard_recording timed out'
+        try:
+            result = future.result()
+        except Exception as exc:
+            return False, str(exc)
+        ok = bool(result.success)
+        msg = str(result.message)
+        if ok:
+            self._recording_active = False
+        return ok, msg
+
+    def halt(self, timeout: float | None = None) -> tuple[bool, str]:
+        """Cancel nav, sync stop recording, return to IDLE (no episode accounting)."""
+        if self.phase == Phase.NAV:
+            self._try_cancel_goal()
+        self._clear_nav()
+        self._goal_fut = None
+        save_ok = True
+        save_msg = 'idle'
+        if self._recording_active:
+            save_ok, save_msg = self.discard_recording_sync(timeout=timeout)
+        self.active = None
+        self.done = None
+        self.phase = Phase.IDLE
+        self._deadline = None
+        self._episode_t0 = None
+        self._nav_ok = False
+        if not save_ok:
+            return False, save_msg
+        return True, save_msg or 'halted'
 
     def _ensure_recording_started(self) -> bool:
         if not self._rec_cli or not self._cfg.record.enabled or self._recording_active:
@@ -305,7 +353,7 @@ class Robot:
 
     def _on_odom(self, msg: Odometry) -> None:
         pose = _pose_from_odom(msg)
-        if self.phase != Phase.IDLE and self.active is not None:
+        if self._cfg.record.enabled and self.active is not None:
             if self._last_xy is not None:
                 dx = pose.x - self._last_xy[0]
                 dy = pose.y - self._last_xy[1]
@@ -315,13 +363,21 @@ class Robot:
                 self._start_pose = pose
         self._pose = pose
 
+    def _tick_recording(self) -> str | None:
+        """Start LeRobot recording only after the robot has actually moved."""
+        if not self._recording_armed or self._recording_active:
+            return None
+        if self._path_m < 0.08:
+            return None
+        self._recording_armed = False
+        if not self._ensure_recording_started():
+            wp_id = self.active.id if self.active else '?'
+            self._node.get_logger().error(
+                f'{self._ns}: recording failed after move for {wp_id}')
+            return self._abort_nav('recording_failed', force=True)
+        return None
+
     def _send_goal(self, wp: Waypoint) -> None:
-        if self._cfg.thresholds.record_before_sec <= 0.0 and self._cfg.record.enabled:
-            if not self._ensure_recording_started():
-                self._node.get_logger().error(
-                    f'{self._ns}: recording failed before nav to {wp.id}')
-                self._finish(False)
-                return
         self._try_cancel_goal()
         goal = NavigateToPose.Goal()
         pose = PoseStamped()
@@ -431,6 +487,7 @@ class Robot:
         self._nav_t0 = None
         self._cancel_reason = None
         self._cancel_deadline = None
+        self._recording_armed = False
         self._reset_stall()
         self._reset_idle_tracking()
 
@@ -499,6 +556,9 @@ class Robot:
         return self._finish(True)
 
     def _tick_nav(self) -> str | None:
+        rec = self._tick_recording()
+        if rec is not None:
+            return rec
         now = self._now()
         nav = self._cfg.nav
         if self._cancel_reason and self._cancel_deadline is not None and now >= self._cancel_deadline:
@@ -551,6 +611,8 @@ class Robot:
                 self._node.get_logger().warning(f'{self._ns}: goal rejected')
                 return self._abort_nav('rejected')
             self._goal_rejects = 0
+            if self._cfg.record.enabled:
+                self._recording_armed = True
             self._result_fut = self._handle.get_result_async()
             return None
         if self._handle is not None and self._handle.accepted:
@@ -586,7 +648,16 @@ class Robot:
         had_recording = self._recording_active
         save_ok = True
         if had_recording:
-            save_ok, _ = self._stop_recording()
+            if self._nav_ok:
+                save_ok, _ = self._stop_recording()
+            else:
+                wp_id = self.done.id if self.done else '?'
+                self._node.get_logger().info(
+                    f'{self._ns}: nav failed on {wp_id}, discarding recording')
+                save_ok, msg = self.discard_recording_sync()
+                if not save_ok:
+                    self._node.get_logger().warning(
+                        f'{self._ns}: discard recording failed: {msg}')
         self.phase = Phase.IDLE
         if self._nav_ok and self._cfg.record.enabled and self._rec_cli:
             if not had_recording or not save_ok:

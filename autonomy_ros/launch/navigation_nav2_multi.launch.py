@@ -89,6 +89,8 @@ def _launch_robot_stacks(context, *args, **kwargs):
     humanoid_avatar = LaunchConfiguration('humanoid_avatar').perform(context)
     humanoid_avatars = LaunchConfiguration('humanoid_avatars').perform(context)
     dynamic_actor_kind = LaunchConfiguration('dynamic_actor_kind').perform(context)
+    spawn_mode = LaunchConfiguration('spawn_mode').perform(context)
+    enable_social_layer = LaunchConfiguration('enable_social_layer').perform(context)
 
     robot_launch = os.path.join(
         autonomy_ros_share, 'launch', 'navigation_nav2_robot.launch.py'
@@ -121,7 +123,7 @@ def _launch_robot_stacks(context, *args, **kwargs):
                     'occupancy_grid_rate_hz': '0.0',
                     'spawn_index': robot['spawn_index'],
                     'spawn_count': robot['spawn_count'],
-                    'spawn_mode': 'fixed',
+                    'spawn_mode': spawn_mode,
                     'pedestrians_enabled': pedestrians_enabled,
                     'pedestrian_count': pedestrian_count,
                     'human_agent_count': human_agent_count,
@@ -130,6 +132,7 @@ def _launch_robot_stacks(context, *args, **kwargs):
                     'humanoid_avatar': humanoid_avatar,
                     'humanoid_avatars': humanoid_avatars,
                     'dynamic_actor_kind': dynamic_actor_kind,
+                    'enable_social_layer': enable_social_layer,
                 }.items(),
             ),
         )
@@ -224,8 +227,8 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             'pedestrian_linear_speed',
-            default_value='1.0',
-            description='Humanoid walking speed (m/s)',
+            default_value='0.5',
+            description='Humanoid walking speed (m/s); spawn uses 0.8–1.2× → ~0.4–0.6 m/s',
         ),
         DeclareLaunchArgument(
             'pedestrian_goal_count',
@@ -246,6 +249,16 @@ def generate_launch_description() -> LaunchDescription:
             'dynamic_actor_kind',
             default_value='humanoid',
             description='Dynamic actor renderer: humanoid | robot',
+        ),
+        DeclareLaunchArgument(
+            'spawn_mode',
+            default_value='dispersed',
+            description='Habitat agent spawn: dispersed | random | fixed',
+        ),
+        DeclareLaunchArgument(
+            'enable_social_layer',
+            default_value='false',
+            description='Bridge TrackedPersons to pedsim_msgs for SocialLayer',
         ),
     ]
 
