@@ -238,7 +238,8 @@ class RGBDBackbone(nn.Module):
             self.rgb_model.eval()
         self.depth_model = DepthAnythingV2(**model_configs['vits'])
         self.depth_model = self.depth_model.pretrained.float()
-        self.depth_model.train()
+        self.depth_model.eval()
+        self.freeze_depth = True
         self.former_query = LearnablePositionalEncoding(384, self.memory_size * 16)
         self.former_pe = LearnablePositionalEncoding(384, (self.memory_size + 1) * 256)
         self.former_net = nn.TransformerDecoder(nn.TransformerDecoderLayer(384, 8, batch_first=True), 2)
@@ -277,6 +278,8 @@ class RGBDBackbone(nn.Module):
             tensor_depths = tensor_depths.reshape(-1, 1, self.image_size, self.image_size)
             tensor_depths = torch.concat([tensor_depths, tensor_depths, tensor_depths], dim=1)
             depth_token = self.depth_model.get_intermediate_layers(tensor_depths)[0].reshape(B, T * 256, -1)
+        if self.freeze_depth:
+            depth_token = depth_token.detach()
         former_token = torch.concat((image_token, depth_token), dim=1) + self.former_pe(
             torch.concat((image_token, depth_token), dim=1)
         )

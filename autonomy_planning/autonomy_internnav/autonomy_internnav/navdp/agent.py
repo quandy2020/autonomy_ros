@@ -60,8 +60,10 @@ class NavDP_Agent:
             token_dim=token_dim,
             device=device,
         )
+        from autonomy_internnav.checkpoint_utils import load_ckpt_state
+
         self.navi_former.load_state_dict(
-            torch.load(navi_model, map_location=device), strict=False,
+            load_ckpt_state(navi_model), strict=False,
         )
         self.navi_former.to(device)
         self.navi_former.eval()

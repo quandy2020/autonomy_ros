@@ -1,0 +1,11 @@
+# 请求：无字段，仅请求追踪标识
+string request_id
+# 左右臂标识参数，左臂=0x04，右臂=0x05
+uint8 arm_side
+---
+# 响应：机械臂当前TCP位姿（xyzrpy），六维浮点，xyz单位为米，rpy单位为弧度
+float32[6] x
+# 是否成功
+bool success
+# 附加说明信息
+string message

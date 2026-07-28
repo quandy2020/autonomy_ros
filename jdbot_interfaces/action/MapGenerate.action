@@ -1,0 +1,9 @@
+# 目标：输入文件字符串
+string input_path
+---
+# 结果：语义地图文件路径
+string result_path
+---
+# 反馈：处理状态
+string status
+float32 process_ratio

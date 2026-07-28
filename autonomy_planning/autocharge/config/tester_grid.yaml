@@ -1,0 +1,41 @@
+# docking_tester 网格成功率测试（与 sim.yaml / docking.yaml 桩位对齐）
+docking_tester:
+  ros__parameters:
+    pose_schedule: grid
+    grid_repeats_per_offset: 10
+    grid_robot_yaw: 0.0
+    randomize_pose_before_start: true
+    random_pose_yaw_min: 0.0
+    random_pose_yaw_max: 0.0
+    plot_enable: true
+    case_timeout_s: 200.0
+    success_state: SUCCESS
+    fail_states: [ABORT, FAIL]
+    auto_stop_when_done: true
+    send_reset_before_test: true
+    send_start_after_reset: true
+    reset_after_case: true
+    start_after_case: true
+    inter_case_start_delay_s: 1.2
+    start_delay_s: 1.0
+    min_case_duration_s: 1.0
+    dock_x: 0.5
+    dock_y: 0.0
+    dock_yaw: 3.1415926
+    dock_front_x_offset_m: 0.0
+    dock_front_y_offset_m: 0.0
+    success_contact_x_m: 0.16
+    success_contact_y_m: 0.0
+    grid_lateral_offsets_m:
+      - 0.05
+      - -0.05
+      - 0.10
+      - -0.10
+      - 0.15
+      - -0.15
+      - 0.20
+      - -0.20
+      - 0.25
+      - -0.25
+      - 0.30
+      - -0.30

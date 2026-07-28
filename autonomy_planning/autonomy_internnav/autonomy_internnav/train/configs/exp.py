@@ -3,6 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from autonomy_internnav.train.configs.eval import EvalCfg
+from autonomy_internnav.train.configs.grpo import GrpoCfg
 from autonomy_internnav.train.configs.il import IlCfg
 from autonomy_internnav.train.configs.model import ModelCfg
 
@@ -22,4 +23,5 @@ class ExpCfg(BaseModel, extra='allow'):
     seed: Optional[int] = None
     eval: Optional[EvalCfg] = None
     il: Optional[IlCfg] = None
+    grpo: Optional[GrpoCfg] = None
     model: Optional[ModelCfg] = None

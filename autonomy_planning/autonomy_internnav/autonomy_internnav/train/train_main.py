@@ -22,12 +22,20 @@ class TrainCfg(BaseModel):
 
   name: str = 'navdp_train'
   model: str = 'navdp'
+  profile: str = 'default'
 
 
-def _build_exp_cfg(model: str, run_name: str):
+def _build_exp_cfg(model: str, run_name: str, profile: str):
   spec = get_training_spec(model)
   if spec.model == 'navdp':
-    exp_cfg = navdp_exp_cfg.model_copy(deep=True)
+    if profile in ('local', 'navdp-local', 'navdp_local'):
+      from autonomy_internnav.train.configs.navdp_local import navdp_local_exp_cfg
+      exp_cfg = navdp_local_exp_cfg.model_copy(deep=True)
+    else:
+      exp_cfg = navdp_exp_cfg.model_copy(deep=True)
+  elif spec.model == 'navdp_grpo':
+    raise RuntimeError(
+        'Use scripts/train/train_grpo.py or launch_grpo_train.sh for GRPO training')
   else:
     raise RuntimeError(f'No experiment config for model {spec.model!r}')
   exp_cfg.name = run_name
@@ -57,7 +65,7 @@ def main():
     print(str(exc))
     raise SystemExit(1) from exc
 
-  exp_cfg = _build_exp_cfg(model, cli_cfg.name)
+  exp_cfg = _build_exp_cfg(model, cli_cfg.name, cli_cfg.profile)
 
   available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
   assert exp_cfg.num_gpus <= available_gpus, (

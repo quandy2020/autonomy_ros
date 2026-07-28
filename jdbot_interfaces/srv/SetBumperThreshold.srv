@@ -1,0 +1,6 @@
+uint16[5] bumper_threshold
+string request_id
+---
+# true, false
+bool success
+string message

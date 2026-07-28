@@ -293,6 +293,7 @@ ros2 launch autonomy_internnav internnav.launch.py use_sim_time:=false
 | `--model` | 本包内训练 | ROS `policy` | 说明 |
 |-----------|------------|--------------|------|
 | `navdp`（默认） | **支持** | `navdp` | InternNav LeRobot 数据集 + NavDPNet |
+| `navdp_grpo` | **支持** | `navdp` | SFT checkpoint 上 GRPO 微调 |
 | `logoplanner` | 暂不支持 | `logoplanner` | 使用 [HuggingFace 权重](https://huggingface.co/InternRobotics/LoGoPlanner) |
 | `viplanner` | 暂不支持 | `viplanner` | 在上游 [viplanner](https://github.com/leggedrobotics/viplanner) 训练 |
 | `vint` | 暂不支持 | `vint` | 在 [visualnav-transformer](https://github.com/robodhruv/visualnav-transformer) 训练 |
@@ -332,9 +333,18 @@ train_internnav --model vint --name vint_run
 
 ### 配置与产出（NavDP）
 
-- 默认超参与数据路径：`autonomy_internnav/train/configs/navdp_default.py`
-- 训练 checkpoint：`checkpoints/<run_name>/ckpts/navdp.ckpt`
+- 默认超参与数据路径：`autonomy_internnav/train/configs/navdp_default.py`（`dataset_repeat=50`，兼容旧流程）
+- **JdInternNav 对齐配置**：`autonomy_internnav/train/configs/navdp_local.py`（`dataset_repeat=1`、`preload=True`，与 JdInternNav `navdp_local.py` 一致）
+- 训练 checkpoint：`checkpoints/<run_name>/ckpts/navdp.ckpt`（同时写入 HF 格式目录，支持 `model.safetensors` / `navdp.ckpt` 加载）
 - 将训练权重复制到 `weights/` 后，通过 `checkpoint` launch 参数用于推理
+
+```bash
+# 默认 profile（InternNav 原始 dataset_repeat=50）
+bash scripts/train/start_train.sh --name my_run --gpus 1
+
+# 与 JdInternNav local 训练对齐
+bash scripts/train/start_train.sh --profile local --name my_local_run --gpus 1
+```
 
 训练使用 LeRobot 格式数据集（InternData-N1 等），详见 InternNav 文档：
 [InternNav 训练指南](https://internrobotics.github.io/user_guide/internnav/quick_start/train_eval.html)
@@ -392,6 +402,59 @@ autonomy_internnav/
 │       └── configs/navdp_default.py
 └── InternNav/                    # 上游参考仓库（可选）
 ```
+
+## 与 JdInternNav 对齐说明
+
+本包推理走 ROS（`node.py` + `navdp/agent.py`），训练走 `train/`；[JdInternNav](https://github.com/InternRobotics/InternNav) 为完整 ML 框架（Habitat/Isaac + GRPO + replay）。核心 NavDP SFT 已对齐：
+
+| 模块 | autonomy_internnav | JdInternNav | 对齐状态 |
+|------|-------------------|-------------|----------|
+| NavDP 模型 | `train/navdp_model.py` | `internnav/model/basemodel/navdp/navdp_policy.py` | 已对齐（safetensors / `weights_only=False`） |
+| RGB-D backbone | `train/train_backbone.py` | `internnav/model/encoder/navdp_backbone.py` | 已对齐（`freeze_depth`） |
+| SFT Trainer | `train/navdp_trainer.py` | `internnav/trainer/navdp_trainer.py` | 已对齐（异步保存、loss 指标） |
+| LeRobot 数据集 | `train/dataset.py` | `internnav/dataset/navdp_lerobot_dataset.py` | 已同步（场景索引、`dataset_repeat`） |
+| 推理 checkpoint | `checkpoint_utils.py` + `navdp/agent.py` | `navdp_policy.from_pretrained` | 已对齐 |
+| GRPO 训练 | `train/navdp_grpo_trainer.py` + `algorithms/` | `internnav/trainer/navdp_grpo_trainer.py` | **已集成** |
+| LeRobot v3 / mixed | `train/dataset_lerobot_v3.py` / `dataset_mixed.py` | 同名 | **已集成** |
+| bag 回放推理 | `replay/` + `scripts/replay/launch_navdp_replay.sh` | `internnav/replay/` | **已集成** |
+| InternVLA-N1 双系统 | `internvla_n1/` + `policies/internvla_n1_policy.py` | `internnav/agent` + model | **已集成（实验性）** |
+
+JdInternNav 训练的 `navdp.ckpt` 可直接放入 `weights/` 用于 ROS 推理；GRPO 权重同样兼容。
+
+### GRPO 微调
+
+```bash
+bash scripts/train/launch_grpo_train.sh \
+  --gpus 1 \
+  --ckpt-to-load /path/to/sft_navdp.ckpt \
+  --root-dir /path/to/lerobot_v3_dataset \
+  --name my_grpo_run
+```
+
+### LeRobot v3 / mixed SFT
+
+在 `navdp_local.py` 或 launch 中设置 `dataset_format`：
+
+- `v2`：Legacy LeRobot（默认 `dataset.py`）
+- `v3`：LeRobot v3 根目录 → `il.root_dir`
+- `mixed`：多源混合 → `il.dataset_sources`
+
+### bag 离线 replay
+
+```bash
+bash scripts/replay/launch_navdp_replay.sh \
+  --config autonomy_internnav/replay/configs/default.yaml
+```
+
+### InternVLA-N1 双系统（ROS）
+
+```bash
+ros2 launch autonomy_internnav internnav.launch.py \
+  policy:=internvla_n1 \
+  checkpoint:=/path/to/InternVLA-N1-DualVLN
+```
+
+需额外依赖：`transformers==4.51`、`flash-attn`（可选）、InternVLA 权重。输出为离散动作，经 policy 层映射为短轨迹后发布 `cmd_vel`。
 
 ## 参考
 

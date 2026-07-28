@@ -1,0 +1,7 @@
+# Request
+string map_name
+---
+# Response
+string[] poi_ids
+string[] poi_types
+string[] metadata

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -13,9 +14,29 @@ import torch.distributed as dist
 from transformers import TrainerCallback, TrainingArguments
 
 from autonomy_internnav.train.dataset import NavDP_Base_Datset, navdp_collate_fn
+from autonomy_internnav.train.dataset_lerobot_v3 import NavDP_LerobotV3_Dataset
+from autonomy_internnav.train.dataset_mixed import NavDPMixedSourceDataset
 from autonomy_internnav.train.logger import MyLogger
 from autonomy_internnav.train.navdp_model import NavDPModelConfig, NavDPNet
 from autonomy_internnav.train.navdp_trainer import NavDPTrainer
+
+
+def _resolve_report_to(report_to):
+  if not report_to or str(report_to).lower() == 'none':
+    return 'none'
+  if report_to != 'tensorboard':
+    return report_to
+  try:
+    import tensorboard  # noqa: F401
+  except ImportError:
+    print(
+        'tensorboard is not installed in the training venv; '
+        'disabling TensorBoard logging. Install with:\n'
+        f'  {sys.executable} -m pip install "tensorboard>=2.20.0,<3.0"\n'
+        'or run: bash scripts/install_train_deps.sh'
+    )
+    return 'none'
+  return report_to
 
 
 class CheckpointFormatCallback(TrainerCallback):
@@ -36,6 +57,76 @@ def _make_dir(config):
   config.output_dir = config.output_dir % config.name
   for path in (config.tensorboard_dir, config.checkpoint_folder, config.log_dir):
     os.makedirs(path, exist_ok=True)
+
+
+def _normalize_navdp_dataset_format(dataset_format):
+  aliases = {
+      'v2': 'v2',
+      'navdp_v1': 'v2',
+      'v3': 'v3',
+      'lerobot_v3': 'v3',
+      'mixed': 'mixed',
+      'mixed_navdp': 'mixed',
+  }
+  normalized = aliases.get(str(dataset_format))
+  if normalized is None:
+    raise ValueError(
+        f"Unknown config.il.dataset_format={dataset_format!r}; "
+        "expected 'v2', 'v3', or 'mixed'")
+  return normalized
+
+
+def _build_navdp_dataset(config):
+  dataset_format = _normalize_navdp_dataset_format(
+      getattr(config.il, 'dataset_format', 'v2') or 'v2')
+  use_pointcloud = (
+      True if getattr(config.il, 'use_pointcloud', None) is None
+      else bool(config.il.use_pointcloud))
+  print(f'dataset_format: {dataset_format}')
+  if not use_pointcloud:
+    print('use_pointcloud=False: SFT 不使用障碍物点云')
+  if dataset_format == 'mixed':
+    return NavDPMixedSourceDataset(
+        getattr(config.il, 'dataset_sources', None),
+        epoch_size=getattr(config.il, 'mixed_epoch_size', None),
+        memory_size=config.il.memory_size,
+        predict_size=config.il.predict_size,
+        batch_size=config.il.batch_size,
+        image_size=config.il.image_size,
+        pixel_channel=config.il.pixel_channel,
+        sample_interval=config.il.sample_interval or 4,
+        use_pointcloud=use_pointcloud,
+    )
+  if dataset_format == 'v3':
+    return NavDP_LerobotV3_Dataset(
+        config.il.root_dir,
+        memory_size=config.il.memory_size,
+        predict_size=config.il.predict_size,
+        batch_size=config.il.batch_size,
+        image_size=config.il.image_size,
+        pixel_channel=config.il.pixel_channel,
+        sample_interval=config.il.sample_interval or 4,
+        target_segment_weights=getattr(config.il, 'target_segment_weights', None),
+        use_pointcloud=use_pointcloud,
+    )
+  return NavDP_Base_Datset(
+      config.il.root_dir,
+      config.il.dataset_navdp,
+      config.il.memory_size,
+      config.il.predict_size,
+      config.il.batch_size,
+      config.il.image_size,
+      config.il.scene_scale,
+      pixel_channel=config.il.pixel_channel,
+      preload=config.il.preload,
+      random_digit=config.il.random_digit,
+      prior_sample=config.il.prior_sample,
+      dataset_repeat=config.il.dataset_repeat or 1,
+      obstacle_sample_n=config.il.obstacle_sample_n or 2048,
+      sample_interval=config.il.sample_interval or 4,
+      target_segment_weights=getattr(config.il, 'target_segment_weights', None),
+      use_pointcloud=use_pointcloud,
+  )
 
 
 def run_navdp_training(config) -> None:
@@ -114,19 +205,9 @@ def run_navdp_training(config) -> None:
       transformers_logger.addHandler(train_logger.handlers[0])
     transformers_logger.setLevel(logging.INFO)
 
-    train_dataset = NavDP_Base_Datset(
-        config.il.root_dir,
-        config.il.dataset_navdp,
-        config.il.memory_size,
-        config.il.predict_size,
-        config.il.batch_size,
-        config.il.image_size,
-        config.il.scene_scale,
-        pixel_channel=config.il.pixel_channel,
-        preload=config.il.preload,
-        random_digit=config.il.random_digit,
-        prior_sample=config.il.prior_sample,
-    )
+    train_dataset = _build_navdp_dataset(config)
+
+    grad_accum = config.il.gradient_accumulation_steps or 1
 
     training_args = TrainingArguments(
         output_dir=config.output_dir,
@@ -137,7 +218,7 @@ def run_navdp_training(config) -> None:
         bf16=False,
         tf32=False,
         per_device_train_batch_size=config.il.batch_size,
-        gradient_accumulation_steps=1,
+        gradient_accumulation_steps=grad_accum,
         dataloader_num_workers=config.il.num_workers,
         dataloader_pin_memory=False,
         optim='adamw_torch',
@@ -148,7 +229,7 @@ def run_navdp_training(config) -> None:
         save_strategy='epoch',
         save_steps=config.il.save_interval_epochs,
         save_total_limit=8,
-        report_to=config.il.report_to,
+        report_to=_resolve_report_to(config.il.report_to),
         seed=0,
         do_eval=False,
         ddp_find_unused_parameters=config.il.ddp_find_unused_parameters,

@@ -1,0 +1,13 @@
+# 请求：获取TCP偏移
+string request_id
+# 左右臂标识参数，左臂=0x04，右臂=0x05
+uint8 arm_side
+---
+# TCP偏移值，6维向量 [x, y, z, rx, ry, rz]
+# x, y, z: 位置偏移，单位为米
+# rx, ry, rz: 姿态偏移，单位为弧度
+float32[6] offset
+# 响应
+bool success
+# 附加说明信息
+string message

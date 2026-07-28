@@ -1,0 +1,11 @@
+# Request: query current autonomous exploration & mapping status
+---
+# Response
+TerraStatus status
+MappingStatus mapping_status
+MappingProcessStage mapping_process_stage
+float32 percent
+# 当前正在建图（或最近一次建图）的节点 UUID，空表示无
+string node_id
+# 当前/最近一次建图节点的展示名，空表示无
+string node_name

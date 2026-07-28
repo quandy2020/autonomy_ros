@@ -1,0 +1,9 @@
+# 请求 - 关节导纳阻尼参数设置
+string request_id
+uint8 arm_side
+# damping: 7个关节的阻尼参数
+float32[7] damping
+---
+# 响应
+bool success
+string message

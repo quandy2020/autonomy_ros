@@ -1,0 +1,16 @@
+# 产测单独控制电机（王玉熙 2026-06-17 添加）
+# 协议 0xF0, host->ctrl
+# 请求：控制指定电机的运动参数（6个腿部电机的imu参数，产测单独控制电机）
+string request_id
+uint8  motor_id      # 电机编号 (0~5)
+float32 motor_pos    # 电机位置
+float32 motor_vel    # 电机速度
+float32 motor_trq    # 电机力矩
+float32 motor_kp     # Kp增益
+float32 motor_kd     # Kd增益
+---
+# 响应：执行结果
+# result: 0 表示执行成功
+uint16 result
+bool success
+string message

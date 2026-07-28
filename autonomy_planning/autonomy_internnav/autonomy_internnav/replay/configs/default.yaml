@@ -1,0 +1,18 @@
+# 零参数可跑；所有字段均有 default
+bag_root: data/bag_dataset        # LeRobot v3 数据集根
+ckpt: checkpoints/checkpoint-106000_pre
+model_name: navdp_106k_pre
+output_root: internnav/replay/result
+device: cuda
+num_history: 8
+horizon: 16
+safe_radius: 0.30
+voxel_size: 0.05
+collision_threshold: 5              # 轨迹上累计碰撞点 >= 阈值即判该帧碰撞
+sample_num: 32                     # 扩散采样候选数，critic 选最优
+max_episodes: 5
+bag_name: real-stairs-l1w-15hz-part0_rosbag-2026-03-31-20-10-00  # bag 根下子目录（每个 run_X = 1 episode）
+save_video: true
+video_fps: null                    # null=沿用 info.json
+topdown_px_per_m: 0.05
+seed: 0

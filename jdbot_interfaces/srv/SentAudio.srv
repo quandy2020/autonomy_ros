@@ -1,0 +1,6 @@
+# 请求：发送希望语音播报的文字
+string request
+---
+# 响应：执行结果
+bool success
+string message

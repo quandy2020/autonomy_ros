@@ -1,0 +1,11 @@
+
+# Request 设置腰部转动角度
+float32 position       # 目标角度 rad，-1.1~1.1
+string request_id
+---
+# Result
+bool success            # 1: 成功　0:失败
+string message          # result message
+---
+# Feedback 当前角度
+float32 cur_position

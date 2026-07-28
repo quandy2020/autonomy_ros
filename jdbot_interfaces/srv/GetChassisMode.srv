@@ -1,0 +1,11 @@
+# 请求：无
+string request_id
+---
+# 响应：版本信息
+# 1: balance mode, 平衡模式，站立的时候切换
+# 2: static mode, 静态模式，蹲坐的时候切换
+# 3: fold mode, 折叠模式
+uint8 mode
+# true, false
+bool success
+string message

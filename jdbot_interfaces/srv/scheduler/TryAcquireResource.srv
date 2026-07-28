@@ -1,0 +1,10 @@
+# 参考common_msgs/judgement_executor_service 
+# 请求:
+# source_request_id: 请求id
+# resources: 希望获取的资源
+string source_request_id
+TryAcquireResourceRequestResource[] resources
+---
+# 响应：
+bool ok
+string error_message

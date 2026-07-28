@@ -1,0 +1,14 @@
+# enum
+uint8 POSE=1
+uint8 RETRIEVAL=2
+uint8 RETRIEVAL_TOPK=3
+
+# Request
+uint8 type 
+geometry_msgs/Pose pose
+---
+# Response
+geometry_msgs/Pose pose
+int32[] topk_kf_ids
+float32[] topk_scores
+TerraStatus status

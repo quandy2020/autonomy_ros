@@ -1,0 +1,86 @@
+import os
+
+from autonomy_internnav.train.configs.eval import EvalCfg
+from autonomy_internnav.train.configs.exp import ExpCfg
+from autonomy_internnav.train.configs.il import FilterFailure, IlCfg, Loss
+from autonomy_internnav.train.configs.model import ModelCfg
+
+navdp_cfg = ModelCfg(policy_name='navdp_Policy')
+
+# Local Habitat collection (LeRobot v3). Override with NAVDP_ROOT_DIR.
+_DEFAULT_LOCAL_ROOT_DIR = os.environ.get(
+    'NAVDP_ROOT_DIR',
+    '/mnt/data4t/data/lerobot/collection/robot1',
+)
+
+navdp_local_exp_cfg = ExpCfg(
+    name='navdp_train_local',
+    model_name='navdp',
+    torch_gpu_id=0,
+    torch_gpu_ids=[0],
+    output_dir='checkpoints/%s/ckpts',
+    tensorboard_dir='checkpoints/%s/tensorboard',
+    checkpoint_folder='checkpoints/%s/ckpts',
+    log_dir='checkpoints/%s/logs',
+    local_rank=0,
+    seed=0,
+    eval=EvalCfg(
+        use_ckpt_config=False,
+        save_results=True,
+        split=['val_seen'],
+        ckpt_to_load='',
+        max_steps=195,
+        sample=False,
+        success_distance=3.0,
+        start_eval_epoch=-1,
+        step_interval=50,
+    ),
+    il=IlCfg(
+        epochs=1000,
+        batch_size=4,
+        lr=1e-4,
+        num_workers=8,
+        gradient_accumulation_steps=2,
+        weight_decay=1e-4,
+        warmup_ratio=0.05,
+        use_iw=True,
+        inflection_weight_coef=3.2,
+        save_interval_epochs=5,
+        save_total_limit=None,
+        save_filter_frozen_weights=False,
+        load_from_ckpt=False,
+        ckpt_to_load='',
+        lmdb_map_size=1e12,
+        dataset_r2r_root_dir='data/datasets/InternData-N1/vln_pe/raw_data/r2r',
+        dataset_3dgs_root_dir='',
+        dataset_grutopia10_root_dir='',
+        lmdb_features_dir='r2r',
+        lerobot_features_dir='data/datasets/InternData-N1/vln_pe/traj_data/r2r',
+        dataset_format='v3',
+        camera_name='pano_camera_0',
+        report_to='tensorboard',
+        dataset_navdp='data/datasets/navdp_dataset_lerobot.json',
+        root_dir=_DEFAULT_LOCAL_ROOT_DIR,
+        image_size=224,
+        scene_scale=1.0,
+        preload=True,
+        random_digit=False,
+        prior_sample=False,
+        use_pointcloud=False,
+        dataset_repeat=1,
+        memory_size=8,
+        predict_size=24,
+        pixel_channel=4,
+        temporal_depth=16,
+        heads=8,
+        token_dim=384,
+        channels=3,
+        dropout=0.1,
+        scratch=False,
+        finetune=False,
+        loss=Loss(alpha=0.0001, dist_scale=1),
+        filter_failure=FilterFailure(use=True, min_rgb_nums=15),
+        ddp_find_unused_parameters=False,
+    ),
+    model=navdp_cfg,
+)

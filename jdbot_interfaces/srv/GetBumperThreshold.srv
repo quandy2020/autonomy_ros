@@ -1,0 +1,11 @@
+# 请求：无
+string request_id
+---
+# 响应：碰撞阈值
+uint16 front_threshold
+uint16 leftback_threshold
+uint16 right_threshold
+uint16 rightback_threshold
+uint16 left_threshold
+bool success
+string message

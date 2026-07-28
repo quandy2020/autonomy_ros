@@ -50,6 +50,9 @@ def generate_launch_description():
     spawn_mode = LaunchConfiguration('spawn_mode')
     spawn_index = LaunchConfiguration('spawn_index')
     spawn_count = LaunchConfiguration('spawn_count')
+    spawn_x = LaunchConfiguration('spawn_x')
+    spawn_y = LaunchConfiguration('spawn_y')
+    spawn_yaw = LaunchConfiguration('spawn_yaw')
     pedestrians_enabled = LaunchConfiguration('pedestrians_enabled')
     pedestrian_count = LaunchConfiguration('pedestrian_count')
     trackvla_root = LaunchConfiguration('trackvla_root')
@@ -116,6 +119,21 @@ def generate_launch_description():
             'spawn_count',
             default_value='1',
             description='Total robots sharing the dispersed spawn layout',
+        ),
+        DeclareLaunchArgument(
+            'spawn_x',
+            default_value='0.0',
+            description='Fixed spawn map X (m) when spawn_mode=fixed',
+        ),
+        DeclareLaunchArgument(
+            'spawn_y',
+            default_value='0.0',
+            description='Fixed spawn map Y (m) when spawn_mode=fixed',
+        ),
+        DeclareLaunchArgument(
+            'spawn_yaw',
+            default_value='0.0',
+            description='Fixed spawn yaw (rad) when spawn_mode=fixed',
         ),
         DeclareLaunchArgument(
             'pedestrians_enabled',
@@ -255,6 +273,9 @@ def generate_launch_description():
                 'spawn_mode': spawn_mode,
                 'spawn_index': spawn_index,
                 'spawn_count': spawn_count,
+                'spawn_x': spawn_x,
+                'spawn_y': spawn_y,
+                'spawn_yaw': spawn_yaw,
                 'pedestrians_enabled': pedestrians_enabled,
                 'pedestrian_count': pedestrian_count,
                 'trackvla_root': trackvla_root,

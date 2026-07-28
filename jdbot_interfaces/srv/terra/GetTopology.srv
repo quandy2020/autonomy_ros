@@ -1,0 +1,6 @@
+# Request:
+string request_id
+---
+# Response: the topology information of the robot's environment
+TerraStatus status
+Topology topology

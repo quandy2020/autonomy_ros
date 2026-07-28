@@ -1,0 +1,10 @@
+
+# source contains 16 bits type_id and 16 bit dev_id
+int32 request_id
+int32 source
+uint8[] data
+---
+# true, false
+bool success
+string message
+

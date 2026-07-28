@@ -1,0 +1,6 @@
+# Request
+string node_name
+string prior_poi_name
+---
+# Response
+TerraStatus status

@@ -1,0 +1,15 @@
+# Request: start autonomous exploration & mapping
+# 目标地图节点的 UUID（即 TopologyNode.id）
+# - REBUILD / INCREMENTAL: 必填，指定作用于哪张已有地图
+# - BUILD_IF_NOT_EXIST / DEFAULT_MODE: 可空，空则由下层新建并在响应里回传
+string node_id
+# 节点的展示名（楼层/房间名），由应用层透传；可选
+string node_name
+BuildMode mode
+---
+# Response
+TerraStatus status
+# 本次建图最终绑定/新建的节点 UUID，应用层应据此持久化
+string node_id
+# 本次建图节点的展示名（与请求一致或由下层补全）
+string node_name

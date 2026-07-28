@@ -1,0 +1,10 @@
+string request_id
+# 左右臂标识参数，左臂=0x04，右臂=0x05
+uint8 arm_side
+---
+# 响应
+uint8 tcp_vscale
+bool success
+string message
+uint32[] error_codes
+string[] error_descriptions

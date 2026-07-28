@@ -44,6 +44,7 @@ setup(
             'internnav_node = autonomy_internnav.node:main',
             'train_internnav = autonomy_internnav.train.cli:main',
             'train_navdp = autonomy_internnav.train.cli:main',
+            'train_grpo = autonomy_internnav.train.cli:main_grpo',
         ],
     },
 )

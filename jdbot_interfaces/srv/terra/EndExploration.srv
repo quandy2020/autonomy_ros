@@ -1,0 +1,8 @@
+# Request: end autonomous exploration & mapping
+---
+# Response
+TerraStatus status
+# 本次结束的建图节点 UUID
+string node_id
+# 本次结束的建图节点展示名
+string node_name

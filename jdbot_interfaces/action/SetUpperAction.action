@@ -1,0 +1,11 @@
+# action /upper/set_action
+#请求胳膊转动
+string request_id
+uint16 action_id
+---
+# Result
+bool success            # 1: 成功　0:失败
+string message          # result message
+---
+# Feedback 进度百分比
+uint8 progress
