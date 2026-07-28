@@ -1,0 +1,14 @@
+string request_id
+uint8 arm_side
+#JOINT_POSITION =  0 		默认状态 
+#JOINT_IMPEDANCE = 1  		关节阻抗
+#JOINT_ADMITTANCE = 2  		关节导纳
+#CARTESIAN_POSITION =3 		笛卡尔位置
+#CARTESIAN_IMPEDANCE = 4 	笛卡尔阻抗
+#CARTESIAN_ADMITTANCE = 5 	笛卡尔导纳
+#CARTESIAN_HYBRID = 6 		笛卡尔 力位混合
+uint8 control_mode 
+---
+# 响应
+bool success
+string message

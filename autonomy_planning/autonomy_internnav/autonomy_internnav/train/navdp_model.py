@@ -1,10 +1,9 @@
-import os
-
 import torch
 import torch.nn as nn
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from transformers import PretrainedConfig, PreTrainedModel
 
+from autonomy_internnav.checkpoint_utils import load_ckpt_state
 from autonomy_internnav.train.configs.exp import ExpCfg
 from autonomy_internnav.train.configs.model import ModelCfg
 from autonomy_internnav.train.train_backbone import (
@@ -14,6 +13,9 @@ from autonomy_internnav.train.train_backbone import (
     RGBDBackbone,
     SinusoidalPosEmb,
 )
+
+__version__ = '0.1.2'
+__version_desc__ = 'align JdInternNav: safetensors + weights_only=False checkpoint loading'
 
 
 class NavDPModelConfig(PretrainedConfig):
@@ -36,6 +38,10 @@ class NavDPNet(PreTrainedModel):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
+        print(
+            f'[navdp_model v{__version__}] from_pretrained called with '
+            f'path={pretrained_model_name_or_path}'
+        )
         config = kwargs.pop('config', None)  # navdp_exp_cfg_dict_NavDPModelConfig
         if config is None:
             config = cls.config_class.from_pretrained(pretrained_model_name_or_path, **kwargs)
@@ -47,20 +53,17 @@ class NavDPNet(PreTrainedModel):
         model = cls(config)
         model.to(model._device)
 
-        # load pretrained weights
-        if os.path.isdir(pretrained_model_name_or_path):
-            incompatible_keys, _ = model.load_state_dict(
-                torch.load(os.path.join(pretrained_model_name_or_path, 'pytorch_model.bin'))
+        if pretrained_model_name_or_path is None or len(pretrained_model_name_or_path) == 0:
+            return model
+        state = load_ckpt_state(pretrained_model_name_or_path)
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        if missing:
+            print(f'[from_pretrained] Missing keys: {len(missing)} (showing 5): {missing[:5]}')
+        if unexpected:
+            print(
+                f'[from_pretrained] Unexpected keys: {len(unexpected)} '
+                f'(showing 5): {unexpected[:5]}'
             )
-            if len(incompatible_keys) > 0:
-                print(f'Incompatible keys: {incompatible_keys}')
-        elif pretrained_model_name_or_path is None or len(pretrained_model_name_or_path) == 0:
-            pass
-        else:
-            incompatible_keys, _ = model.load_state_dict(torch.load(pretrained_model_name_or_path), strict=False)
-            if len(incompatible_keys) > 0:
-                print(f'Incompatible keys: {incompatible_keys}')
-
         return model
 
     def __init__(self, config: NavDPModelConfig):

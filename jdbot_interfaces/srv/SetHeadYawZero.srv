@@ -1,0 +1,7 @@
+# 请求：无
+string request_id
+---
+# 响应
+# true, false
+bool success
+string message

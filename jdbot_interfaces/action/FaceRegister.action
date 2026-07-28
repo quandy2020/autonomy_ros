@@ -1,0 +1,11 @@
+# Goal
+string command  # JSON格式的命令，包含注册或删除操作
+
+---
+# Result
+bool success     # 操作是否成功
+string message   # 操作结果的详细信息
+
+---
+# Feedback
+string status    # 当前操作的状态信息

@@ -1,0 +1,7 @@
+# Request: start building a map follow somebody
+string node_name
+string edge_type
+---
+# Response
+TerraStatus status
+string new_map_id

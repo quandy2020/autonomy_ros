@@ -1,0 +1,6 @@
+# Request: start building a map follow somebody
+string node_name
+BuildMode build_mode
+---
+# Response
+TerraStatus status

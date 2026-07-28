@@ -55,6 +55,7 @@ navdp_exp_cfg = ExpCfg(
         preload=False,
         random_digit=False,
         prior_sample=False,
+        dataset_repeat=50,
         memory_size=8,
         predict_size=24,
         pixel_channel=4,

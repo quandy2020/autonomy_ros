@@ -1,0 +1,9 @@
+# 请求：无
+string request_id
+---
+# 响应：版本信息
+string chassis_version
+string upper_version
+# true, false
+bool success
+string message

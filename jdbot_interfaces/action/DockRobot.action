@@ -1,0 +1,27 @@
+# Goal Definition
+string dock_id                  # 暂填空
+string dock_type                # 暂填空
+geometry_msgs/PoseStamped pose  # 暂填空
+bool navigate_to_staging_pose   # 暂填空
+
+---
+# Result Definition
+bool success                    # 对齐是否成功
+uint16 error_code               # 错误码
+string error_text               # 错误描述信息 (例如: "Timeout", "Tolerance check failed")
+# 错误码枚举 (示例)
+uint16 NONE=0
+uint16 DOCK_NOT_FOUND=1         # 未检测到二维码
+uint16 DOCK_NOT_VALID=2         # 二维码数据无法解析
+uint16 INTERNAL_ERROR=3         # 机器人控制异常
+uint16 ALIGNMENT_FAILED=4       # 最终容差检查不通过
+
+uint16 CODE_TF_FAILED=102
+uint16 CODE_INFERENCE_FAILED=103
+uint16 CODE_NAV_FAILED=104
+
+---
+# Feedback Definition
+string state                    # 当前运行状态 (对应流程图中的步骤)
+builtin_interfaces/Duration time_remaining # 预估剩余时间 (可选)
+uint16 num_retries              # 重试次数

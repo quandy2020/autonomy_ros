@@ -34,10 +34,11 @@ def _bootstrap_pythonpath() -> None:
     py_ver = f'python{sys.version_info.major}.{sys.version_info.minor}'
     for key in ('COLCON_PREFIX_PATH', 'AMENT_PREFIX_PATH'):
         for prefix in os.environ.get(key, '').split(os.pathsep):
-            if prefix:
-                for pkg in os.listdir(prefix):
-                    _prepend(os.path.join(prefix, pkg, f'local/lib/{py_ver}/dist-packages'))
-                    _prepend(os.path.join(prefix, pkg, f'lib/{py_ver}/site-packages'))
+            if not prefix or not os.path.isdir(prefix):
+                continue
+            for pkg in os.listdir(prefix):
+                _prepend(os.path.join(prefix, pkg, f'local/lib/{py_ver}/dist-packages'))
+                _prepend(os.path.join(prefix, pkg, f'lib/{py_ver}/site-packages'))
 
 
 _bootstrap_pythonpath()

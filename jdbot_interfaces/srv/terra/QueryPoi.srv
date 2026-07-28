@@ -1,0 +1,7 @@
+# Request
+string node_name
+string poi_name
+---
+# Response
+TerraStatus status
+POI poi

@@ -1,0 +1,8 @@
+# 请求：1字节的数据,用于出厂设置系统版本，设置用于云台还是左右手臂
+uint8 target_id  # 3: 头部, 4: 左手, 5: 右手
+float32 max_velocity # 最大速度, 范围[0,3], rad/s, 掉电丢失
+string request_id
+---
+# 响应：是否成功
+bool success
+string message

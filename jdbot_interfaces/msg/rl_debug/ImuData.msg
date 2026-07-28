@@ -1,0 +1,10 @@
+# IMU传感器数据
+float32 gyro_x      # 陀螺仪X轴角速度 (rad/s)
+float32 gyro_y      # 陀螺仪Y轴角速度 (rad/s)
+float32 gyro_z      # 陀螺仪Z轴角速度 (rad/s)
+float32 acc_x       # 加速度计X轴加速度 (m/s²)
+float32 acc_y       # 加速度计Y轴加速度 (m/s²)
+float32 acc_z       # 加速度计Z轴加速度 (m/s²)
+float32 roll        # 横滚角 (rad)
+float32 pitch       # 俯仰角 (rad)
+float32 yaw         # 偏航角 (rad)

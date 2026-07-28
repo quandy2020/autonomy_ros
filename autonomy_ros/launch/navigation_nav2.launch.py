@@ -35,6 +35,10 @@ def generate_launch_description() -> LaunchDescription:
     scene_data_path = LaunchConfiguration('scene_data_path')
     pedestrians_enabled = LaunchConfiguration('pedestrians_enabled')
     pedestrian_count = LaunchConfiguration('pedestrian_count')
+    spawn_mode = LaunchConfiguration('spawn_mode')
+    spawn_x = LaunchConfiguration('spawn_x')
+    spawn_y = LaunchConfiguration('spawn_y')
+    spawn_yaw = LaunchConfiguration('spawn_yaw')
 
     default_params = os.path.join(
         autonomy_ros_share, 'config', 'nav2_habitat_params.yaml'
@@ -95,6 +99,26 @@ def generate_launch_description() -> LaunchDescription:
             default_value='5',
             description='Number of dynamic humanoid pedestrians',
         ),
+        DeclareLaunchArgument(
+            'spawn_mode',
+            default_value='dispersed',
+            description='Habitat agent spawn: dispersed | random | fixed',
+        ),
+        DeclareLaunchArgument(
+            'spawn_x',
+            default_value='0.0',
+            description='Fixed spawn map X (m) when spawn_mode=fixed',
+        ),
+        DeclareLaunchArgument(
+            'spawn_y',
+            default_value='0.0',
+            description='Fixed spawn map Y (m) when spawn_mode=fixed',
+        ),
+        DeclareLaunchArgument(
+            'spawn_yaw',
+            default_value='0.0',
+            description='Fixed spawn yaw (rad) when spawn_mode=fixed',
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(
@@ -112,6 +136,10 @@ def generate_launch_description() -> LaunchDescription:
                 'occupancy_grid_rate_hz': '0.0',
                 'pedestrians_enabled': pedestrians_enabled,
                 'pedestrian_count': pedestrian_count,
+                'spawn_mode': spawn_mode,
+                'spawn_x': spawn_x,
+                'spawn_y': spawn_y,
+                'spawn_yaw': spawn_yaw,
             }.items(),
         ),
         Node(

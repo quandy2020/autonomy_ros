@@ -1,0 +1,8 @@
+# 0: close bumper 关闭碰撞条功能
+# 1: open bumper 打开碰撞条功能
+uint8 mode
+string request_id
+---
+# true, false
+bool success
+string message

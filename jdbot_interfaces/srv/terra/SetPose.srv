@@ -1,0 +1,7 @@
+# Request
+# 优先使用 poi_name，poi_name 为空时，使用 pose 作为目标点，Pose 坐标系为 base_footprint -> map
+string poi_name
+geometry_msgs/Pose pose
+---
+# Response
+TerraStatus status

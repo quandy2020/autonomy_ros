@@ -1,0 +1,38 @@
+# Goal: 预对接点或充电桩粗略位姿 + 总任务超时
+geometry_msgs/PoseStamped charger_pose
+float32 timeout
+
+---
+# Result: 对接结果
+bool success
+uint8 error_code
+uint8 ERROR_NONE=0                  # 成功
+uint8 ERROR_TIMEOUT=1               # 超时
+uint8 ERROR_NAVIGATION=2            # 定位/导航失败
+uint8 ERROR_VISION=3                # 视觉识别失败
+uint8 ERROR_APPROACH_STUCK=4        # 逼近失败（机械卡住）
+uint8 ERROR_IR_OR_CONTACT=5         # 红外/接触信号失效
+uint8 ERROR_CHARGE_HANDSHAKE=6        # 充电握手失败
+uint8 ERROR_CANCELED=7              # 手动取消
+uint8 ERROR_OTHER=8                 # 其他错误
+string message
+float32 total_elapsed_seconds
+
+---
+# Feedback: 运行状态
+uint8 state
+uint8 STATE_IDLE=0                  # 初始化/等待
+uint8 STATE_NAVIGATING=1            # 导航到预对接点或目标附近
+uint8 STATE_SEARCHING=2             # 识别/搜索充电桩（视觉/红外）
+uint8 STATE_ALIGNING=3              # 调整朝向和位置，准备最终逼近
+uint8 STATE_APPROACHING=4           # 直线逼近充电桩
+uint8 STATE_DOCKING=5               # 接触、插入动作
+uint8 STATE_DOCKED=6                # 已成功连接（任务成功）
+uint8 STATE_RETRYING=7              # 重试
+uint8 STATE_ABORTING=8               # 正在中止（故障恢复）
+uint8 sub_state                     # 子阶段，0 表示无
+float32 progress                    # 0.0~1.0 总体进度估计
+string status_msg                   # 人类可读状态（如“距离目标0.3m”）
+geometry_msgs/Pose current_robot_pose
+uint8 attempt_count                 # 当前重试次数（0 表示首次）
+float32 remaining_time              # 预估剩余时间（秒）

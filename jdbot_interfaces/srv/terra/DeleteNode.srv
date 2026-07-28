@@ -1,0 +1,5 @@
+# Request
+string node_name
+---
+# Response
+TerraStatus status

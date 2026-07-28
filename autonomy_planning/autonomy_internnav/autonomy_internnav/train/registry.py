@@ -23,7 +23,13 @@ TRAINING_SPECS: dict[str, TrainingSpec] = {
         model='navdp',
         ros_policy='navdp',
         supported=True,
-        description='NavDP diffusion policy (InternNav / LeRobot dataset)',
+        description='NavDP diffusion policy SFT (InternNav / LeRobot dataset)',
+    ),
+    'navdp_grpo': TrainingSpec(
+        model='navdp_grpo',
+        ros_policy='navdp',
+        supported=True,
+        description='NavDP GRPO fine-tuning from SFT checkpoint',
     ),
     'logoplanner': TrainingSpec(
         model='logoplanner',

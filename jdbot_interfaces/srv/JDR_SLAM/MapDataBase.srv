@@ -1,0 +1,10 @@
+# Request
+string db_path
+bool use_post_processing
+string post_processing_dir_path
+uint8 thread_num
+bool incremental_mapping
+---
+# Response
+bool success
+string message 

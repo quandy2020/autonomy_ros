@@ -1,0 +1,18 @@
+# Request
+float32 shoulder_pitch    # 肩部 pitch 角度（弧度）
+float32 shoulder_roll     # 肩部 roll 角度（弧度）
+float32 shoulder_yaw      # 肩部 yaw 角度（弧度）
+float32 elbow             # 肘部角度（弧度）
+float32 max_speed         # 最大速度（弧度/秒）
+string request_id
+otel_interface/TraceCarrier trace
+---
+# Result
+bool success
+string message
+---
+# Feedback
+float32 current_shoulder_pitch
+float32 current_shoulder_roll
+float32 current_shoulder_yaw
+float32 current_elbow

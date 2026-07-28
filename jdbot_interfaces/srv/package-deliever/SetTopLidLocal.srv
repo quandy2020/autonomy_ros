@@ -1,0 +1,12 @@
+# delivery service name: /delivery/local/set_top_lid
+
+# 模式定义
+uint8 MODE_OPEN=1          # 打开
+uint8 MODE_CLOSE=2         # 关闭
+
+string request_id          # 请求ID，用于请求追踪
+uint8 mode                 # 模式
+---
+# 响应结果
+bool success              # 操作是否成功
+string message            # 详细信息或错误消息

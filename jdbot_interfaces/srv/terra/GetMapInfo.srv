@@ -1,0 +1,5 @@
+# Request
+string map_name
+---
+# Response
+string yaml_data

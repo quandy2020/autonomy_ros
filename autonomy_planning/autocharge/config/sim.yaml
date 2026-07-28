@@ -1,0 +1,124 @@
+env_sim:
+  ros__parameters:
+    cmd_vel_topic: /cmd_vel
+    odom_topic: /odom
+    odom_frame: odom
+    base_frame: base_link
+    marker_topic: /env_sim/markers
+    charge_topic: /dock/charge_connected
+    station_visualize: true
+    station_marker_ns: charging_station
+    station_x: 0.5
+    station_y: 0.0
+    station_yaw: 3.1415926
+    charge_success_dist_m: 0.038
+    charge_success_yaw_tol_deg: 8.0
+    charge_hold_s: 0.20
+    dock_frame: dock
+    update_hz: 30.0
+    publish_tf: true
+    fov_length: 1.2
+    x0: 0.0
+    y0: 0.0
+    yaw0: 0.0
+    robot_length_m: 0.30
+    robot_width_m: 0.40
+    predock_pose.enable: false
+    ir_sensors:
+      update_hz: 20.0
+      topic: /ir/dock
+      publish: true
+      use_dock_emitters: true
+      receivers:
+        left:
+          x_offset: 0.16
+          y_offset: -0.00545
+          fov: 15.0
+          yaw: -7.5
+          visible: true
+          mode: "normal"
+          color: 'cyan'
+          max_length_m: 1.5
+          alpha: 0.4
+          fill_alpha: 0.20
+        right:
+          x_offset: 0.16
+          y_offset: 0.00545
+          fov: 15.0
+          yaw: 7.5
+          visible: true
+          mode: "normal"
+          color: 'cyan'
+          max_length_m: 1.5
+          alpha: 0.4
+          fill_alpha: 0.20
+      emitters:
+        far_left:
+          visible: true
+          x: 0.0
+          y: 0.01425
+          yaw: 20.0
+          fov: 30.0
+          color: 'red'
+          alpha: 0.3
+          max_length_m: 1.5
+          mode: "normal"
+          trap_length_m: 0.03
+          trap_width_m: 0.002
+        left:
+          visible: true
+          x: 0.0
+          y: 0.006
+          yaw: 5.0
+          fov: 15.0
+          color: 'cyan'
+          alpha: 0.3
+          max_length_m: 1.5
+          mode: "normal"
+          trap_length_m: 0.03
+          trap_width_m: 0.002
+        center:
+          visible: true
+          x: 0.0
+          y: 0.0
+          yaw: 0.0
+          fov: 7.34
+          color: 'green'
+          alpha: 0.3
+          max_length_m: 1.5
+          mode: "trapezoid"
+          trap_length_m: 0.03
+          trap_width_m: 0.002
+        right:
+          visible: true
+          x: 0.0
+          y: -0.006
+          yaw: -5.0
+          fov: 15.0
+          color: 'magenta'
+          alpha: 0.3
+          max_length_m: 1.5
+          mode: "normal"
+          trap_length_m: 0.03
+          trap_width_m: 0.002
+        far_right:
+          visible: true
+          x: 0.0
+          y: -0.01425
+          yaw: -20.0
+          fov: 30.0
+          color: 'red'
+          alpha: 0.3
+          max_length_m: 1.5
+          mode: "normal"
+          trap_length_m: 0.03
+          trap_width_m: 0.002
+    bit_left: 0x01
+    bit_center: 0x04
+    bit_right: 0x08
+    # far_left / left / center / right / far_right
+    bit_l1: 0x01
+    bit_l2: 0x02
+    bit_c: 0x04
+    bit_r1: 0x08
+    bit_r2: 0x10

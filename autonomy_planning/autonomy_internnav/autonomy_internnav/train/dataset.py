@@ -7,7 +7,6 @@ from datetime import datetime
 import cv2
 import jsonlines
 import numpy as np
-import open3d as o3d
 import pandas as pd
 import torch
 from PIL import Image
@@ -48,9 +47,15 @@ class NavDP_Base_Datset(Dataset):
         preload=False,
         random_digit=False,
         prior_sample=False,
+        dataset_repeat=1,
+        obstacle_sample_n=2048,
+        target_segment_weights=None,
+        sample_interval=4,
+        use_pointcloud=True,
     ):
 
         self.dataset_dirs = np.array([p for p in os.listdir(root_dirs)])
+        self.dataset_repeat = max(1, int(dataset_repeat))
         self.memory_size = memory_size
         self.image_size = image_size
         self.scene_scale_size = scene_data_scale
@@ -58,14 +63,19 @@ class NavDP_Base_Datset(Dataset):
         self.predict_size = predict_size
         self.action_dim = action_dim
         self.debug = debug
+        self.obstacle_sample_n = int(obstacle_sample_n)
+        self.use_pointcloud = bool(use_pointcloud)
 
         self.trajectory_data_dir = []
         self.trajectory_rgb_path = []
         self.trajectory_depth_path = []
         self.trajectory_afford_path = []
+        self.trajectory_scene_id = []  # 每个 episode 所属场景的 ID (基于 afford_path 去重)
         self.random_digit = random_digit
         self.prior_sample = prior_sample
+        self.sample_interval = max(1, int(sample_interval))
         self.pixel_channel = pixel_channel
+        self.target_segment_weights = target_segment_weights
         self.item_cnt = 0
         self.batch_size = batch_size
         self.batch_time_sum = 0.0
@@ -109,6 +119,7 @@ class NavDP_Base_Datset(Dataset):
                             self.trajectory_rgb_path.append(episode_rgb_path)
                             self.trajectory_depth_path.append(episode_depth_path)
                             self.trajectory_afford_path.append(afford_dir)
+                            self.trajectory_scene_id.append(afford_dir)
                         except Exception as e:
                             import pdb
 
@@ -120,44 +131,92 @@ class NavDP_Base_Datset(Dataset):
                 'trajectory_rgb_path': self.trajectory_rgb_path,
                 'trajectory_depth_path': self.trajectory_depth_path,
                 'trajectory_afford_path': self.trajectory_afford_path,
+                'trajectory_scene_id': self.trajectory_scene_id,
             }
             with open(preload_path, 'w') as f:
                 json.dump(save_dict, f, indent=4)
 
-            # replicate the data 50 times
-            self.trajectory_data_dir = self.trajectory_data_dir * 50
-            self.trajectory_rgb_path = self.trajectory_rgb_path * 50
-            self.trajectory_depth_path = self.trajectory_depth_path * 50
-            self.trajectory_afford_path = self.trajectory_afford_path * 50
+            self.trajectory_data_dir = self.trajectory_data_dir * self.dataset_repeat
+            self.trajectory_rgb_path = self.trajectory_rgb_path * self.dataset_repeat
+            self.trajectory_depth_path = self.trajectory_depth_path * self.dataset_repeat
+            self.trajectory_afford_path = self.trajectory_afford_path * self.dataset_repeat
+            self.trajectory_scene_id = self.trajectory_scene_id * self.dataset_repeat
         else:
             load_dict = json.load(open(preload_path, 'r'))
-            self.trajectory_data_dir = load_dict['trajectory_data_dir'] * 50
-            self.trajectory_rgb_path = load_dict['trajectory_rgb_path'] * 50
-            self.trajectory_depth_path = load_dict['trajectory_depth_path'] * 50
-            self.trajectory_afford_path = load_dict['trajectory_afford_path'] * 50
+            self.trajectory_data_dir = load_dict['trajectory_data_dir'] * self.dataset_repeat
+            self.trajectory_rgb_path = load_dict['trajectory_rgb_path'] * self.dataset_repeat
+            self.trajectory_depth_path = load_dict['trajectory_depth_path'] * self.dataset_repeat
+            self.trajectory_afford_path = load_dict['trajectory_afford_path'] * self.dataset_repeat
+            self.trajectory_scene_id = load_dict.get(
+                'trajectory_scene_id',
+                [str(p) for p in load_dict['trajectory_afford_path']],
+            ) * self.dataset_repeat
+
+        # ---- 构建场景索引 ----
+        self._build_scene_index()
 
     def __len__(self):
         return len(self.trajectory_data_dir)
 
+    def _build_scene_index(self):
+        """构建场景索引: 将 episode 按场景 (afford_path) 分组.
+
+        注意: 当 dataset_repeat > 1 时, episode 索引会出现重复 (如 idx=0 和 idx=N 对应同一 episode).
+        这里只使用原始 (未 repeat) 的索引区间, 避免 sample_episodes_from_scenes 返回重复索引.
+        """
+        num_raw = len(self.trajectory_data_dir) // self.dataset_repeat
+        self.episodes_by_scene = {}  # scene_id -> List[episode_index] (原始索引, 未 repeat)
+        self.unique_scene_ids = []   # 去重后的场景 ID 列表
+        for idx in range(num_raw):
+            scene_id = self.trajectory_scene_id[idx]
+            if scene_id not in self.episodes_by_scene:
+                self.episodes_by_scene[scene_id] = []
+                self.unique_scene_ids.append(scene_id)
+            self.episodes_by_scene[scene_id].append(idx)
+
+    def sample_episodes_from_scenes(self, num_scenes: int, num_episodes: int, rng=None, return_scene_ids=False):
+        """随机选 num_scenes 个场景, 在所有选中场景内共采集 num_episodes 个 episode.
+
+        Args:
+            num_scenes: 选取的场景数量
+            num_episodes: 总共采集的 episode 数量 (从选中场景中均匀随机抽取)
+            rng: numpy random Generator (可选, 用于可复现)
+            return_scene_ids: 是否返回选中的场景 ID 列表
+
+        Returns:
+            episode_indices: List[int], 选中的 episode 索引列表
+            scene_ids (可选): List[str], 选中的场景 ID 列表 (仅当 return_scene_ids=True 时返回)
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+        # 随机选 num_scenes 个场景
+        selected_scenes = rng.choice(self.unique_scene_ids, size=min(num_scenes, len(self.unique_scene_ids)), replace=False)
+        # 收集这些场景的所有 episode index
+        candidate_indices = []
+        for sid in selected_scenes:
+            candidate_indices.extend(self.episodes_by_scene[sid])
+        # 从中随机抽 num_episodes 个
+        num_episodes = min(num_episodes, len(candidate_indices))
+        chosen = rng.choice(candidate_indices, size=num_episodes, replace=False).tolist()
+        
+        if return_scene_ids:
+            return chosen, selected_scenes.tolist()
+        else:
+            return chosen
+
     def load_image(self, image_url):
-        try:
-            image = Image.open(image_url)
-            image = np.array(image, np.uint8)
-        except Exception as e:
-            print(f"Error loading image {image_url}: {e}")
-            image = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+        image = Image.open(image_url)
+        image = np.array(image, np.uint8)
         return image
 
     def load_depth(self, depth_url):
-        try:
-            depth = Image.open(depth_url)
-            depth = np.array(depth, np.uint16)
-        except Exception as e:
-            print(f"Error loading depth {depth_url}: {e}")
-            depth = np.zeros((self.image_size, self.image_size), dtype=np.uint16)
+        depth = Image.open(depth_url)
+        depth = np.array(depth, np.uint16)
         return depth
 
     def load_pointcloud(self, pcd_url):
+        import open3d as o3d
+
         pcd = o3d.io.read_point_cloud(pcd_url)
         return pcd
 
@@ -202,15 +261,90 @@ class NavDP_Base_Datset(Dataset):
         return camera_intrinsic, camera_extrinsic, camera_trajectory, trajectory_length
 
     def process_obstacle_points(self, index):
-        scene_pcd = self.load_pointcloud(self.trajectory_afford_path[index])
+        """处理障碍物点云，区分真实障碍物和膨胀障碍物。
+        
+        点云颜色编码：
+        - 黑色 [0, 0, 0]: 路径点（path_points），不加载
+        - 灰色 [0.4, 0.4, 0.4]: 真实障碍物，仅用于eval可视化
+        - 蓝色 [0, 0, 0.5]: 膨胀障碍物，用于碰撞和占用奖励计算
+        - 其他颜色: 不加载
+        
+        Returns:
+            scene_obstacle_points: [N, 3] 世界坐标系下的真实障碍物点 (float32)
+            scene_inflation_points: [M, 3] 世界坐标系下的膨胀障碍物点 (float32)
+        
+        Raises:
+            FileNotFoundError: 如果点云文件不存在
+        """
+        if not self.use_pointcloud:
+            empty = np.zeros((0, 3), dtype=np.float32)
+            return empty, empty
+        pcd_path = self.trajectory_afford_path[index]
+        if not os.path.isfile(pcd_path):
+            raise FileNotFoundError(
+                f"NavDP_Base_Datset: 点云文件不存在: {pcd_path}\n"
+                f"障碍物点云是计算碰撞/占用奖励的必要条件，请确保每个场景目录下存在点云文件。"
+            )
+        scene_pcd = self.load_pointcloud(pcd_path)
         scene_color = np.array(scene_pcd.colors)
         scene_points = np.array(scene_pcd.points)
-        color_distance = np.abs(scene_color - np.array([0, 0, 0.5])).sum(axis=-1)
-        select_index = np.where(color_distance < 0.05)[0]
-        scene_obstacle = o3d.geometry.PointCloud()
-        scene_obstacle.points = o3d.utility.Vector3dVector(scene_points[select_index])
-        scene_obstacle.colors = o3d.utility.Vector3dVector(scene_color[select_index])
-        return np.array(scene_obstacle.points), scene_obstacle
+        
+        # 1. 灰色 [0.4, 0.4, 0.4]: 真实障碍物（仅用于eval可视化）
+        gray_distance = np.abs(scene_color - np.array([0.4, 0.4, 0.4])).sum(axis=-1)
+        gray_mask = gray_distance < 0.05
+        scene_obstacle_points = scene_points[gray_mask].astype(np.float32)
+        
+        # 2. 蓝色 [0, 0, 0.5]: 膨胀障碍物（用于碰撞和占用奖励计算）
+        blue_distance = np.abs(scene_color - np.array([0, 0, 0.5])).sum(axis=-1)
+        blue_mask = blue_distance < 0.05
+        scene_inflation_points = scene_points[blue_mask].astype(np.float32)
+        
+        return scene_obstacle_points, scene_inflation_points
+
+    def _obstacles_to_local(self, world_points, base_frame_extrinsic, base_extrinsic, sample_radius=3.0, filter_fov=True):
+        """Transform world-frame obstacle points to the local-robot frame anchored
+        at `base_frame_extrinsic` (same frame used by process_actions for pred_actions).
+
+        不进行降采样，只保留sample_radius范围内的点。
+        可选：只保留前方180度（左右各90度）范围内的障碍物。
+
+        Args:
+            world_points: 世界坐标系下的障碍物点 [N, 3]
+            base_frame_extrinsic: 起点时刻的相机外参 [4, 4]
+            base_extrinsic: 机器人基座外参 [4, 4]
+            sample_radius: 采样半径（米），默认3.0m
+            filter_fov: 是否过滤前方视场角范围外的障碍物（默认True，保留前方180度）
+
+        Returns: np.float32 array of shape [M, 2] (xy only)，M为sample_radius范围内且（可选）前方FOV内的点数。
+                 如果没有点，返回空数组。
+        """
+        if world_points is None or world_points.shape[0] == 0:
+            return np.zeros((0, 2), dtype=np.float32)
+
+        _, local = self.relative_pose(
+            base_frame_extrinsic[0:3, 0:3],
+            base_frame_extrinsic[0:3, 3],
+            np.eye(3),
+            world_points,
+            base_extrinsic,
+        )
+        local_xy = local[:, 0:2].astype(np.float32)
+
+        # 只保留sample_radius范围内的点，不进行随机降采样
+        distances = np.linalg.norm(local_xy, axis=-1)
+        in_range_mask = distances <= sample_radius
+        local_xy = local_xy[in_range_mask]
+
+        # 过滤前方视场角范围外的障碍物（前方180度，左右各90度）
+        if filter_fov and local_xy.shape[0] > 0:
+            # 局部坐标系：前方为x轴正方向，左侧为y轴正方向
+            # angle = atan2(y, x)，前方180度满足 |angle| <= 90度
+            angles = np.arctan2(local_xy[:, 1], local_xy[:, 0])
+            half_fov_rad = np.deg2rad(90.0)  # 左右各90度
+            in_fov_mask = np.abs(angles) <= half_fov_rad
+            local_xy = local_xy[in_fov_mask]
+
+        return local_xy
 
     def process_memory(self, rgb_paths, depth_paths, start_step, memory_digit=1):
         memory_index = np.arange(start_step - (self.memory_size - 1) * memory_digit, start_step + 1, memory_digit)
@@ -222,12 +356,8 @@ class NavDP_Base_Datset(Dataset):
         return context_image, context_depth, memory_index
 
     def process_pixel_goal(self, image_url, target_point, camera_intrinsic, camera_extrinsic):
-        try:
-            image = Image.open(image_url)
-            image = np.array(image, np.uint8)
-        except Exception as e:
-            print(f"Error loading image {image_url}: {e}")
-            image = np.zeros((self.image_size, self.image_size, 3), dtype=np.uint8)
+        image = Image.open(image_url)
+        image = np.array(image, np.uint8)
         resize_image = self.process_image(image_url)
 
         coordinate = np.array([-target_point[1], target_point[0], camera_extrinsic[2, 3] * 0.8])
@@ -413,7 +543,70 @@ class NavDP_Base_Datset(Dataset):
         target_choice = np.random.choice(target_choice_candidates, p=target_choice_p)
         return start_choice, target_choice
 
+    def _sample_target_by_segments(self, start_choice: int, max_target: int) -> int:
+        """根据分段权重采样目标帧.
+
+        将 [start_choice+1, max_target] 等分为 N 段 (N = len(target_segment_weights)),
+        每段按权重决定被选中的概率, 段内再均匀随机取一个帧.
+
+        分段方式: 将 total_len = hi - lo + 1 个候选帧按顺序分配到 N 段,
+        前 (total_len % N) 段各多分 1 帧, 保证每个帧恰好属于一段, 无遗漏无重叠.
+
+        Args:
+            start_choice: 起始帧索引.
+            max_target: 目标帧最大值 (含).
+
+        Returns:
+            采样得到的目标帧索引.
+        """
+        lo = start_choice + 1
+        hi = max_target
+        if lo > hi:
+            return hi
+
+        # 无权重配置时退化为原始均匀随机
+        if self.target_segment_weights is None or len(self.target_segment_weights) == 0:
+            return np.random.randint(lo, hi + 1)
+
+        num_segments = len(self.target_segment_weights)
+        total_len = hi - lo + 1  # 可选帧总数
+
+        # 构建每段边界: boundaries[i] 为第 i 段起始帧, boundaries[num_segments] = hi + 1
+        # 前 (total_len % N) 段各分 ceil(total_len/N) 帧, 后面各分 floor(total_len/N) 帧
+        base_size = total_len // num_segments
+        remainder = total_len % num_segments
+        boundaries = [lo]
+        for i in range(num_segments):
+            seg_size = base_size + (1 if i < remainder else 0)
+            boundaries.append(boundaries[-1] + seg_size)
+        # boundaries[-1] == lo + total_len == hi + 1
+
+        weights = np.array(self.target_segment_weights, dtype=np.float64)
+        probs = weights / weights.sum()
+
+        # 先按概率选段, 再在段内均匀采样
+        seg_idx = np.random.choice(num_segments, p=probs)
+        seg_lo = boundaries[seg_idx]
+        seg_hi = boundaries[seg_idx + 1]  # 右端点不含, np.random.randint 左闭右开
+        # Guard: when total_len < num_segments, some segments are empty
+        # (seg_lo == seg_hi). Pick a non-empty segment in that case.
+        if seg_lo >= seg_hi:
+            for fallback_idx in range(num_segments):
+                flo, fhi = boundaries[fallback_idx], boundaries[fallback_idx + 1]
+                if fhi > flo:
+                    seg_lo, seg_hi = flo, fhi
+                    break
+            else:
+                # All segments empty — should not happen given lo <= hi,
+                # but return lo as safe fallback.
+                return lo
+        return int(np.random.randint(seg_lo, seg_hi))
+
     def __getitem__(self, index):
+        # 直接调用实现，遇到错误直接抛出
+        return self._getitem_impl(index)
+
+    def _getitem_impl(self, index):
         import os
         import time
 
@@ -423,27 +616,35 @@ class NavDP_Base_Datset(Dataset):
 
         (
             camera_intrinsic,
-            trajectory_base_extrinsic,
+            camera_extrinsic,
             trajectory_extrinsics,
             trajectory_length,
         ) = self.process_data_parquet(index)
+        
+        # camera_extrinsic 是第0帧相机外参（用于 process_actions 的 base_extrinsic）
+        # trajectory_base_extrinsic 是机器人基座外参
+        # 注意：投影障碍物奖励需要与深度图同帧的 camera_extrinsic，
+        # 那个在下面通过 trajectory_extrinsics[memory_start_choice] 获取
+        trajectory_base_extrinsic = camera_extrinsic
 
-        trajectory_obstacle_points, trajectory_obstacle_pcd = self.process_obstacle_points(index)
+        trajectory_obstacle_points, trajectory_inflation_points = self.process_obstacle_points(index)
 
         if self.prior_sample:
             pixel_start_choice, target_choice = self.rank_steps()
             memory_start_choice = np.random.randint(pixel_start_choice, target_choice)
         else:
             pixel_start_choice = np.random.randint(0, trajectory_length // 2)
-            target_choice = np.random.randint(pixel_start_choice + 1, trajectory_length - 1)
+            target_choice = self._sample_target_by_segments(
+                pixel_start_choice, trajectory_length - 1
+            )
             memory_start_choice = np.random.randint(pixel_start_choice, target_choice)
 
         if self.random_digit:
             memory_digit = np.random.randint(2, 8)
             pred_digit = memory_digit
         else:
-            memory_digit = 4
-            pred_digit = 4
+            memory_digit = self.sample_interval
+            pred_digit = self.sample_interval
 
         memory_images, depth_image, memory_index = self.process_memory(
             self.trajectory_rgb_path[index],
@@ -463,6 +664,13 @@ class NavDP_Base_Datset(Dataset):
 
         # convert the xyz points into xy-theta points
         init_vector = target_local_points[1] - target_local_points[0]
+        self._last_sample_debug = {
+            "index": int(index),
+            "init_vector": np.asarray(init_vector, dtype=np.float32).copy(),
+            "base_heading_angle": float(np.arctan2(init_vector[1], init_vector[0])),
+            "memory_start_choice": int(memory_start_choice),
+            "target_choice": int(target_choice),
+        }
         target_xyt_actions = self.xyz_to_xyt(target_local_points, init_vector)
         augment_xyt_actions = self.xyz_to_xyt(augment_local_points, init_vector)
         # based on the prediction length to decide the final prediction trajectories
@@ -524,6 +732,29 @@ class NavDP_Base_Datset(Dataset):
         pred_actions = (pred_actions[1:] - pred_actions[:-1]) * 4.0
         augment_actions = (augment_actions[1:] - augment_actions[:-1]) * 4.0
 
+        # Transform obstacles into the same local-robot frame as pred_actions
+        # (anchored at extrinsics[memory_start_choice], matching process_actions).
+        # 真实障碍物（灰色）：仅用于eval可视化
+        obstacle_local_points = self._obstacles_to_local(
+            trajectory_obstacle_points,
+            trajectory_extrinsics[memory_start_choice],
+            trajectory_base_extrinsic,
+        )
+        
+        # 膨胀障碍物（蓝色）：用于碰撞和占用奖励计算
+        inflation_local_points = self._obstacles_to_local(
+            trajectory_inflation_points,
+            trajectory_extrinsics[memory_start_choice],
+            trajectory_base_extrinsic,
+        )
+        
+        # 保存世界坐标的完整障碍物点云和外参（用于 reward 计算和可视化）
+        # 使用与 _obstacles_to_local 相同的起点时刻外参
+        world_obstacle_points = trajectory_obstacle_points.astype(np.float32)
+        world_inflation_points = trajectory_inflation_points.astype(np.float32)
+        base_frame_extrinsic = trajectory_extrinsics[memory_start_choice].astype(np.float32)
+        base_extrinsic = trajectory_base_extrinsic.astype(np.float32)
+
         pred_actions = np.pad(
             pred_actions,
             ((0, 0), (0, self.action_dim - pred_actions.shape[-1])),
@@ -556,22 +787,49 @@ class NavDP_Base_Datset(Dataset):
         augment_actions = torch.tensor(augment_actions, dtype=torch.float32)
         pred_critic = torch.tensor(pred_critic, dtype=torch.float32)
         augment_critic = torch.tensor(augment_critic, dtype=torch.float32)
+        obstacle_local_points = torch.tensor(obstacle_local_points, dtype=torch.float32)
+        inflation_local_points = torch.tensor(inflation_local_points, dtype=torch.float32)
+        # 添加世界坐标的完整障碍物点云和外参（用于 reward 计算和可视化）
+        world_obstacle_points = torch.tensor(world_obstacle_points, dtype=torch.float32)
+        world_inflation_points = torch.tensor(world_inflation_points, dtype=torch.float32)
+        base_frame_extrinsic = torch.tensor(base_frame_extrinsic, dtype=torch.float32)
+        base_extrinsic = torch.tensor(base_extrinsic, dtype=torch.float32)
+        # 添加相机内参和相机外参（用于投影障碍物奖励）
+        # 注意：camera_extrinsic 必须与 depth_image 同帧！
+        # depth_image 来自 memory_start_choice 帧（process_memory 中 depth_paths[memory_start_choice]），
+        # 所以 camera_extrinsic 也必须使用同一帧的外参（trajectory_extrinsics[memory_start_choice]），
+        # 而不是第0帧的 observation.camera_extrinsic（那个仅用于 process_actions 的 base_extrinsic）。
+        camera_intrinsic_tensor = torch.tensor(camera_intrinsic, dtype=torch.float32)
+        camera_extrinsic_tensor = torch.tensor(
+            trajectory_extrinsics[memory_start_choice], dtype=torch.float32
+        )
         return (
-            point_goal,
-            image_goal,
-            pixel_goal,
-            memory_images,
-            depth_image,
-            pred_actions,
-            augment_actions,
-            pred_critic,
-            augment_critic,
-            float(pixel_flag),
+            point_goal,                      # 0
+            image_goal,                      # 1
+            pixel_goal,                      # 2
+            memory_images,                   # 3
+            depth_image,                     # 4
+            pred_actions,                    # 5
+            augment_actions,                 # 6
+            pred_critic,                    # 7
+            augment_critic,                  # 8
+            float(pixel_flag),              # 9
+            obstacle_local_points,           # 10 [N, 2] 局部坐标系真实障碍物（灰色，仅用于可视化）
+            world_obstacle_points,           # 11 [M, 3] 世界坐标系真实障碍物
+            base_frame_extrinsic,           # 12 [4, 4] 起点时刻相机外参
+            base_extrinsic,                 # 13 [4, 4] 机器人基座外参
+            inflation_local_points,          # 14 [K, 2] 局部坐标系膨胀障碍物（蓝色，用于奖励计算）
+            world_inflation_points,          # 15 [L, 3] 世界坐标系膨胀障碍物
+            camera_intrinsic_tensor,         # 16 [3, 3] 相机内参（用于投影障碍物奖励）
+            camera_extrinsic_tensor,        # 17 [4, 4] 深度图同帧的相机外参（用于投影障碍物奖励）
         )
 
 
 def navdp_collate_fn(batch):
-
+    """Collate function for NavDP dataset.
+    
+    注意：障碍物点云是变长数组，使用列表存储而非stack。
+    """
     collated = {
         "batch_pg": torch.stack([item[0] for item in batch]),
         "batch_ig": torch.stack([item[1] for item in batch]),
@@ -582,6 +840,16 @@ def navdp_collate_fn(batch):
         "batch_augments": torch.stack([item[6] for item in batch]),
         "batch_label_critic": torch.stack([item[7] for item in batch]),
         "batch_augment_critic": torch.stack([item[8] for item in batch]),
+        # 障碍物点云是变长数组，使用列表存储
+        "batch_obstacle_points": [item[10] for item in batch],      # 局部坐标系真实障碍物
+        "batch_world_obstacle_points": [item[11] for item in batch], # 世界坐标系真实障碍物
+        "batch_base_frame_extrinsic": torch.stack([item[12] for item in batch]),  # 起点时刻相机外参
+        "batch_base_extrinsic": torch.stack([item[13] for item in batch]),        # 机器人基座外参
+        "batch_inflation_points": [item[14] for item in batch],      # 局部坐标系膨胀障碍物
+        "batch_world_inflation_points": [item[15] for item in batch], # 世界坐标系膨胀障碍物
+        # 相机参数（用于投影障碍物奖励）
+        "batch_camera_intrinsic": torch.stack([item[16] for item in batch]),  # 相机内参 [B, 3, 3]
+        "batch_camera_extrinsic": torch.stack([item[17] for item in batch]),    # 相机外参 [B, 4, 4]
     }
     return collated
 
@@ -611,6 +879,14 @@ if __name__ == "__main__":
             pred_critic,
             augment_critic,
             pixel_flag,
+            obstacle_local_points,
+            world_obstacle_points,
+            base_frame_extrinsic,
+            base_extrinsic,
+            inflation_local_points,
+            world_inflation_points,
+            camera_intrinsic,
+            camera_extrinsic,
         ) = dataset.__getitem__(i)
         if pixel_flag == 1.0:
             pixel_obs = pixel_goal.numpy()[:, :, 0:3] * 255

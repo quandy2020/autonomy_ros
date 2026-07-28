@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from autonomy_internnav.config import Config
 from autonomy_internnav.policies.base import PolicyInference
+from autonomy_internnav.policies.internvla_n1_policy import InternVLAN1PolicyInference
 from autonomy_internnav.policies.logoplanner_policy import LoGoPlannerPolicyInference
 from autonomy_internnav.policies.navdp_policy import NavDPPolicyInference
 from autonomy_internnav.policies.nomad_policy import NoMaDPolicyInference
@@ -12,15 +13,16 @@ from autonomy_internnav.policies.viplanner_policy import VIPlannerPolicyInferenc
 
 POLICY_CLASSES: dict[str, type[PolicyInference]] = {
     'navdp': NavDPPolicyInference,
+    'internvla_n1': InternVLAN1PolicyInference,
     'logoplanner': LoGoPlannerPolicyInference,
     'viplanner': VIPlannerPolicyInference,
     'vint': ViNTPolicyInference,
     'nomad': NoMaDPolicyInference,
 }
 
-POINT_GOAL_POLICIES = frozenset({'navdp', 'logoplanner', 'viplanner'})
-IMAGE_GOAL_POLICIES = frozenset({'navdp', 'vint', 'nomad'})
-NOGOAL_POLICIES = frozenset({'navdp', 'vint', 'nomad'})
+POINT_GOAL_POLICIES = frozenset({'navdp', 'internvla_n1', 'logoplanner', 'viplanner'})
+IMAGE_GOAL_POLICIES = frozenset({'navdp', 'internvla_n1', 'vint', 'nomad'})
+NOGOAL_POLICIES = frozenset({'navdp', 'internvla_n1', 'vint', 'nomad'})
 
 
 def create_policy_inference(cfg: Config, intrinsic=None) -> PolicyInference:

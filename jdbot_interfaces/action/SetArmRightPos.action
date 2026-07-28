@@ -1,0 +1,14 @@
+# Request 设置右臂的yaw和pitch角度，以及最大速度
+float32 yaw_angle       # 目标 yaw 角度（弧度）
+float32 pitch_angle     # 目标 pitch 角度（弧度）
+float32 max_speed       # 最大速度（弧度/秒）
+string request_id
+otel_interface/TraceCarrier trace
+---
+# Result
+bool success            # 1: 成功　0:失败
+string message          # result message
+---
+# Feedback 当前yaw和pitch角度
+float32 current_yaw     # 当前 yaw 角度（弧度）
+float32 current_pitch   # 当前 pitch 角度（弧度）

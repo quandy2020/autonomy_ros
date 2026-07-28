@@ -1,0 +1,7 @@
+# 1: balance mode，站立的时候切换
+# 2: static mode，蹲坐的时候切换
+uint8 mode
+---
+# true, false
+bool success
+string message

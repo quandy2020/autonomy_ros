@@ -11,6 +11,8 @@
 
   <exec_depend>autonomy_controller</exec_depend>
   <exec_depend>autonomy_planner</exec_depend>
+  <exec_depend>autonomy_autocharge</exec_depend>
+  <exec_depend>autocharge</exec_depend>
   <exec_depend>autonomy_simulator</exec_depend>
   <exec_depend>rviz2</exec_depend>
 

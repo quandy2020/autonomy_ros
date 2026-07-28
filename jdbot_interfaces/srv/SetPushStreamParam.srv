@@ -1,0 +1,21 @@
+uint32 request_type
+string stream_id
+uint32 width
+uint32 height
+uint32 frame_rate
+uint32 port
+string ip_address
+string frame_type
+uint32 rtp_ssrc
+string camera_id
+---
+uint32 status
+string stream_id
+uint32 width
+uint32 height
+uint32 frame_rate
+uint32 port
+string ip_address
+string frame_type
+uint32 rtp_ssrc
+string camera_id

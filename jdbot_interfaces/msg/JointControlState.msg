@@ -1,0 +1,9 @@
+float32 left_arm_yaw_rad
+float32 left_arm_pitch_rad
+float32 right_arm_yaw_rad
+float32 right_arm_pitch_rad
+float32 head_yaw_rad
+float32 head_pitch_rad
+
+float32 chassis_height_ab
+float32 waist_position

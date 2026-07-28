@@ -1,0 +1,11 @@
+# 请求
+string request_id
+builtin_interfaces/Time timestamp
+otel_interface/TraceCarrier trace
+---
+# 响应
+builtin_interfaces/Time timestamp
+uint8 error_code
+MappingStatus mapping_status
+MappingProcessStage mapping_process_stage
+float32 percent
