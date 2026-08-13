@@ -1,0 +1,141 @@
+# autonomy_navrl framework reference configuration.
+# Copy sections into your own YAML or add a profile under go2w.yaml / s10.yaml.
+
+run_name: navrl_reference
+seed: 42
+device: cuda:0
+num_envs: 32
+headless: true
+
+# --- Isaac Sim ---
+isaac:
+  use_fabric: true
+  replicate_physics: true
+  env_spacing: 6.0
+  enable_cameras: true
+  livestream: 0
+  merge_fixed_joints: false
+  force_usd_conversion: true
+
+paths:
+  output_dir: checkpoints
+  tensorboard_dir: checkpoints/%s/tensorboard
+  log_dir: checkpoints/%s/logs
+  checkpoint_dir: checkpoints/%s/ckpts
+
+# --- Robot (morphology + asset) ---
+robot:
+  kind: wheeled_legged          # quadruped | wheeled_legged | humanoid | diff_drive
+  preset: go2w                  # optional: go2w | s10 | humanoid_g1 | diff_drive_base
+  urdf_path: /path/to/robot.urdf
+  base_link: base
+  imu_link: imu
+  camera_link: radar
+  camera_optical_frame: camera_optical_frame
+  prim_name: Robot
+  spawn_position: [0.0, 0.0, 0.40]
+  init_joint_pos: {}            # optional standing pose
+
+# --- High-level action (policy output) ---
+control:
+  action_model: holonomic_3d    # holonomic_3d | diff_drive_2d
+  action_dim: 3
+  max_vx: 0.5
+  max_vy: 0.5
+  max_w: 1.0
+  action_smoothing:
+    enabled: true
+    max_lin_acc: 0.8
+    max_ang_acc: 1.5
+
+# --- Sensors (Isaac Lab TiledCamera + Imu) ---
+sensors:
+  rgb:
+    width: 128
+    height: 96
+    fov_deg: 90.0
+  depth:
+    min_range_m: 0.1
+    max_range_m: 5.0
+    collision_threshold_m: 0.35
+  imu:
+    enabled: true
+  odom:
+    enabled: true
+
+# --- Task plugin ---
+task:
+  kind: goal_nav                # goal_nav | precision_pose | waypoint_nav
+  goal_tolerance_m: 0.5
+  goal_distance_m: 8.0
+  max_episode_steps: 800
+  num_obstacles: 4
+  arena_size_m: 12.0
+  # precision_pose extras:
+  # target_pose: [2.0, 0.0, 0.0]
+  # pose_range: {x: [1,4], y: [-2,2], yaw: [-3.14, 3.14]}
+  # waypoint_nav extras:
+  # waypoints:
+  #   - [4.0, 0.0, 0.0]
+  #   - [4.0, 2.0, 1.57]
+  #   - [0.0, 2.0, 3.14]
+
+# --- Locomotion plugin (high-level cmd -> joints / root) ---
+locomotion:
+  backend: root_velocity     # root_velocity | go2w_jit | 自定义
+  decimation: 4
+  policy_path: ""            # go2w_jit 时必填
+  scale: [1.0, 1.0, 1.0]
+  clip: {max_vx: 0.65, max_vy: 0.65, max_w: 1.2}
+
+# --- Reward plugin ---
+reward:
+  profile: jdrobot              # default | jdrobot | sparse | precision_iou
+  progress_scale: 1.0
+  goal_reached: 50.0
+  collision_penalty: -5.0
+
+# --- Isaac viewport visualization ---
+viz:
+  enabled: false
+  auto_enable_on_livestream: true
+  modules:
+    - target_footprint
+    - target_heading_arrow
+    - robot_footprint
+    - robot_heading_arrow
+  frame_scale: 0.35
+  arrow_length: 0.45
+
+# --- Algorithm (training loop) ---
+algorithm:
+  name: ppo                    # ppo | grpo | diffusion (grpo/diffusion: planned)
+
+# --- Model (encoders + policy head) ---
+model:
+  policy_type: gaussian_actor_critic
+  fusion: concat               # concat | (future: cross_attn, gated)
+  hidden_dim: 256
+  state_dim: 20
+  encoders:
+    rgbd:
+      type: cnn
+      channels: [32, 64, 64]
+      kernel_sizes: [8, 4, 3]
+      strides: [4, 2, 1]
+    state:
+      type: mlp
+
+# --- Legacy policy keys (merged into model: if model: absent) ---
+policy:
+  state_dim: 20
+  hidden_dim: 256
+  rgb_channels: 3
+  depth_channels: 1
+
+ppo:
+  learning_rate: 1.0e-3
+  total_timesteps: 2000000
+  rollout_steps: 64
+  num_epochs: 4
+  num_minibatches: 8

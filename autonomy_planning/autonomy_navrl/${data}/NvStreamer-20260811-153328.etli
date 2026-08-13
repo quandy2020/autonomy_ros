@@ -1,0 +1,44 @@
+92,MarkQosNameValue,GPU Detail,NVIDIA GeForce RTX 4090 D/PCIe/SSE2
+92,MarkQosNameValue,IsCoProc,0
+92,MarkQosNameValue,DriverBranch,NVIDIA UNIX Open Kernel Module for x86_64  580.173.02  Release Build  (dvs-builder@U22-I3-AK02-24-4)  Tue Jun 23 08:17:01 UTC 2026
+92,MarkQosNameValue,AdapterRefreshRate,60.0
+92,MarkQosNameValue,AdapterWidth,1280
+92,MarkQosNameValue,LtrEnabled,0
+92,MarkQosNameValue,SurfaceBitDepth,8
+92,MarkQosNameValue,EncoderInputSurfaceFormat,invalid_format
+92,MarkQosNameValue,AllTransitSelectionValuesApplied,
+92,MarkQosNameValue,DriverVersion,580.17
+92,MarkQosNameValue,DataChannelMode,DcSCTP
+92,MarkQosNameValue,TransitSelectionValueApplied,0
+92,MarkQosNameValue,AllTransitSelectionValuesForwarded,
+92,MarkQosNameValue,AdapterHeight,720
+92,MarkQosNameValue,TransitSelectionValueForwarded,0
+92,MarkQos,StreamServerBackendMode is 2
+92,MarkQos,stream 0 nvtime::sessionStartTime[us] on server: 85939701772
+92,MarkQos,RL QOS disabled for stream: 0
+92,MarkQos,Max Fps is 60
+92,MarkQos,NvRtcClient Browser name: Chromium, Browser version: 138.0.7204.97
+92,MarkQos,ClientGenericMapping: {ProcCpuUsage, TotalCpuUsage}
+92,MarkGsBlobStats,0x1B01000000000000030003001C0100000000000000000000
+828,MarkQosServerControlChannelStatsV0,507547180,0,785,2,117
+828,MarkQosServerControlChannelStatsV0,507547180,0,797,1,5
+828,MarkQosServerControlChannelStatsV0,507547180,0,798,1,1032
+828,MarkQosServerControlChannelStatsV0,507547180,0,800,1,12
+828,MarkQosServerControlChannelStatsV0,507547180,0,801,1,12
+831,MarkQosNameValue,StreamProfileType,Gaming_LAN
+831,MarkQosNameValue,RivermaxEnabled,0
+831,MarkQosNameValue,L4S Enabled (Upstream),0
+831,MarkQosNameValue,L4S Enabled (Downstream),0
+831,MarkQosNameValue,L4S Enabled for Video (Downstream),0
+831,MarkQosNameValue,L4S Enabled for Audio (Downstream),0
+831,MarkQosNameValue,Streaming Mode,2560x1440p60
+831,MarkQosNameValue,DVS P4VirtualChangelist,35560324
+831,MarkQosNameValue,DVS Branch,gcomp/rel/gs_04_72
+831,MarkQosNameValue,Format,H264
+831,MarkQosNameValue,HostName,U16-I3-D16-4-2
+831,MarkQosNameValue,Windows Version,non-Windows
+831,MarkQosNameValue,VideoEncoderClassId,0xD0B7
+831,MarkQosNameValue,Device,NVIDIA GeForce RTX 4090 D
+831,MarkQos,Number of delayed commands: 0
+831,MarkQos,Audio drift stats - Ratio: 0.000000, Total Drift: 0 ms, Packet Count: 0
+831,MarkGsBlobStats,0x19010000000000000C0005F0BFF621F3501E85AA05000000000A0000A00500003C00000001000000000000000200000001000000120000001200000012000000000000000000000000000027D502000100000001000000010000000D0000000000000000000000000000000000000000000000000000000000000000000000
