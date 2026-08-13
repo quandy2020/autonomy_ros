@@ -1,0 +1,390 @@
+# S10 quadruped — presets: s10 | jdrobot | webrtc | 100envs | smoke | mock (webrtc 可用 s10 -w)
+#
+#   bash scripts/navrl.sh train s10
+#   bash scripts/navrl.sh train jdrobot
+#   bash scripts/navrl.sh train s10 -w
+#   bash scripts/navrl.sh train 100envs -n 100
+#   bash scripts/navrl.sh smoke mock
+
+default_profile: default
+
+run_name: navrl_default
+seed: 42
+device: cuda:0
+num_envs: 64
+headless: true
+
+paths:
+  output_dir: checkpoints
+  tensorboard_dir: checkpoints/%s/tensorboard
+  log_dir: checkpoints/%s/logs
+  checkpoint_dir: checkpoints/%s/ckpts
+
+robot:
+  preset: s10
+  kind: wheeled_legged
+  urdf_path: "/workspace/autonomy/src/autonomy_ros/autonomy_planning/autonomy_navrl/urdf/S10-urdf-2/urdf/S10.urdf"
+  base_link: base_link
+  imu_link: imu_link
+  camera_link: camera_link
+  camera_optical_frame: camera_optical_frame
+  camera_offset: [0.12, 0.0, 0.08]
+  imu_offset: [0.0075, -0.0373, 0.0556]
+  spawn_position: [0.0, 0.0, 0.40]
+  spawn_orientation: [0.0, 0.0, 0.0, 1.0]
+  init_joint_pos:
+    fl_hipx_joint: 0.0
+    fr_hipx_joint: 0.0
+    hl_hipx_joint: 0.0
+    hr_hipx_joint: 0.0
+    fl_hipy_joint: 0.67
+    fr_hipy_joint: 0.67
+    hl_hipy_joint: 0.67
+    hr_hipy_joint: 0.67
+    fl_knee_joint: -1.30
+    fr_knee_joint: -1.30
+    hl_knee_joint: -1.30
+    hr_knee_joint: -1.30
+    fl_wheel_joint: 0.0
+    fr_wheel_joint: 0.0
+    hl_wheel_joint: 0.0
+    hr_wheel_joint: 0.0
+
+locomotion:
+  backend: root_velocity
+  decimation: 4
+
+isaac:
+  use_fabric: true
+  replicate_physics: false
+  num_envs_cpu_max: 1
+  enable_cameras: true
+  livestream: 0  # 0=off, 1=WebRTC public, 2=WebRTC local (s10.yaml profile: webrtc)
+  merge_fixed_joints: false
+  force_usd_conversion: true
+
+sensors:
+  rgb:
+    width: 128
+    height: 96
+    fov_deg: 90.0
+  depth:
+    width: 128
+    height: 96
+    min_range_m: 0.1
+    max_range_m: 5.0
+    collision_threshold_m: 0.35
+  imu:
+    enabled: true
+  odom:
+    enabled: true
+
+control:
+  action_dim: 3
+  max_vx: 1.0
+  max_vy: 0.5
+  max_w: 1.5
+  action_scale: [1.0, 0.5, 1.5]
+
+task:
+  goal_distance_m: 8.0
+  goal_tolerance_m: 0.5
+  max_episode_steps: 500
+  num_obstacles: 12
+  arena_size_m: 16.0
+
+reward:
+  progress_scale: 1.0
+  goal_reached: 10.0
+  collision_penalty: -5.0
+  proximity_penalty_scale: -0.5
+  action_smoothness_scale: -0.01
+  timeout_penalty: -1.0
+
+ppo:
+  learning_rate: 3.0e-4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  num_epochs: 4
+  num_minibatches: 4
+  rollout_steps: 128
+  total_timesteps: 1000000
+  save_interval: 10000
+  log_interval: 1000
+  log_images: false
+  log_image_interval: 10000
+  resume_checkpoint: ""
+
+policy:
+  rgb_channels: 3
+  depth_channels: 1
+  cnn_channels: [32, 64, 64]
+  cnn_kernel_sizes: [8, 4, 3]
+  cnn_strides: [4, 2, 1]
+  state_dim: 19  # goal(4) + imu(9) + odom(6)
+  hidden_dim: 256
+
+profiles:
+  default:
+    run_name: navrl_default
+
+  s10-jit:
+    run_name: navrl_s10_jit
+    num_envs: 16
+    isaac:
+      replicate_physics: true
+      env_spacing: 6.0
+    locomotion:
+      backend: s10_jit
+      decimation: 4
+      policy_path: "/workspace/autonomy/src/autonomy_ros/autonomy_planning/autonomy_navrl/weights/s10/policy.pt"
+      scale: [0.5, 0.3, 1.0]
+      enable_clip: true
+      clip: {max_vx: 0.5, max_vy: 0.3, max_w: 1.0}
+      joint_pos_action_scale: 0.25
+      joint_vel_action_scale: 5.0
+      hip_joint_pos_scale: 0.125
+    control:
+      max_vx: 0.5
+      max_vy: 0.3
+      max_w: 1.0
+    ppo:
+      total_timesteps: 2000000
+      save_interval: 50000
+      log_interval: 5000
+
+  s10-loco:
+    run_name: s10_locomotion_smoke
+    num_envs: 1
+    headless: true
+    isaac:
+      replicate_physics: false
+    control:
+      max_vx: 0.5
+      max_vy: 0.3
+      max_w: 1.0
+    locomotion:
+      backend: s10_gait
+      decimation: 4
+      joint_vel_action_scale: 5.0
+      enable_clip: true
+      clip: {max_vx: 0.5, max_vy: 0.3, max_w: 1.0}
+      gait:
+        mode: auto
+        step_freq_hz: 1.5
+        hipy_amp: 0.14
+        knee_amp: 0.22
+        hipx_amp: 0.10
+        march_when_idle: false
+        precision_speed_mps: 0.07
+    task:
+      goal_distance_m: 2.0
+      max_episode_steps: 10000
+      num_obstacles: 0
+      arena_size_m: 8.0
+      collision_terminate: false
+    ppo:
+      total_timesteps: 1
+
+  demo:
+    run_name: s10_precision_demo
+    seed: 0
+    device: cuda:0
+    num_envs: 1
+    headless: true
+    isaac:
+      replicate_physics: false
+    locomotion:
+      backend: s10_gait
+      decimation: 4
+      joint_vel_action_scale: 8.0
+      enable_clip: true
+      clip: {max_vx: 0.5, max_vy: 0.3, max_w: 1.2}
+      gait:
+        mode: auto
+        step_freq_hz: 1.6
+        hipy_amp: 0.12
+        knee_amp: 0.20
+        hipx_amp: 0.10
+        march_when_idle: false
+        precision_speed_mps: 0.10
+    control:
+      max_vx: 0.5
+      max_vy: 0.3
+      max_w: 1.2
+      action_smoothing:
+        enabled: false
+    task:
+      kind: precision_pose
+      target_pose: [1.0, 0.0, 0.0]
+      position_tolerance_m: 0.08
+      goal_tolerance_m: 0.08
+      yaw_tolerance_rad: 0.12
+      require_stop_speed_mps: 0.10
+      collision_terminate: false
+      max_episode_steps: 5000
+      num_obstacles: 0
+      arena_size_m: 12.0
+    reward:
+      profile: default
+      goal_reached: 100.0
+    policy:
+      state_dim: 20  # goal(5) + imu(9) + odom(6)
+    viz:
+      enabled: true
+      auto_enable_on_livestream: true
+      # S10 footprint ≈ hip span 0.46 m × stance width ~0.35 m
+      spot_length: 0.55
+      spot_width: 0.35
+      robot_length: 0.55
+      robot_width: 0.35
+      arrow_length: 0.50
+      marker_z_offset: 0.08
+      modules:
+        - target_footprint
+        - target_heading_arrow
+        - target_pose_frame
+        - robot_footprint
+        - robot_heading_arrow
+        - position_tolerance
+      viewer:
+        eye: [1.0, -4.5, 2.8]
+        lookat: [1.0, 0.0, 0.35]
+        resolution: [1280, 720]
+    ppo:
+      total_timesteps: 1
+
+  jdrobot:
+    run_name: navrl_jdrobot
+    num_envs: 64
+    isaac:
+      replicate_physics: true
+      env_spacing: 6.0
+      merge_fixed_joints: true
+    sensors:
+      rgb: {width: 96, height: 72}
+      depth: {width: 96, height: 72}
+    control:
+      max_vx: 0.5
+      max_vy: 0.3
+      max_w: 1.0
+      action_scale: [0.5, 0.3, 1.0]
+      action_smoothing:
+        enabled: true
+        max_lin_acc: 0.8
+        max_ang_acc: 1.5
+    task:
+      goal_tolerance_m: 0.35
+      curriculum:
+        enabled: true
+        stages:
+          - {steps: 0, goal_distance_scale: 0.35}
+          - {steps: 500000, goal_distance_scale: 0.65}
+          - {steps: 1500000, goal_distance_scale: 1.0}
+    reward:
+      profile: jdrobot
+      jdrobot:
+        action_rate_weight: -0.05
+        action_jerk_weight: -0.05
+        bearing_near_goal_weight: -2.0
+        bearing_near_goal_dist_m: 0.5
+        vx_w_product_weight: -0.1
+        termination_collision_penalty: -400.0
+        position_tanh:
+          - {std: 0.2, weight: 0.5}
+          - {std: 0.1, weight: 2.0}
+          - {std: 0.02, weight: 3.0}
+          - {std: 0.01, weight: 4.0}
+        smooth_braking:
+          - {max_dist: 0.72, max_speed: 0.36, weight: -8.0}
+          - {max_dist: 0.12, max_speed: 0.04, weight: -12.0}
+    ppo:
+      learning_rate: 1.0e-3
+      num_minibatches: 8
+      rollout_steps: 64
+      total_timesteps: 2000000
+      save_interval: 50000
+      log_interval: 5000
+
+  webrtc:
+    run_name: navrl_webrtc
+    num_envs: 1
+    isaac:
+      replicate_physics: false
+      num_envs_cpu_max: 1
+      livestream: 2
+    task:
+      goal_distance_m: 6.0
+      num_obstacles: 8
+      arena_size_m: 14.0
+    ppo:
+      total_timesteps: 500000
+
+  100envs:
+    run_name: navrl_100envs
+    num_envs: 100
+    isaac:
+      replicate_physics: true
+      env_spacing: 6.0
+      merge_fixed_joints: true
+    robot:
+      camera_optical_rpy: [-1.5707963268, 0.0, -1.5707963268]
+    sensors:
+      rgb: {width: 64, height: 48}
+      depth: {width: 64, height: 48}
+    task:
+      goal_distance_m: 6.0
+      max_episode_steps: 400
+      num_obstacles: 6
+      arena_size_m: 12.0
+    ppo:
+      num_minibatches: 16
+      rollout_steps: 64
+      total_timesteps: 5000000
+      save_interval: 50000
+      log_interval: 5000
+
+  smoke:
+    run_name: navrl_smoke
+    seed: 0
+    num_envs: 1
+    isaac:
+      replicate_physics: false
+    sensors:
+      rgb: {width: 64, height: 48}
+      depth: {width: 64, height: 48}
+    task:
+      goal_distance_m: 4.0
+      max_episode_steps: 100
+      num_obstacles: 4
+      arena_size_m: 8.0
+    ppo:
+      num_epochs: 2
+      num_minibatches: 2
+      rollout_steps: 16
+      total_timesteps: 256
+      save_interval: 128
+      log_interval: 128
+    policy:
+      hidden_dim: 128
+      cnn_channels: [16, 32, 32]
+
+  mock:
+    run_name: navrl_mock
+    device: cpu
+    num_envs: 16
+    task:
+      obstacle_size_m: 0.5
+    ppo:
+      total_timesteps: 200000
+      save_interval: 20000
+      log_interval: 2000
+      log_images: true
+      log_image_interval: 10000
+    policy:
+      hidden_dim: 128
+      cnn_channels: [16, 32, 32]

@@ -1,0 +1,342 @@
+# Go2W training & demo — presets: go2w-jit | go2w | demo | go2w-webrtc (或 go2w -w)
+#
+#   bash scripts/navrl.sh train go2w-jit -n 16
+#   bash scripts/navrl.sh train go2w
+#   bash scripts/navrl.sh train go2w -w
+#   bash scripts/navrl.sh demo -w
+
+default_profile: jit
+
+isaac:
+  use_fabric: true
+  replicate_physics: true
+  env_spacing: 6.0
+  enable_cameras: true
+  livestream: 0
+  merge_fixed_joints: false
+  force_usd_conversion: true
+
+paths:
+  output_dir: checkpoints
+  tensorboard_dir: checkpoints/%s/tensorboard
+  checkpoint_dir: checkpoints/%s/ckpts
+
+robot:
+  preset: go2w
+  kind: wheeled_legged
+  urdf_path: "/workspace/autonomy/src/autonomy_ros/autonomy_planning/autonomy_navrl/urdf/go2w_description/urdf/go2w_description.urdf"
+  base_link: base
+  imu_link: imu
+  camera_link: radar
+  camera_optical_frame: camera_optical_frame
+  spawn_position: [0.0, 0.0, 0.40]
+  spawn_orientation: [0.0, 0.0, 0.0, 1.0]
+  init_joint_pos:
+    FR_hip_joint: 0.0
+    FL_hip_joint: 0.0
+    RR_hip_joint: 0.0
+    RL_hip_joint: 0.0
+    FR_thigh_joint: 0.8
+    FL_thigh_joint: 0.8
+    RR_thigh_joint: 0.8
+    RL_thigh_joint: 0.8
+    FR_calf_joint: -1.5
+    FL_calf_joint: -1.5
+    RR_calf_joint: -1.5
+    RL_calf_joint: -1.5
+    FR_foot_joint: 0.0
+    FL_foot_joint: 0.0
+    RR_foot_joint: 0.0
+    RL_foot_joint: 0.0
+
+sensors:
+  rgb: {width: 96, height: 72, fov_deg: 90.0}
+  depth: {min_range_m: 0.1, max_range_m: 5.0, collision_threshold_m: 0.35}
+  imu: {enabled: true}
+  odom: {enabled: true}
+
+control:
+  action_model: holonomic_3d
+  max_vx: 0.5
+  max_vy: 0.5
+  max_w: 1.0
+  action_smoothing:
+    enabled: true
+    max_lin_acc: 0.8
+    max_ang_acc: 1.5
+
+locomotion:
+  backend: go2w_jit
+  decimation: 4
+  policy_path: "/workspace/autonomy/src/autonomy_ros/autonomy_planning/autonomy_navrl/weights/go2w/policy.pt"
+  scale: [0.5, 0.5, 1.0]
+  enable_clip: true
+  clip: {max_vx: 0.5, max_vy: 0.5, max_w: 1.0}
+  joint_pos_action_scale: 0.25
+  joint_vel_action_scale: 5.0
+  hip_joint_pos_scale: 0.125
+
+task:
+  kind: go2w_precision_pose
+  position_tolerance_m: 0.08
+  yaw_tolerance_rad: 0.12
+  consecutive_iou:
+    enabled: true
+    iou_threshold: 0.95
+    num_success: 10
+    robot_length: 0.9
+    robot_width: 0.3
+    spot_length: 0.9
+    spot_width: 0.3
+
+reward:
+  profile: precision_iou
+  precision_iou:
+    use_bbox_iou: true
+    iou_threshold: 0.95
+    success_bonus: 50.0
+    position_tolerance_m: 0.08
+    yaw_tolerance_rad: 0.12
+  collision_penalty: -5.0
+  timeout_penalty: -1.0
+
+policy:
+  state_dim: 20
+  hidden_dim: 256
+
+ppo:
+  learning_rate: 1.0e-3
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  num_epochs: 4
+  num_minibatches: 8
+  rollout_steps: 64
+
+viz:
+  enabled: true
+  modules:
+    - target_footprint
+    - target_heading_arrow
+    - robot_footprint
+    - robot_heading_arrow
+  viewer:
+    eye: [1.0, -5.0, 3.0]
+    lookat: [1.0, 0.0, 0.35]
+    resolution: [1280, 720]
+
+profiles:
+  jit:
+    run_name: navrl_go2w_jit
+    seed: 42
+    device: cuda:0
+    num_envs: 16
+    headless: true
+    task:
+      pose_range:
+        x: [1.0, 3.5]
+        y: [-1.5, 1.5]
+        yaw: [-3.14159, 3.14159]
+      max_episode_steps: 800
+      num_obstacles: 4
+      arena_size_m: 10.0
+    ppo:
+      total_timesteps: 2000000
+
+  kinematic:
+    run_name: navrl_go2w
+    seed: 42
+    device: cuda:0
+    num_envs: 32
+    headless: true
+    locomotion:
+      backend: go2w_jit
+      decimation: 4
+      policy_path: "/workspace/autonomy/src/autonomy_ros/autonomy_planning/autonomy_navrl/weights/go2w/policy.pt"
+      scale: [0.5, 0.5, 1.0]
+      enable_clip: true
+      clip: {max_vx: 0.5, max_vy: 0.5, max_w: 1.0}
+      joint_pos_action_scale: 0.25
+      joint_vel_action_scale: 5.0
+      hip_joint_pos_scale: 0.125
+    task:
+      kind: precision_pose
+      pose_range:
+        x: [1.0, 4.0]
+        y: [-2.0, 2.0]
+        yaw: [-3.14159, 3.14159]
+      max_episode_steps: 800
+      num_obstacles: 4
+      arena_size_m: 12.0
+    reward:
+      profile: precision_parking
+      goal_reached: 50.0
+      precision_parking:
+        parking_zone_m: 0.40
+        yaw_gate_dist_m: 0.50
+        position_tolerance_m: 0.08
+        yaw_tolerance_rad: 0.12
+        action_rate_weight: -0.03
+        action_jerk_weight: -0.03
+        iou_blend_weight: 1.5
+        micro_motion:
+          weight: 3.0
+          yaw_weight: 2.5
+          max_lin_mps: 0.25
+          max_ang_rps: 1.0
+        position_tanh:
+          - {std: 0.25, weight: 0.5}
+          - {std: 0.10, weight: 2.0}
+          - {std: 0.04, weight: 4.0}
+          - {std: 0.02, weight: 6.0}
+        yaw_tanh:
+          - {std: 0.35, weight: 0.5}
+          - {std: 0.15, weight: 2.5}
+          - {std: 0.08, weight: 4.0}
+          - {std: 0.04, weight: 6.0}
+        smooth_braking:
+          - {max_dist: 0.80, max_speed: 0.40, weight: -5.0}
+          - {max_dist: 0.30, max_speed: 0.18, weight: -4.0}
+        stuck_dist_m: 0.25
+        stuck_yaw_thresh_rad: 0.12
+        stuck_yaw_penalty: -2.5
+    ppo:
+      total_timesteps: 2000000
+      save_interval: 50000
+      log_interval: 5000
+
+  demo:
+    run_name: go2w_precision_demo
+    seed: 0
+    device: cuda:0
+    num_envs: 1
+    headless: true
+    isaac:
+      replicate_physics: false
+    locomotion:
+      backend: go2w_jit
+    task:
+      target_pose: [2.0, 0.0, 0.0]
+      position_tolerance_m: 0.05
+      goal_tolerance_m: 0.05
+      yaw_tolerance_rad: 0.087
+      require_stop_speed_mps: 0.08
+      collision_terminate: false
+      max_episode_steps: 3000
+      num_obstacles: 0
+      arena_size_m: 10.0
+      consecutive_iou:
+        enabled: false
+    reward:
+      profile: precision_parking
+      goal_reached: 100.0
+      precision_parking:
+        parking_zone_m: 0.40
+        yaw_gate_dist_m: 0.45
+        position_tolerance_m: 0.05
+        yaw_tolerance_rad: 0.087
+        action_rate_weight: -0.02
+        action_jerk_weight: -0.02
+        iou_blend_weight: 2.0
+        micro_motion:
+          weight: 4.0
+          yaw_weight: 3.5
+          max_lin_mps: 0.30
+          max_ang_rps: 1.0
+        position_tanh:
+          - {std: 0.25, weight: 0.5}
+          - {std: 0.10, weight: 2.0}
+          - {std: 0.04, weight: 4.0}
+          - {std: 0.02, weight: 6.0}
+        yaw_tanh:
+          - {std: 0.30, weight: 1.0}
+          - {std: 0.12, weight: 3.0}
+          - {std: 0.06, weight: 5.0}
+          - {std: 0.03, weight: 7.0}
+        smooth_braking:
+          - {max_dist: 0.80, max_speed: 0.40, weight: -4.0}
+          - {max_dist: 0.35, max_speed: 0.20, weight: -3.0}
+        parking_max_lin_mps: 0.25
+        stuck_dist_m: 0.22
+        stuck_yaw_thresh_rad: 0.10
+        stuck_yaw_penalty: -3.0
+    control:
+      action_smoothing:
+        enabled: false
+        max_lin_acc: 0.8
+        max_ang_acc: 1.5
+    ppo:
+      total_timesteps: 1
+
+  webrtc:
+    run_name: navrl_go2w_webrtc
+    seed: 42
+    device: cuda:0
+    num_envs: 1
+    headless: true
+    isaac:
+      replicate_physics: false
+      livestream: 2
+    locomotion:
+      backend: go2w_jit
+      decimation: 4
+      policy_path: "/workspace/autonomy/src/autonomy_ros/autonomy_planning/autonomy_navrl/weights/go2w/policy.pt"
+      scale: [0.5, 0.5, 1.0]
+      enable_clip: true
+      clip: {max_vx: 0.5, max_vy: 0.5, max_w: 1.0}
+      joint_pos_action_scale: 0.25
+      joint_vel_action_scale: 5.0
+      hip_joint_pos_scale: 0.125
+    viz:
+      auto_enable_on_livestream: true
+      modules:
+        - target_footprint
+        - target_heading_arrow
+        - robot_footprint
+        - robot_heading_arrow
+        - velocity_command
+    task:
+      kind: precision_pose
+      pose_range:
+        x: [1.0, 4.0]
+        y: [-2.0, 2.0]
+        yaw: [-3.14159, 3.14159]
+      max_episode_steps: 800
+      num_obstacles: 4
+      arena_size_m: 12.0
+    reward:
+      profile: precision_parking
+      goal_reached: 50.0
+      precision_parking:
+        parking_zone_m: 0.40
+        yaw_gate_dist_m: 0.50
+        position_tolerance_m: 0.08
+        yaw_tolerance_rad: 0.12
+        action_rate_weight: -0.03
+        action_jerk_weight: -0.03
+        iou_blend_weight: 1.5
+        micro_motion:
+          weight: 3.0
+          yaw_weight: 2.5
+          max_lin_mps: 0.25
+          max_ang_rps: 1.0
+        position_tanh:
+          - {std: 0.25, weight: 0.5}
+          - {std: 0.10, weight: 2.0}
+          - {std: 0.04, weight: 4.0}
+          - {std: 0.02, weight: 6.0}
+        yaw_tanh:
+          - {std: 0.35, weight: 0.5}
+          - {std: 0.15, weight: 2.5}
+          - {std: 0.08, weight: 4.0}
+          - {std: 0.04, weight: 6.0}
+        smooth_braking:
+          - {max_dist: 0.80, max_speed: 0.40, weight: -5.0}
+          - {max_dist: 0.30, max_speed: 0.18, weight: -4.0}
+        stuck_dist_m: 0.25
+        stuck_yaw_thresh_rad: 0.12
+        stuck_yaw_penalty: -2.5
+    ppo:
+      total_timesteps: 500000
+      save_interval: 10000
+      log_interval: 1000

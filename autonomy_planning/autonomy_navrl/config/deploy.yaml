@@ -1,0 +1,29 @@
+navrl_node:
+  ros__parameters:
+    checkpoint: navrl_latest.pt
+    device: cuda:0
+    use_sim_time: false
+
+    rgb_topic: camera/rgb/image_raw
+    depth_topic: camera/depth/image_raw
+    imu_topic: imu
+    odom_topic: odom
+    goal_topic: goal_pose
+    cmd_vel_topic: cmd_vel
+    markers_topic: navrl/markers
+    path_topic: navrl/path
+
+    cmd_msg_type: twist  # twist | skate
+    base_frame: base_link
+    map_frame: map
+    inference_rate_hz: 20.0
+
+    image_width: 128
+    image_height: 96
+    max_vx: 1.0
+    max_vy: 0.5
+    max_w: 1.5
+    goal_tolerance_m: 0.5
+
+    linear_speed_scale: 1.0
+    angular_speed_scale: 1.0
