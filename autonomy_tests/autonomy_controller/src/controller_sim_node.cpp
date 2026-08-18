@@ -62,8 +62,8 @@ ControllerSimNode::ControllerSimNode()
     true);
 
   PublishReferencePath();
-  if (snap_robot_to_path_start_ && !reference_path_.poses.empty()) {
-    PublishSetPose(reference_path_.poses.front());
+  if (snap_robot_to_path_start_ && reference_path_.poses_size() > 0) {
+    PublishSetPose(reference_path_.poses(0));
   }
 
   following_ = true;
@@ -275,7 +275,7 @@ void ControllerSimNode::SetupController()
 void ControllerSimNode::SetupPath()
 {
   reference_path_ = autonomy_ros::GeneratePath(path_shape_, path_params_);
-  if (reference_path_.poses.empty()) {
+  if (reference_path_.poses_size() == 0) {
     throw std::runtime_error("generated reference path is empty");
   }
   controller_->SetPlan(reference_path_);
@@ -289,17 +289,17 @@ bool ControllerSimNode::ClosedLoopTrackingMode() const
 }
 
 bool ControllerSimNode::ShouldCheckGoalReached(
-  const autonomy::commsgs::geometry_msgs::PoseStamped & pose,
+  const automsgs::msgs::geometry_msgs::PoseStamped & pose,
   double xy_tolerance)
 {
   if (ClosedLoopTrackingMode()) {
     return false;
   }
 
-  const auto & goal_pose = reference_path_.poses.back().pose;
+  const auto & goal_pose = reference_path_.poses(reference_path_.poses_size() - 1).pose();
   const double dist_to_goal = std::hypot(
-    pose.pose.position.x - goal_pose.position.x,
-    pose.pose.position.y - goal_pose.position.y);
+    pose.pose().position().x() - goal_pose.position().x(),
+    pose.pose().position().y() - goal_pose.position().y());
   const double arm_radius = std::max(1.0, 3.0 * xy_tolerance);
 
   if (goal_pose_mode_) {
@@ -307,10 +307,10 @@ bool ControllerSimNode::ShouldCheckGoalReached(
       if (lap_.goal_initial_dist <= xy_tolerance) {
         lap_.left_goal_region = true;
       } else {
-        const auto & start_pose = reference_path_.poses.front().pose;
+        const auto & start_pose = reference_path_.poses(0).pose();
         const double dist_from_start = std::hypot(
-          pose.pose.position.x - start_pose.position.x,
-          pose.pose.position.y - start_pose.position.y);
+          pose.pose().position().x() - start_pose.position().x(),
+          pose.pose().position().y() - start_pose.position().y());
         const double progress_toward_goal =
           lap_.goal_initial_dist - dist_to_goal;
         const double progress_required = std::clamp(
@@ -325,10 +325,10 @@ bool ControllerSimNode::ShouldCheckGoalReached(
     return lap_.left_goal_region;
   }
 
-  const auto & start_pose = reference_path_.poses.front().pose;
+  const auto & start_pose = reference_path_.poses(0).pose();
   const double dist_to_start = std::hypot(
-    pose.pose.position.x - start_pose.position.x,
-    pose.pose.position.y - start_pose.position.y);
+    pose.pose().position().x() - start_pose.position().x(),
+    pose.pose().position().y() - start_pose.position().y());
   if (!lap_.armed_from_start) {
     if (dist_to_start < std::max(0.5, 2.0 * xy_tolerance)) {
       lap_.armed_from_start = true;
@@ -346,7 +346,7 @@ bool ControllerSimNode::ShouldCheckGoalReached(
 
 void ControllerSimNode::ApplyReferencePlan(const bool reset_executed_path)
 {
-  if (!controller_ || reference_path_.poses.empty()) {
+  if (!controller_ || reference_path_.poses_size() == 0) {
     return;
   }
   goal_checker_.Reset();
@@ -369,10 +369,12 @@ void ControllerSimNode::OnGoalPose(
     return;
   }
 
-  autonomy::commsgs::geometry_msgs::PoseStamped goal =
+  automsgs::msgs::geometry_msgs::PoseStamped goal =
     autonomy_ros::fromRos(*msg);
   try {
-    if (!goal.header.frame_id.empty() && goal.header.frame_id != frame_id_) {
+    if (!goal.header().frame_id().empty() &&
+      goal.header().frame_id() != frame_id_)
+    {
       goal = tf_buffer_->transform(goal, frame_id_, 0.2f);
     }
   } catch (const std::exception & ex) {
@@ -381,7 +383,7 @@ void ControllerSimNode::OnGoalPose(
       msg->header.frame_id.c_str(), frame_id_.c_str(), ex.what());
     return;
   }
-  goal.header.frame_id = frame_id_;
+  goal.mutable_header()->set_frame_id(frame_id_);
 
   nav_msgs::msg::Odometry odom;
   {
@@ -393,9 +395,9 @@ void ControllerSimNode::OnGoalPose(
     odom = latest_odom_;
   }
 
-  autonomy::commsgs::geometry_msgs::PoseStamped start;
-  start.header.frame_id = frame_id_;
-  start.pose = autonomy_ros::fromRos(odom.pose.pose);
+  automsgs::msgs::geometry_msgs::PoseStamped start;
+  start.mutable_header()->set_frame_id(frame_id_);
+  *start.mutable_pose() = autonomy_ros::fromRos(odom.pose.pose);
 
   try {
     reference_path_ = autonomy_ros::GenerateLinePath(
@@ -408,23 +410,23 @@ void ControllerSimNode::OnGoalPose(
   goal_pose_mode_ = true;
   repeat_path_ = false;
 
-  const auto & goal_pose = reference_path_.poses.back().pose;
+  const auto & goal_pose = reference_path_.poses(reference_path_.poses_size() - 1).pose();
   lap_.goal_initial_dist = std::hypot(
-    start.pose.position.x - goal_pose.position.x,
-    start.pose.position.y - goal_pose.position.y);
+    start.pose().position().x() - goal_pose.position().x(),
+    start.pose().position().y() - goal_pose.position().y());
 
   ApplyReferencePlan(true);
 
   RCLCPP_INFO(
     get_logger(),
-    "New goal (%.2f, %.2f) frame=%s path_poses=%zu",
-    goal_pose.position.x, goal_pose.position.y, frame_id_.c_str(),
-    reference_path_.poses.size());
+    "New goal (%.2f, %.2f) frame=%s path_poses=%d",
+    goal_pose.position().x(), goal_pose.position().y(), frame_id_.c_str(),
+    reference_path_.poses_size());
 }
 
 void ControllerSimNode::PublishReferencePath()
 {
-  if (!reference_path_pub_ || reference_path_.poses.empty()) {
+  if (!reference_path_pub_ || reference_path_.poses_size() == 0) {
     return;
   }
   auto msg = autonomy_ros::toRos(reference_path_);
@@ -440,7 +442,7 @@ void ControllerSimNode::PublishReferencePath()
 }
 
 void ControllerSimNode::PublishSetPose(
-  const autonomy::commsgs::geometry_msgs::PoseStamped & pose)
+  const automsgs::msgs::geometry_msgs::PoseStamped & pose)
 {
   auto msg = autonomy_ros::toRos(pose);
   msg.header.stamp = now();
@@ -481,7 +483,7 @@ void ControllerSimNode::UpdateAndPublishCostmap()
     return;
   }
 
-  autonomy::commsgs::sensor_msgs::PointCloud2 cloud;
+  automsgs::msgs::sensor_msgs::PointCloud2 cloud;
   bool have_cloud = false;
   {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
@@ -497,7 +499,7 @@ void ControllerSimNode::UpdateAndPublishCostmap()
   }
   costmap_->updateMap();
 
-  autonomy::commsgs::map_msgs::OccupancyGrid grid;
+  automsgs::msgs::map_msgs::OccupancyGrid grid;
   if (costmap_->snapshotOccupancyGrid(grid)) {
     costmap_pub_->publish(autonomy_ros::toRos(grid));
   }
@@ -542,14 +544,16 @@ void ControllerSimNode::OnTick()
   ros_pose.header = odom.header;
   ros_pose.pose = odom.pose.pose;
   auto pose = autonomy_ros::fromRos(ros_pose);
-  pose.header.frame_id =
-    pose.header.frame_id.empty() ? frame_id_ : pose.header.frame_id;
+  if (pose.header().frame_id().empty()) {
+    pose.mutable_header()->set_frame_id(frame_id_);
+  }
 
-  if (ClosedLoopTrackingMode() && reference_path_.poses.size() >= 2) {
+  if (ClosedLoopTrackingMode() && reference_path_.poses_size() >= 2) {
     double min_sq = std::numeric_limits<double>::max();
-    for (const auto & ref : reference_path_.poses) {
-      const double dx = pose.pose.position.x - ref.pose.position.x;
-      const double dy = pose.pose.position.y - ref.pose.position.y;
+    for (int i = 0; i < reference_path_.poses_size(); ++i) {
+      const auto & ref = reference_path_.poses(i);
+      const double dx = pose.pose().position().x() - ref.pose().position().x();
+      const double dy = pose.pose().position().y() - ref.pose().position().y();
       min_sq = std::min(min_sq, dx * dx + dy * dy);
     }
     if (min_sq > 1.5 * 1.5) {
@@ -561,14 +565,14 @@ void ControllerSimNode::OnTick()
     }
   }
 
-  autonomy::commsgs::geometry_msgs::TwistStamped velocity;
-  velocity.header.frame_id = base_frame_;
-  velocity.twist = autonomy_ros::fromRos(odom.twist.twist);
+  automsgs::msgs::geometry_msgs::TwistStamped velocity;
+  velocity.mutable_header()->set_frame_id(base_frame_);
+  *velocity.mutable_twist() = autonomy_ros::fromRos(odom.twist.twist);
 
   const double xy_tol = get_parameter("xy_goal_tolerance").as_double();
   if (ShouldCheckGoalReached(pose, xy_tol)) {
-    const auto & goal_pose = reference_path_.poses.back().pose;
-    if (goal_checker_.IsGoalReached(pose.pose, goal_pose, velocity.twist)) {
+    const auto & goal_pose = reference_path_.poses(reference_path_.poses_size() - 1).pose();
+    if (goal_checker_.IsGoalReached(pose.pose(), goal_pose, velocity.twist())) {
       RCLCPP_INFO_THROTTLE(
         get_logger(), *get_clock(), 2000, "Goal reached");
       PublishZeroCmd();
@@ -577,7 +581,7 @@ void ControllerSimNode::OnTick()
     }
   }
 
-  autonomy::commsgs::geometry_msgs::TwistStamped cmd;
+  automsgs::msgs::geometry_msgs::TwistStamped cmd;
   std::string message;
   uint32_t code = 0;
   try {

@@ -25,7 +25,7 @@
 #include <memory>
 #include <string>
 
-#include "autonomy/commsgs/geometry_msgs.hpp"
+#include <automsgs/msgs/geometry_msgs/pose_stamped.pb.h>
 #include "autonomy/map/costmap_2d/cost_values.hpp"
 #include "autonomy/map/costmap_2d/costmap_2d_wrapper.hpp"
 #include "autonomy/planning/proto/planning_options.pb.h"
@@ -71,14 +71,14 @@ inline void ClearToFree(
 }
 
 /** @brief Build a PoseStamped at (x, y) in the given frame. */
-inline autonomy::commsgs::geometry_msgs::PoseStamped MakePose(
+inline automsgs::msgs::geometry_msgs::PoseStamped MakePose(
   double x, double y, const std::string & frame_id = "map")
 {
-  autonomy::commsgs::geometry_msgs::PoseStamped pose;
-  pose.header.frame_id = frame_id;
-  pose.pose.position.x = x;
-  pose.pose.position.y = y;
-  pose.pose.orientation.w = 1.0;
+  automsgs::msgs::geometry_msgs::PoseStamped pose;
+  pose.mutable_header()->set_frame_id(frame_id);
+  pose.mutable_pose()->mutable_position()->set_x(x);
+  pose.mutable_pose()->mutable_position()->set_y(y);
+  pose.mutable_pose()->mutable_orientation()->set_w(1.0);
   return pose;
 }
 

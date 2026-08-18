@@ -40,21 +40,21 @@ namespace
 {
 
 ::geometry_msgs::TransformStamped ToInternalTransform(
-  const ::autonomy::commsgs::geometry_msgs::TransformStamped & from)
+  const ::automsgs::msgs::geometry_msgs::TransformStamped & from)
 {
   ::geometry_msgs::TransformStamped internal;
   internal.header.stamp =
-    static_cast<uint64_t>(from.header.stamp.sec) * 1000000000ULL +
-    static_cast<uint64_t>(from.header.stamp.nanosec);
-  internal.header.frame_id = from.header.frame_id;
-  internal.child_frame_id = from.child_frame_id;
-  internal.transform.translation.x = from.transform.translation.x;
-  internal.transform.translation.y = from.transform.translation.y;
-  internal.transform.translation.z = from.transform.translation.z;
-  internal.transform.rotation.x = from.transform.rotation.x;
-  internal.transform.rotation.y = from.transform.rotation.y;
-  internal.transform.rotation.z = from.transform.rotation.z;
-  internal.transform.rotation.w = from.transform.rotation.w;
+    static_cast<uint64_t>(from.header().stamp().sec()) * 1000000000ULL +
+    static_cast<uint64_t>(from.header().stamp().nanosec());
+  internal.header.frame_id = from.header().frame_id();
+  internal.child_frame_id = from.child_frame_id();
+  internal.transform.translation.x = from.transform().translation().x();
+  internal.transform.translation.y = from.transform().translation().y();
+  internal.transform.translation.z = from.transform().translation().z();
+  internal.transform.rotation.x = from.transform().rotation().x();
+  internal.transform.rotation.y = from.transform().rotation().y();
+  internal.transform.rotation.z = from.transform().rotation().z();
+  internal.transform.rotation.w = from.transform().rotation().w();
   return internal;
 }
 
@@ -73,7 +73,7 @@ void InjectTransform(
 }
 
 geometry_msgs::msg::PolygonStamped BuildFootprintMsg(
-  const std::vector<::autonomy::commsgs::geometry_msgs::Point> & footprint,
+  const std::vector<::automsgs::msgs::geometry_msgs::Point> & footprint,
   const std::string & frame_id,
   const rclcpp::Time & stamp)
 {
@@ -83,9 +83,9 @@ geometry_msgs::msg::PolygonStamped BuildFootprintMsg(
   msg.polygon.points.reserve(footprint.size());
   for (const auto & point : footprint) {
     geometry_msgs::msg::Point32 p;
-    p.x = static_cast<float>(point.x);
-    p.y = static_cast<float>(point.y);
-    p.z = static_cast<float>(point.z);
+    p.x = static_cast<float>(point.x());
+    p.y = static_cast<float>(point.y());
+    p.z = static_cast<float>(point.z());
     msg.polygon.points.push_back(p);
   }
   return msg;
@@ -197,7 +197,7 @@ void RosBridge::OnCostmapTimer()
   }
   costmap_wrapper_->updateMap();
 
-  ::autonomy::commsgs::map_msgs::OccupancyGrid grid;
+  ::automsgs::msgs::map_msgs::OccupancyGrid grid;
   if (!costmap_wrapper_->snapshotOccupancyGrid(grid)) {
     return;
   }
@@ -211,26 +211,25 @@ void RosBridge::OnCostmapTimer()
   if (robot_footprint_pub_) {
     const auto footprint = costmap_wrapper_->getRobotFootprint();
     if (!footprint.empty()) {
-      auto ros_footprint = BuildFootprintMsg(
-        footprint, base_frame_, node_.now());
+      auto ros_footprint = BuildFootprintMsg(footprint, base_frame_, node_.now());
       robot_footprint_pub_->publish(std::move(ros_footprint));
     }
   }
 }
 
 void RosBridge::PublishMap(
-  const ::autonomy::commsgs::map_msgs::OccupancyGrid::SharedPtr & map)
+  const std::shared_ptr<::automsgs::msgs::map_msgs::OccupancyGrid> & map)
 {
   if (!publish_map_ || !map_pub_ || !map) {
     return;
   }
-  const auto expected =
-    static_cast<size_t>(map->info.width) * static_cast<size_t>(map->info.height);
-  if (map->data.size() != expected) {
+  const auto expected = static_cast<size_t>(map->info().width()) *
+    static_cast<size_t>(map->info().height());
+  if (static_cast<size_t>(map->data_size()) != expected) {
     RCLCPP_WARN(
       node_.get_logger(),
-      "[ros_bridge] skip map publish: data size %zu != %u*%u",
-      map->data.size(), map->info.width, map->info.height);
+      "[ros_bridge] skip map publish: data size %d != %u*%u",
+      map->data_size(), map->info().width(), map->info().height());
     return;
   }
   auto ros_map = toRos(*map);
@@ -238,7 +237,7 @@ void RosBridge::PublishMap(
   map_pub_->publish(ros_map);
 }
 
-void RosBridge::PublishCmdVel(const ::autonomy::commsgs::geometry_msgs::TwistStamped & cmd)
+void RosBridge::PublishCmdVel(const ::automsgs::msgs::geometry_msgs::TwistStamped & cmd)
 {
   if (!cmd_vel_pub_) {
     return;

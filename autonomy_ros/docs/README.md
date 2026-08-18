@@ -10,7 +10,7 @@
 | [external_commands.md](external_commands.md) | Action / Service / Topic 字段与 `ros2` 示例 |
 | [navigation_client.md](navigation_client.md) | `navigation_client.py` 命令行客户端 |
 | [localization.md](localization.md) | `map` / `odom` 坐标系与定位接入 |
-| [conversions.md](conversions.md) | `autonomy_ros::{fromRos,toRos}` ROS ↔ commsgs |
+| [conversions.md](conversions.md) | `autonomy_ros::{fromRos,toRos}` ROS ↔ automsgs |
 
 ## 快速入口
 

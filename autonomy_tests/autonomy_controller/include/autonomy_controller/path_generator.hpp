@@ -24,7 +24,7 @@
 
 #include <string>
 
-#include "autonomy/commsgs/planning_msgs.hpp"
+#include "autonomy_ros/conversions/planning_msgs.hpp"
 
 /**
  * @namespace autonomy_ros
@@ -77,7 +77,7 @@ PathShape ParsePathShape(const std::string & name);
  * @param shape Closed-loop geometry.
  * @param params Center, size, and pose spacing.
  */
-autonomy::commsgs::planning_msgs::Path GeneratePath(
+automsgs::msgs::nav_msgs::Path GeneratePath(
   PathShape shape,
   const PathGeneratorParams & params);
 
@@ -87,9 +87,9 @@ autonomy::commsgs::planning_msgs::Path GeneratePath(
  * @param goal Target pose in the planning frame.
  * @param pose_spacing Max distance between consecutive poses [m].
  */
-autonomy::commsgs::planning_msgs::Path GenerateLinePath(
-  const autonomy::commsgs::geometry_msgs::PoseStamped & start,
-  const autonomy::commsgs::geometry_msgs::PoseStamped & goal,
+automsgs::msgs::nav_msgs::Path GenerateLinePath(
+  const automsgs::msgs::geometry_msgs::PoseStamped & start,
+  const automsgs::msgs::geometry_msgs::PoseStamped & goal,
   double pose_spacing);
 
 }  // namespace autonomy_ros

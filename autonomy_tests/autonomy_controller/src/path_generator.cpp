@@ -32,19 +32,19 @@ namespace autonomy_ros
 namespace
 {
 
-using autonomy::commsgs::geometry_msgs::PoseStamped;
-using autonomy::commsgs::planning_msgs::Path;
+using automsgs::msgs::geometry_msgs::PoseStamped;
+using automsgs::msgs::nav_msgs::Path;
 
 PoseStamped MakePose(double x, double y, double yaw, const std::string & frame_id)
 {
   PoseStamped pose;
-  pose.header.frame_id = frame_id;
-  pose.pose.position.x = x;
-  pose.pose.position.y = y;
-  pose.pose.position.z = 0.0;
+  pose.mutable_header()->set_frame_id(frame_id);
+  pose.mutable_pose()->mutable_position()->set_x(x);
+  pose.mutable_pose()->mutable_position()->set_y(y);
+  pose.mutable_pose()->mutable_position()->set_z(0.0);
   const double half_yaw = yaw * 0.5;
-  pose.pose.orientation.z = std::sin(half_yaw);
-  pose.pose.orientation.w = std::cos(half_yaw);
+  pose.mutable_pose()->mutable_orientation()->set_z(std::sin(half_yaw));
+  pose.mutable_pose()->mutable_orientation()->set_w(std::cos(half_yaw));
   return pose;
 }
 
@@ -79,33 +79,37 @@ Path BuildFromPolyline(
     throw std::runtime_error("path polyline needs at least 2 points");
   }
 
-  Path path;
-  path.header.frame_id = frame_id;
-  path.poses.push_back(MakePose(points.front().first, points.front().second, 0.0, frame_id));
+  std::vector<PoseStamped> poses;
+  poses.push_back(MakePose(points.front().first, points.front().second, 0.0, frame_id));
 
   const size_t end = closed ? points.size() : points.size() - 1;
   for (size_t i = 0; i < end; ++i) {
     const auto & p0 = points[i];
     const auto & p1 = points[(i + 1) % points.size()];
-    AppendSegment(path.poses, p0.first, p0.second, p1.first, p1.second, spacing, frame_id);
+    AppendSegment(poses, p0.first, p0.second, p1.first, p1.second, spacing, frame_id);
   }
 
-  if (!closed && path.poses.size() >= 2) {
+  if (!closed && poses.size() >= 2) {
     const auto & last = points.back();
-    const auto & prev = path.poses[path.poses.size() - 2];
+    const auto & prev = poses[poses.size() - 2];
     const double yaw = std::atan2(
-      last.second - prev.pose.position.y,
-      last.first - prev.pose.position.x);
-    path.poses.back() = MakePose(last.first, last.second, yaw, frame_id);
+      last.second - prev.pose().position().y(),
+      last.first - prev.pose().position().x());
+    poses.back() = MakePose(last.first, last.second, yaw, frame_id);
   }
 
-  if (closed && path.poses.size() >= 2) {
-    const auto & p0 = path.poses[0].pose.position;
-    const auto & p1 = path.poses[1].pose.position;
-    const double yaw = std::atan2(p1.y - p0.y, p1.x - p0.x);
-    path.poses[0] = MakePose(p0.x, p0.y, yaw, frame_id);
+  if (closed && poses.size() >= 2) {
+    const auto & p0 = poses[0].pose().position();
+    const auto & p1 = poses[1].pose().position();
+    const double yaw = std::atan2(p1.y() - p0.y(), p1.x() - p0.x());
+    poses[0] = MakePose(p0.x(), p0.y(), yaw, frame_id);
   }
 
+  Path path;
+  path.mutable_header()->set_frame_id(frame_id);
+  for (const auto & pose : poses) {
+    *path.add_poses() = pose;
+  }
   return path;
 }
 
@@ -234,14 +238,13 @@ Path GeneratePath(PathShape shape, const PathGeneratorParams & params)
         const double y = params.center_y;
         const double yaw = std::atan2(0.0, x1 - x0);
         Path path;
-        path.header.frame_id = frame;
+        path.mutable_header()->set_frame_id(frame);
         const double dist = std::hypot(x1 - x0, y - y);
         const int segments =
             std::max(1, static_cast<int>(std::ceil(dist / params.pose_spacing)));
         for (int s = 0; s <= segments; ++s) {
             const double t = static_cast<double>(s) / segments;
-            path.poses.push_back(
-                MakePose(x0 + t * (x1 - x0), y, yaw, frame));
+            *path.add_poses() = MakePose(x0 + t * (x1 - x0), y, yaw, frame);
         }
         return path;
       }
@@ -258,21 +261,21 @@ Path GenerateLinePath(
   if (spacing <= 0.0) {
     throw std::runtime_error("pose_spacing must be > 0");
   }
-  const std::string & frame = start.header.frame_id.empty() ?
-    goal.header.frame_id : start.header.frame_id;
+  const std::string & frame = start.header().frame_id().empty() ?
+    goal.header().frame_id() : start.header().frame_id();
   const std::vector<std::pair<double, double>> segment = {
-    {start.pose.position.x, start.pose.position.y},
-    {goal.pose.position.x, goal.pose.position.y},
+    {start.pose().position().x(), start.pose().position().y()},
+    {goal.pose().position().x(), goal.pose().position().y()},
   };
   Path path = BuildFromPolyline(segment, spacing, frame, false);
-  if (path.poses.size() >= 2) {
-    path.poses.front() = start;
-    path.poses.back() = goal;
-    path.poses.back().header.frame_id = frame;
-  } else if (path.poses.size() == 1) {
-    path.poses[0] = goal;
+  if (path.poses_size() >= 2) {
+    *path.mutable_poses(0) = start;
+    *path.mutable_poses(path.poses_size() - 1) = goal;
+    path.mutable_poses(path.poses_size() - 1)->mutable_header()->set_frame_id(frame);
+  } else if (path.poses_size() == 1) {
+    *path.mutable_poses(0) = goal;
   }
-  path.header.frame_id = frame;
+  path.mutable_header()->set_frame_id(frame);
   return path;
 }
 

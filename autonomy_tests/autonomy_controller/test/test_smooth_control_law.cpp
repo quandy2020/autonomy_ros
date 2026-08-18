@@ -21,10 +21,12 @@ TEST(SmoothControlLaw, ForwardTowardTargetProducesPositiveVx)
   const auto current = MakePose(0.0, 0.0, 0.0);
   const auto target = MakePose(2.0, 0.0, 0.0);
   const auto cmd = law.CalculateRegularVelocity(target, current, false);
+  const double vx = cmd.linear().x();
+  const double wz = cmd.angular().z();
 
-  EXPECT_GT(cmd.linear.x, 0.0);
-  EXPECT_LE(std::fabs(cmd.linear.x), 0.5 + 1e-6);
-  EXPECT_LE(std::fabs(cmd.angular.z), 1.0 + 1e-6);
+  EXPECT_GT(vx, 0.0);
+  EXPECT_LE(std::fabs(vx), 0.5 + 1e-6);
+  EXPECT_LE(std::fabs(wz), 1.0 + 1e-6);
 }
 
 TEST(SmoothControlLaw, NextPoseAdvancesTowardTarget)
@@ -34,7 +36,7 @@ TEST(SmoothControlLaw, NextPoseAdvancesTowardTarget)
   const auto target = MakePose(3.0, 0.0, 0.0);
   const auto next = law.CalculateNextPose(0.1, target, current, false);
 
-  EXPECT_GT(next.position.x, current.position.x);
+  EXPECT_GT(next.position().x(), current.position().x());
 }
 
 TEST(SmoothControlLaw, SpeedLimitUpdateIsRespected)
@@ -45,6 +47,8 @@ TEST(SmoothControlLaw, SpeedLimitUpdateIsRespected)
   const auto current = MakePose(0.0, 0.0, 0.0);
   const auto target = MakePose(5.0, 0.0, 0.0);
   const auto cmd = law.CalculateRegularVelocity(target, current, false);
-  EXPECT_LE(std::fabs(cmd.linear.x), 0.2 + 1e-6);
-  EXPECT_LE(std::fabs(cmd.angular.z), 0.5 + 1e-6);
+  const double vx = cmd.linear().x();
+  const double wz = cmd.angular().z();
+  EXPECT_LE(std::fabs(vx), 0.2 + 1e-6);
+  EXPECT_LE(std::fabs(wz), 0.5 + 1e-6);
 }

@@ -27,7 +27,7 @@ TEST(NavfnPlanner, FindsPathOnFreeMap)
   autonomy::planning::planner::navfn::NavfnPlanner planner(
     MakeNavfnOptions(), "navfn_planner", costmap_wrapper);
 
-  autonomy::commsgs::planning_msgs::Path path;
+  automsgs::msgs::nav_msgs::Path path;
   const auto start = MakePose(0.25, 0.25);
   const auto goal = MakePose(0.40, 0.40);
   const uint32_t code =
@@ -37,7 +37,7 @@ TEST(NavfnPlanner, FindsPathOnFreeMap)
     static_cast<uint32_t>(
       autonomy::planning::proto::PlannerResultCode::PLANNER_SUCCESS),
     code);
-  EXPECT_FALSE(path.poses.empty());
+  EXPECT_GT(path.poses_size(), 0);
 }
 
 TEST(NavfnPlanner, ReturnsCanceledWhenCancelled)
@@ -48,7 +48,7 @@ TEST(NavfnPlanner, ReturnsCanceledWhenCancelled)
   autonomy::planning::planner::navfn::NavfnPlanner planner(
     MakeNavfnOptions(), "navfn_planner", costmap_wrapper);
 
-  autonomy::commsgs::planning_msgs::Path path;
+  automsgs::msgs::nav_msgs::Path path;
   const auto start = MakePose(0.25, 0.25);
   const auto goal = MakePose(0.40, 0.40);
   const uint32_t code =
@@ -74,7 +74,7 @@ TEST(NavfnPlanner, DoesNotMutateLethalStartCell)
   autonomy::planning::planner::navfn::NavfnPlanner planner(
     MakeNavfnOptions(), "navfn_planner", costmap_wrapper);
 
-  autonomy::commsgs::planning_msgs::Path path;
+  automsgs::msgs::nav_msgs::Path path;
   const auto start = MakePose(start_mx * 0.05, start_my * 0.05);
   const auto goal = MakePose(0.40, 0.40);
   const uint32_t code =
@@ -85,5 +85,5 @@ TEST(NavfnPlanner, DoesNotMutateLethalStartCell)
     static_cast<uint32_t>(
       autonomy::planning::proto::PlannerResultCode::PLANNER_SUCCESS),
     code);
-  EXPECT_FALSE(path.poses.empty());
+  EXPECT_GT(path.poses_size(), 0);
 }

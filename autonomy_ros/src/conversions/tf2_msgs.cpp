@@ -29,9 +29,8 @@ namespace autonomy_ros
 TransformStampeds fromRos(const tf2_msgs::msg::TFMessage & from)
 {
   TransformStampeds to;
-  to.transforms.reserve(from.transforms.size());
   for (const auto & tf : from.transforms) {
-    to.transforms.push_back(fromRos(tf));
+    *to.add_transforms() = fromRos(tf);
   }
   return to;
 }
@@ -39,8 +38,8 @@ TransformStampeds fromRos(const tf2_msgs::msg::TFMessage & from)
 tf2_msgs::msg::TFMessage toRos(const TransformStampeds & from)
 {
   tf2_msgs::msg::TFMessage to;
-  to.transforms.reserve(from.transforms.size());
-  for (const auto & tf : from.transforms) {
+  to.transforms.reserve(static_cast<size_t>(from.transforms_size()));
+  for (const auto & tf : from.transforms()) {
     to.transforms.push_back(toRos(tf));
   }
   return to;

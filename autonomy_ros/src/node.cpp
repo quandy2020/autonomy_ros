@@ -149,8 +149,7 @@ void RosAutonomySystem::StartBridges()
   if (core_ && options_.ros.scan_enabled) {
     on_scan = [this](const sensor_msgs::msg::LaserScan::SharedPtr & msg) {
       core_->GetSensorCollator().AddSensorData(
-        ::autonomy::sensor::MakeLaserScanData(
-          fromRos(*msg), "global_costmap"));
+        ::autonomy::sensor::MakeLaserScanData(fromRos(*msg), "global_costmap"));
     };
   }
 
@@ -164,8 +163,10 @@ void RosAutonomySystem::StartBridges()
 
   if (core_->GetMapServer()) {
     core_->AddMapPublishListener(
-      [this](const ::autonomy::commsgs::map_msgs::OccupancyGrid::SharedPtr & map) {
-        if (bridge_) {
+      [this](
+        const std::shared_ptr<
+          ::automsgs::msgs::map_msgs::OccupancyGrid> & map) {
+        if (bridge_ && map) {
           bridge_->PublishMap(map);
         }
       });
@@ -173,7 +174,7 @@ void RosAutonomySystem::StartBridges()
   }
 
   core_->AddPathListener(
-    [this](const ::autonomy::commsgs::planning_msgs::Path & path) {
+    [this](const ::automsgs::msgs::nav_msgs::Path & path) {
       if (visualizer_) {
         visualizer_->OnGlobalPath(toRos(path));
       }

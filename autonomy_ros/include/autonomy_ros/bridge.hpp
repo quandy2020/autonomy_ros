@@ -21,8 +21,8 @@
 #include <functional>
 #include <memory>
 
-#include "autonomy/commsgs/geometry_msgs.hpp"
-#include "autonomy/commsgs/map_msgs.hpp"
+#include <automsgs/msgs/geometry_msgs/twist_stamped.pb.h>
+#include <automsgs/msgs/map_msgs/occupancy_grid.pb.h>
 #include "autonomy/map/costmap_2d/costmap_2d_wrapper.hpp"
 #include "autonomy/map/map_server.hpp"
 #include "autonomy_ros/options.hpp"
@@ -57,8 +57,9 @@ public:
     OdomCallback on_odom = {},
     ScanCallback on_scan = {});
 
-  void PublishMap(const ::autonomy::commsgs::map_msgs::OccupancyGrid::SharedPtr & map);
-  void PublishCmdVel(const ::autonomy::commsgs::geometry_msgs::TwistStamped & cmd);
+  void PublishMap(
+    const std::shared_ptr<::automsgs::msgs::map_msgs::OccupancyGrid> & map);
+  void PublishCmdVel(const ::automsgs::msgs::geometry_msgs::TwistStamped & cmd);
   void PublishCmdVelZero();
 
 private:

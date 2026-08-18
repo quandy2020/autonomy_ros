@@ -21,6 +21,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(autonomy REQUIRED)
+find_package(autonomy_ros REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${autonomy_DIR}/cmake/modules")
 if(NOT TARGET TinyXML2::TinyXML2)
@@ -63,7 +64,7 @@ target_include_directories(exploration_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-ament_target_dependencies(exploration_node ${DEPENDENCIES})
+ament_target_dependencies(exploration_node ${DEPENDENCIES} autonomy_ros)
 target_link_libraries(exploration_node autonomy::autonomy)
 
 set(_AUTONOMY_BUNDLED_LIB_RPATH "\$ORIGIN/../../../autonomy/lib")

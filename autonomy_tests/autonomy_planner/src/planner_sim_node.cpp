@@ -172,25 +172,27 @@ void PlannerSimNode::SetupRosInterfaces()
 }
 
 bool PlannerSimNode::TransformPoseToFrame(
-  autonomy::commsgs::geometry_msgs::PoseStamped * pose,
+  automsgs::msgs::geometry_msgs::PoseStamped * pose,
   const std::string & target_frame) const
 {
   if (!pose || target_frame.empty()) {
     return false;
   }
-  if (pose->header.frame_id.empty() || pose->header.frame_id == target_frame) {
-    pose->header.frame_id = target_frame;
+  if (pose->header().frame_id().empty() ||
+    pose->header().frame_id() == target_frame)
+  {
+    pose->mutable_header()->set_frame_id(target_frame);
     return true;
   }
 
   try {
     *pose = tf_buffer_->transform(*pose, target_frame, 0.2f);
-    pose->header.frame_id = target_frame;
+    pose->mutable_header()->set_frame_id(target_frame);
     return true;
   } catch (const std::exception & ex) {
     RCLCPP_WARN(
       get_logger(), "TF %s -> %s failed: %s",
-      pose->header.frame_id.c_str(), target_frame.c_str(), ex.what());
+      pose->header().frame_id().c_str(), target_frame.c_str(), ex.what());
     return false;
   }
 }
@@ -205,7 +207,7 @@ void PlannerSimNode::ApplyMapGridMetadata(
   if (!have_static_map_) {
     return;
   }
-  const auto ref_info = autonomy_ros::toRos(static_map_.info);
+  const auto ref_info = autonomy_ros::toRos(static_map_.info());
   msg->info.origin = ref_info.origin;
 }
 
@@ -222,7 +224,7 @@ bool PlannerSimNode::LoadStaticMap(const std::string & map_file)
     return false;
   }
 
-  autonomy::commsgs::map_msgs::OccupancyGrid grid;
+  automsgs::msgs::map_msgs::OccupancyGrid grid;
   const auto status = autonomy::map::costmap_2d::loadMapFromYaml(resolved, grid);
   if (status != autonomy::map::costmap_2d::LOAD_MAP_STATUS::LOAD_MAP_SUCCESS) {
     RCLCPP_ERROR(
@@ -231,7 +233,7 @@ bool PlannerSimNode::LoadStaticMap(const std::string & map_file)
     return false;
   }
 
-  grid.header.frame_id = map_frame_;
+  grid.mutable_header()->set_frame_id(map_frame_);
 
   if (!costmap_->applyOccupancyGrid(grid)) {
     RCLCPP_ERROR(
@@ -241,18 +243,21 @@ bool PlannerSimNode::LoadStaticMap(const std::string & map_file)
 
   static_map_ = grid;
   if (auto * costmap_grid = costmap_->getCostmap()) {
-    static_map_.info.origin.position.x = costmap_grid->getOriginX();
-    static_map_.info.origin.position.y = costmap_grid->getOriginY();
+    static_map_.mutable_info()->mutable_origin()->mutable_position()->set_x(
+      costmap_grid->getOriginX());
+    static_map_.mutable_info()->mutable_origin()->mutable_position()->set_y(
+      costmap_grid->getOriginY());
   }
   have_static_map_ = true;
   RCLCPP_INFO(
     get_logger(),
     "Loaded static map: %s (%ux%u @ %.3fm, origin=(%.2f, %.2f), frame=%s)",
     resolved.c_str(),
-    static_map_.info.width, static_map_.info.height,
-    static_map_.info.resolution,
-    static_map_.info.origin.position.x, static_map_.info.origin.position.y,
-    static_map_.header.frame_id.c_str());
+    static_map_.info().width(), static_map_.info().height(),
+    static_map_.info().resolution(),
+    static_map_.info().origin().position().x(),
+    static_map_.info().origin().position().y(),
+    static_map_.header().frame_id().c_str());
   return true;
 }
 
@@ -444,18 +449,20 @@ void PlannerSimNode::OnInitialPose(
   }
 
   const auto stamped = autonomy_ros::fromRos(*msg);
-  autonomy::commsgs::geometry_msgs::PoseStamped initial;
-  initial.header = stamped.header;
-  initial.pose = stamped.pose.pose;
+  automsgs::msgs::geometry_msgs::PoseStamped initial;
+  *initial.mutable_header() = stamped.header();
+  *initial.mutable_pose() = stamped.pose().pose().pose();
 
-  autonomy::commsgs::geometry_msgs::PoseStamped initial_odom = initial;
+  automsgs::msgs::geometry_msgs::PoseStamped initial_odom = initial;
   if (!TransformPoseToFrame(&initial_odom, frame_id_)) {
     return;
   }
 
-  const auto ros_pose = autonomy_ros::toRos(initial_odom.pose);
+  const auto ros_pose = autonomy_ros::toRos(initial_odom.pose());
   const double yaw = YawFromQuaternion(ros_pose.orientation);
-  PublishRobotPose(initial_odom.pose.position.x, initial_odom.pose.position.y, yaw);
+  PublishRobotPose(
+    initial_odom.pose().position().x(),
+    initial_odom.pose().position().y(), yaw);
 
   if (!TransformPoseToFrame(&initial, map_frame_)) {
     return;
@@ -470,7 +477,7 @@ void PlannerSimNode::OnInitialPose(
   RCLCPP_INFO(
     get_logger(),
     "initialpose map=(%.2f, %.2f, yaw=%.2f) — waiting for goal_pose",
-    initial.pose.position.x, initial.pose.position.y, yaw);
+    initial.pose().position().x(), initial.pose().position().y(), yaw);
 
   TryPlanIfReady();
 }
@@ -482,7 +489,7 @@ void PlannerSimNode::OnGoalPose(
     return;
   }
 
-  autonomy::commsgs::geometry_msgs::PoseStamped goal =
+  automsgs::msgs::geometry_msgs::PoseStamped goal =
     autonomy_ros::fromRos(*msg);
   if (!TransformPoseToFrame(&goal, map_frame_)) {
     return;
@@ -499,7 +506,7 @@ void PlannerSimNode::OnGoalPose(
   RCLCPP_INFO(
     get_logger(),
     "goal_pose (%.2f, %.2f) — %s",
-    goal.pose.position.x, goal.pose.position.y,
+    goal.pose().position().x(), goal.pose().position().y(),
     have_initial ? "planning..." : "waiting for initialpose");
 
   TryPlanIfReady();
@@ -507,8 +514,8 @@ void PlannerSimNode::OnGoalPose(
 
 void PlannerSimNode::TryPlanIfReady()
 {
-  autonomy::commsgs::geometry_msgs::PoseStamped start;
-  autonomy::commsgs::geometry_msgs::PoseStamped goal;
+  automsgs::msgs::geometry_msgs::PoseStamped start;
+  automsgs::msgs::geometry_msgs::PoseStamped goal;
   bool ready = false;
 
   {
@@ -546,7 +553,7 @@ void PlannerSimNode::UpdateAndPublishCostmap()
     return;
   }
 
-  autonomy::commsgs::sensor_msgs::PointCloud2 cloud;
+  automsgs::msgs::sensor_msgs::PointCloud2 cloud;
   bool have_cloud = false;
   {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
@@ -562,7 +569,7 @@ void PlannerSimNode::UpdateAndPublishCostmap()
   }
   costmap_->updateMap();
 
-  autonomy::commsgs::map_msgs::OccupancyGrid grid;
+  automsgs::msgs::map_msgs::OccupancyGrid grid;
   if (costmap_->snapshotOccupancyGrid(grid)) {
     auto msg = autonomy_ros::toRos(grid);
     msg.header.stamp = now();
@@ -572,8 +579,8 @@ void PlannerSimNode::UpdateAndPublishCostmap()
 }
 
 bool PlannerSimNode::PlanToGoal(
-  const autonomy::commsgs::geometry_msgs::PoseStamped & start,
-  const autonomy::commsgs::geometry_msgs::PoseStamped & goal)
+  const automsgs::msgs::geometry_msgs::PoseStamped & start,
+  const automsgs::msgs::geometry_msgs::PoseStamped & goal)
 {
   auto planner = GetActivePlanner();
   if (!planner) {
@@ -593,7 +600,7 @@ bool PlannerSimNode::PlanToGoal(
     size_y_m = grid->getSizeInMetersY();
   }
 
-  autonomy::commsgs::planning_msgs::Path path;
+  automsgs::msgs::nav_msgs::Path path;
   uint32_t code = 0;
   {
     std::lock_guard<std::mutex> costmap_lock(costmap_mutex_);
@@ -602,7 +609,7 @@ bool PlannerSimNode::PlanToGoal(
 
   if (code != static_cast<uint32_t>(
       autonomy::planning::proto::PlannerResultCode::PLANNER_SUCCESS) ||
-    path.poses.empty())
+    path.poses_size() == 0)
   {
     RCLCPP_WARN(
       get_logger(),
@@ -610,8 +617,8 @@ bool PlannerSimNode::PlanToGoal(
       "start=(%.2f, %.2f) goal=(%.2f, %.2f) "
       "map origin=(%.2f, %.2f) size=%.1fx%.1f m",
       planner_id_.c_str(), code, PlannerResultName(code),
-      start.pose.position.x, start.pose.position.y,
-      goal.pose.position.x, goal.pose.position.y,
+      start.pose().position().x(), start.pose().position().y(),
+      goal.pose().position().x(), goal.pose().position().y(),
       origin_x, origin_y, size_x_m, size_y_m);
     return false;
   }
@@ -634,10 +641,10 @@ bool PlannerSimNode::PlanToGoal(
 
   RCLCPP_INFO(
     get_logger(),
-    "Plan ok: planner=%s poses=%zu start=(%.2f, %.2f) goal=(%.2f, %.2f)",
-    planner_id_.c_str(), path.poses.size(),
-    start.pose.position.x, start.pose.position.y,
-    goal.pose.position.x, goal.pose.position.y);
+    "Plan ok: planner=%s poses=%d start=(%.2f, %.2f) goal=(%.2f, %.2f)",
+    planner_id_.c_str(), path.poses_size(),
+    start.pose().position().x(), start.pose().position().y(),
+    goal.pose().position().x(), goal.pose().position().y());
   return true;
 }
 

@@ -23,9 +23,9 @@
 #define AUTONOMY_ROS__CONVERSIONS__PLANNING_MSGS_HPP_
 
 /// @file planning_msgs.hpp
-/// @brief Converts commsgs planning_msgs to/from ROS nav_msgs where applicable.
+/// @brief Converts automsgs planning_msgs to/from ROS nav_msgs where applicable.
 ///
-/// Proto schema: autonomy/commsgs/proto/planning_msgs.proto
+/// Proto schema: automsgs/msgs/nav_msgs/ (Path, Odometry)
 ///
 /// @par Implemented mappings
 /// - Odometry ↔ nav_msgs/Odometry (shared by localization and planning stacks).
@@ -47,7 +47,8 @@
 /// pub_plan->publish(autonomy_ros::toRos(core_path));
 /// @endcode
 
-#include "autonomy/commsgs/planning_msgs.hpp"
+#include <automsgs/msgs/nav_msgs/odometry.pb.h>
+#include <automsgs/msgs/nav_msgs/path.pb.h>
 #include "autonomy_ros/conversions/geometry_msgs.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
@@ -55,32 +56,32 @@
 namespace autonomy_ros
 {
 
-using Odometry = ::autonomy::commsgs::planning_msgs::Odometry;
-using Path = ::autonomy::commsgs::planning_msgs::Path;
+using Odometry = ::automsgs::msgs::nav_msgs::Odometry;
+using Path = ::automsgs::msgs::nav_msgs::Path;
 
 /**
- * @brief Bidirectional conversion between ROS nav_msgs::msg::Odometry and commsgs Odometry.
+ * @brief Bidirectional conversion between ROS nav_msgs::msg::Odometry and automsgs Odometry.
  *
  * @par fromRos
  * @param from Input ROS message (nav_msgs::msg::Odometry). Fields are copied without coordinate transforms.
- * @return commsgs Odometry for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs Odometry for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs Odometry from planners, bridges, or drivers.
+ * @param from Input automsgs Odometry from planners, bridges, or drivers.
  * @return ROS nav_msgs::msg::Odometry ready for rclcpp publish() or subscribe() adapters.
  */
 Odometry fromRos(const nav_msgs::msg::Odometry & from);
 nav_msgs::msg::Odometry toRos(const Odometry & from);
 
 /**
- * @brief Bidirectional conversion between ROS nav_msgs::msg::Path and commsgs Path.
+ * @brief Bidirectional conversion between ROS nav_msgs::msg::Path and automsgs Path.
  *
  * @par fromRos
  * @param from Input ROS message (nav_msgs::msg::Path). Fields are copied without coordinate transforms.
- * @return commsgs Path for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs Path for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs Path from planners, bridges, or drivers.
+ * @param from Input automsgs Path from planners, bridges, or drivers.
  * @return ROS nav_msgs::msg::Path ready for rclcpp publish() or subscribe() adapters.
  */
 Path fromRos(const nav_msgs::msg::Path & from);

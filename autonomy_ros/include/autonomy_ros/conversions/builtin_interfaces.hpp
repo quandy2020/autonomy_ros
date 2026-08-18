@@ -23,9 +23,9 @@
 #define AUTONOMY_ROS__CONVERSIONS__BUILTIN_INTERFACES_HPP_
 
 /// @file builtin_interfaces.hpp
-/// @brief Converts ROS 2 builtin_interfaces Time/Duration and commsgs equivalents.
+/// @brief Converts ROS 2 builtin_interfaces Time/Duration and automsgs equivalents.
 ///
-/// Proto schema: autonomy/commsgs/proto/builtin_interfaces.proto
+/// Proto schema: automsgs/msgs/builtin_interfaces/
 ///
 /// @par Overview
 /// Time and Duration are copied as integer sec and nanosec fields. These types
@@ -34,8 +34,8 @@
 /// @par Usage
 /// Include this header (or conversions/conversions.hpp) and call overloads in
 /// autonomy_ros::conversions:
-/// - fromRos(ros_msg) returns autonomy::commsgs::builtin_interfaces::* by value.
-/// - toRos(commsgs_msg) builds builtin_interfaces::msg::* for ROS I/O.
+/// - fromRos(ros_msg) returns automsgs::msgs::builtin_interfaces::* by value.
+/// - toRos(automsgs_msg) builds builtin_interfaces::msg::* for ROS I/O.
 ///
 /// @par Example
 /// @code
@@ -45,39 +45,40 @@
 /// auto back = autonomy_ros::toRos(core_t);
 /// @endcode
 
-#include "autonomy/commsgs/builtin_interfaces.hpp"
+#include <automsgs/msgs/builtin_interfaces/duration.pb.h>
+#include <automsgs/msgs/builtin_interfaces/time.pb.h>
 #include "builtin_interfaces/msg/duration.hpp"
 #include "builtin_interfaces/msg/time.hpp"
 
 namespace autonomy_ros
 {
 
-using Time = ::autonomy::commsgs::builtin_interfaces::Time;
-using Duration = ::autonomy::commsgs::builtin_interfaces::Duration;
+using Time = ::automsgs::msgs::builtin_interfaces::Time;
+using Duration = ::automsgs::msgs::builtin_interfaces::Duration;
 
 /**
- * @brief Bidirectional conversion between ROS builtin_interfaces::msg::Time and commsgs Time.
+ * @brief Bidirectional conversion between ROS builtin_interfaces::msg::Time and automsgs Time.
  *
  * @par fromRos
  * @param from Input ROS message (builtin_interfaces::msg::Time). Fields are copied without coordinate transforms.
- * @return commsgs Time for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs Time for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs Time from planners, bridges, or drivers.
+ * @param from Input automsgs Time from planners, bridges, or drivers.
  * @return ROS builtin_interfaces::msg::Time ready for rclcpp publish() or subscribe() adapters.
  */
 Time fromRos(const builtin_interfaces::msg::Time & from);
 builtin_interfaces::msg::Time toRos(const Time & from);
 
 /**
- * @brief Bidirectional conversion between ROS builtin_interfaces::msg::Duration and commsgs Duration.
+ * @brief Bidirectional conversion between ROS builtin_interfaces::msg::Duration and automsgs Duration.
  *
  * @par fromRos
  * @param from Input ROS message (builtin_interfaces::msg::Duration). Fields are copied without coordinate transforms.
- * @return commsgs Duration for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs Duration for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs Duration from planners, bridges, or drivers.
+ * @param from Input automsgs Duration from planners, bridges, or drivers.
  * @return ROS builtin_interfaces::msg::Duration ready for rclcpp publish() or subscribe() adapters.
  */
 Duration fromRos(const builtin_interfaces::msg::Duration & from);

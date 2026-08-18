@@ -23,7 +23,7 @@
 #define AUTONOMY_ROS__CONVERSIONS__CONVERSIONS_HPP_
 
 /// @file conversions.hpp
-/// @brief Navigation stack ROS ↔ commsgs conversion umbrella header.
+/// @brief Navigation stack ROS ↔ automsgs conversion umbrella header.
 
 #include "autonomy_ros/conversions/builtin_interfaces.hpp"
 #include "autonomy_ros/conversions/geometry_msgs.hpp"

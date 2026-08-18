@@ -26,9 +26,9 @@
 #include <mutex>
 #include <string>
 
-#include "autonomy/commsgs/geometry_msgs.hpp"
-#include "autonomy/commsgs/planning_msgs.hpp"
-#include "autonomy/commsgs/sensor_msgs.hpp"
+#include "autonomy_ros/conversions/geometry_msgs.hpp"
+#include "autonomy_ros/conversions/planning_msgs.hpp"
+#include "autonomy_ros/conversions/sensor_msgs.hpp"
 #include "autonomy/control/checker/simple_goal_checker.hpp"
 #include "autonomy/control/common/controller_interface.hpp"
 #include "autonomy/control/controller/mppi_controller/controller.hpp"
@@ -82,7 +82,7 @@ private:
 
   bool ClosedLoopTrackingMode() const;
   bool ShouldCheckGoalReached(
-    const autonomy::commsgs::geometry_msgs::PoseStamped & pose,
+    const automsgs::msgs::geometry_msgs::PoseStamped & pose,
     double xy_tolerance);
 
   void OnOdom(const nav_msgs::msg::Odometry::SharedPtr msg);
@@ -91,7 +91,7 @@ private:
   void OnTick();
 
   void ApplyReferencePlan(bool reset_executed_path);
-  void PublishSetPose(const autonomy::commsgs::geometry_msgs::PoseStamped & pose);
+  void PublishSetPose(const automsgs::msgs::geometry_msgs::PoseStamped & pose);
   void PublishReferencePath();
   void PublishZeroCmd();
   void UpdateAndPublishCostmap();
@@ -118,14 +118,14 @@ private:
   std::unique_ptr<autonomy::control::common::ControllerInterface> controller_;
   autonomy::control::controller::mppi_controller::MPPIController * mppi_{nullptr};
   autonomy::control::checker::SimpleGoalChecker goal_checker_;
-  autonomy::commsgs::planning_msgs::Path reference_path_;
+  automsgs::msgs::nav_msgs::Path reference_path_;
 
   std::mutex odom_mutex_;
   nav_msgs::msg::Odometry latest_odom_;
   bool have_odom_{false};
 
   std::mutex cloud_mutex_;
-  autonomy::commsgs::sensor_msgs::PointCloud2 latest_cloud_;
+  automsgs::msgs::sensor_msgs::PointCloud2 latest_cloud_;
   bool have_cloud_{false};
 
   std::mutex costmap_mutex_;

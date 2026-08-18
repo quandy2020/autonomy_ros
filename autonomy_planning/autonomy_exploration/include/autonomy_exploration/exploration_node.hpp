@@ -67,7 +67,7 @@ private:
     const geometry_msgs::msg::PoseStamped & waypoint);
   bool LookupMapTCamera(
     const std::string & camera_frame,
-    autonomy::commsgs::geometry_msgs::Transform * out);
+    automsgs::msgs::geometry_msgs::Transform * out);
   void FeedAutonomyTf(
     const geometry_msgs::msg::TransformStamped & ros_tf) const;
 

@@ -15,320 +15,261 @@
  * limitations under the License.
  */
 
-// Copyright 2026 autonomy_ros contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-
 #include "autonomy_ros/conversions/detail.hpp"
 
 #include <algorithm>
 
+#include <automsgs/msgs/time_utils.hpp>
+
 namespace autonomy_ros
 {
 
-void copyTime(
-  const builtin_interfaces::msg::Time & from,
-  ::autonomy::commsgs::builtin_interfaces::Time & to)
+namespace bi = automsgs::msgs::builtin_interfaces;
+namespace geo = automsgs::msgs::geometry_msgs;
+namespace stdm = automsgs::msgs::std_msgs;
+
+void copyTime(const builtin_interfaces::msg::Time & from, bi::Time & to)
 {
-  to.sec = from.sec;
-  to.nanosec = from.nanosec;
+  to.set_sec(from.sec);
+  to.set_nanosec(from.nanosec);
 }
 
-void copyTime(
-  const rclcpp::Time & from,
-  ::autonomy::commsgs::builtin_interfaces::Time & to)
+void copyTime(const rclcpp::Time & from, bi::Time & to)
 {
   const int64_t ns = from.nanoseconds();
-  to.sec = static_cast<int32_t>(ns / 1000000000LL);
-  to.nanosec = static_cast<uint32_t>(ns % 1000000000LL);
+  to.set_sec(static_cast<int32_t>(ns / 1'000'000'000LL));
+  to.set_nanosec(static_cast<uint32_t>(ns % 1'000'000'000LL));
 }
 
-builtin_interfaces::msg::Time toRosTime(
-  const ::autonomy::commsgs::builtin_interfaces::Time & from)
+builtin_interfaces::msg::Time toRosTime(const bi::Time & from)
 {
   builtin_interfaces::msg::Time to;
-  to.sec = from.sec;
-  to.nanosec = from.nanosec;
+  to.sec = from.sec();
+  to.nanosec = from.nanosec();
   return to;
 }
 
-void copyHeader(
-  const std_msgs::msg::Header & from,
-  ::autonomy::commsgs::std_msgs::Header & to)
+void copyHeader(const std_msgs::msg::Header & from, stdm::Header & to)
 {
-  copyTime(from.stamp, to.stamp);
-  to.frame_id = from.frame_id;
+  copyTime(from.stamp, *to.mutable_stamp());
+  to.set_frame_id(from.frame_id);
 }
 
-void copyHeader(
-  const ::autonomy::commsgs::std_msgs::Header & from,
-  std_msgs::msg::Header & to)
+void copyHeader(const stdm::Header & from, std_msgs::msg::Header & to)
 {
-  to.stamp = toRosTime(from.stamp);
-  to.frame_id = from.frame_id;
+  to.stamp = toRosTime(from.stamp());
+  to.frame_id = from.frame_id();
 }
 
 void copyQuaternion(
-  const geometry_msgs::msg::Quaternion & from,
-  ::autonomy::commsgs::geometry_msgs::Quaternion & to)
+  const geometry_msgs::msg::Quaternion & from, geo::Quaternion & to)
 {
-  to.x = static_cast<float>(from.x);
-  to.y = static_cast<float>(from.y);
-  to.z = static_cast<float>(from.z);
-  to.w = static_cast<float>(from.w);
+  to.set_x(static_cast<float>(from.x));
+  to.set_y(static_cast<float>(from.y));
+  to.set_z(static_cast<float>(from.z));
+  to.set_w(static_cast<float>(from.w));
 }
 
 void copyQuaternion(
-  const ::autonomy::commsgs::geometry_msgs::Quaternion & from,
-  geometry_msgs::msg::Quaternion & to)
+  const geo::Quaternion & from, geometry_msgs::msg::Quaternion & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.z = from.z;
-  to.w = from.w;
+  to.x = from.x();
+  to.y = from.y();
+  to.z = from.z();
+  to.w = from.w();
 }
 
-void copyPoint(
-  const geometry_msgs::msg::Point & from,
-  ::autonomy::commsgs::geometry_msgs::Point & to)
+void copyPoint(const geometry_msgs::msg::Point & from, geo::Point & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.z = from.z;
+  to.set_x(from.x);
+  to.set_y(from.y);
+  to.set_z(from.z);
 }
 
-void copyPoint(
-  const ::autonomy::commsgs::geometry_msgs::Point & from,
-  geometry_msgs::msg::Point & to)
+void copyPoint(const geo::Point & from, geometry_msgs::msg::Point & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.z = from.z;
+  to.x = from.x();
+  to.y = from.y();
+  to.z = from.z();
 }
 
-void copyPose(
-  const geometry_msgs::msg::Pose & from,
-  ::autonomy::commsgs::geometry_msgs::Pose & to)
+void copyPose(const geometry_msgs::msg::Pose & from, geo::Pose & to)
 {
-  copyPoint(from.position, to.position);
-  copyQuaternion(from.orientation, to.orientation);
+  copyPoint(from.position, *to.mutable_position());
+  copyQuaternion(from.orientation, *to.mutable_orientation());
 }
 
-void copyPose(
-  const ::autonomy::commsgs::geometry_msgs::Pose & from,
-  geometry_msgs::msg::Pose & to)
+void copyPose(const geo::Pose & from, geometry_msgs::msg::Pose & to)
 {
-  copyPoint(from.position, to.position);
-  copyQuaternion(from.orientation, to.orientation);
+  copyPoint(from.position(), to.position);
+  copyQuaternion(from.orientation(), to.orientation);
 }
 
-void copyDuration(
-  const builtin_interfaces::msg::Duration & from,
-  ::autonomy::commsgs::builtin_interfaces::Duration & to)
+void copyDuration(const builtin_interfaces::msg::Duration & from, bi::Duration & to)
 {
   const int64_t ns =
-    static_cast<int64_t>(from.sec) * 1000000000LL + static_cast<int64_t>(from.nanosec);
-  to = ::autonomy::commsgs::builtin_interfaces::Duration::FromNanoseconds(ns);
+    static_cast<int64_t>(from.sec) * 1'000'000'000LL +
+    static_cast<int64_t>(from.nanosec);
+  to = bi::DurationFromNanoseconds(ns);
 }
 
-void copyDuration(
-  const ::autonomy::commsgs::builtin_interfaces::Duration & from,
-  builtin_interfaces::msg::Duration & to)
+void copyDuration(const bi::Duration & from, builtin_interfaces::msg::Duration & to)
 {
-  const int64_t ns = from.Nanoseconds();
-  const int64_t sec = ns / 1000000000LL;
-  int64_t nsec = ns % 1000000000LL;
+  const int64_t ns = static_cast<int64_t>(from.sec()) * 1'000'000'000LL +
+                     static_cast<int64_t>(from.nanosec());
+  const int64_t sec = ns / 1'000'000'000LL;
+  int64_t nsec = ns % 1'000'000'000LL;
   if (nsec < 0) {
-    nsec += 1000000000LL;
+    nsec += 1'000'000'000LL;
   }
   to.sec = static_cast<int32_t>(sec);
   to.nanosec = static_cast<uint32_t>(nsec);
 }
 
-void copyVector3(
-  const geometry_msgs::msg::Vector3 & from,
-  ::autonomy::commsgs::geometry_msgs::Vector3 & to)
+void copyVector3(const geometry_msgs::msg::Vector3 & from, geo::Vector3 & to)
 {
-  to.x = static_cast<float>(from.x);
-  to.y = static_cast<float>(from.y);
-  to.z = static_cast<float>(from.z);
+  to.set_x(static_cast<float>(from.x));
+  to.set_y(static_cast<float>(from.y));
+  to.set_z(static_cast<float>(from.z));
 }
 
-void copyVector3(
-  const ::autonomy::commsgs::geometry_msgs::Vector3 & from,
-  geometry_msgs::msg::Vector3 & to)
+void copyVector3(const geo::Vector3 & from, geometry_msgs::msg::Vector3 & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.z = from.z;
+  to.x = from.x();
+  to.y = from.y();
+  to.z = from.z();
 }
 
 void copyTransform(
-  const geometry_msgs::msg::Transform & from,
-  ::autonomy::commsgs::geometry_msgs::Transform & to)
+  const geometry_msgs::msg::Transform & from, geo::Transform & to)
 {
-  copyVector3(from.translation, to.translation);
-  copyQuaternion(from.rotation, to.rotation);
+  copyVector3(from.translation, *to.mutable_translation());
+  copyQuaternion(from.rotation, *to.mutable_rotation());
 }
 
 void copyTransform(
-  const ::autonomy::commsgs::geometry_msgs::Transform & from,
-  geometry_msgs::msg::Transform & to)
+  const geo::Transform & from, geometry_msgs::msg::Transform & to)
 {
-  copyVector3(from.translation, to.translation);
-  copyQuaternion(from.rotation, to.rotation);
+  copyVector3(from.translation(), to.translation);
+  copyQuaternion(from.rotation(), to.rotation);
 }
 
-void copyColorRGBA(
-  const std_msgs::msg::ColorRGBA & from,
-  ::autonomy::commsgs::std_msgs::ColorRGBA & to)
+void copyColorRGBA(const std_msgs::msg::ColorRGBA & from, stdm::ColorRGBA & to)
 {
-  to.r = from.r;
-  to.g = from.g;
-  to.b = from.b;
-  to.a = from.a;
+  to.set_r(from.r);
+  to.set_g(from.g);
+  to.set_b(from.b);
+  to.set_a(from.a);
 }
 
-void copyColorRGBA(
-  const ::autonomy::commsgs::std_msgs::ColorRGBA & from,
-  std_msgs::msg::ColorRGBA & to)
+void copyColorRGBA(const stdm::ColorRGBA & from, std_msgs::msg::ColorRGBA & to)
 {
-  to.r = from.r;
-  to.g = from.g;
-  to.b = from.b;
-  to.a = from.a;
+  to.r = from.r();
+  to.g = from.g();
+  to.b = from.b();
+  to.a = from.a();
 }
 
-void copyPoint32(
-  const geometry_msgs::msg::Point32 & from,
-  ::autonomy::commsgs::geometry_msgs::Point32 & to)
+void copyPoint32(const geometry_msgs::msg::Point32 & from, geo::Point32 & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.z = from.z;
+  to.set_x(from.x);
+  to.set_y(from.y);
+  to.set_z(from.z);
 }
 
-void copyPoint32(
-  const ::autonomy::commsgs::geometry_msgs::Point32 & from,
-  geometry_msgs::msg::Point32 & to)
+void copyPoint32(const geo::Point32 & from, geometry_msgs::msg::Point32 & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.z = from.z;
+  to.x = from.x();
+  to.y = from.y();
+  to.z = from.z();
 }
 
-void copyPose2D(
-  const geometry_msgs::msg::Pose2D & from,
-  ::autonomy::commsgs::geometry_msgs::Pose2D & to)
+void copyPose2D(const geometry_msgs::msg::Pose2D & from, geo::Pose2D & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.theta = from.theta;
+  to.set_x(from.x);
+  to.set_y(from.y);
+  to.set_theta(from.theta);
 }
 
-void copyPose2D(
-  const ::autonomy::commsgs::geometry_msgs::Pose2D & from,
-  geometry_msgs::msg::Pose2D & to)
+void copyPose2D(const geo::Pose2D & from, geometry_msgs::msg::Pose2D & to)
 {
-  to.x = from.x;
-  to.y = from.y;
-  to.theta = from.theta;
+  to.x = from.x();
+  to.y = from.y();
+  to.theta = from.theta();
 }
 
-void copyTwist(
-  const geometry_msgs::msg::Twist & from,
-  ::autonomy::commsgs::geometry_msgs::Twist & to)
+void copyTwist(const geometry_msgs::msg::Twist & from, geo::Twist & to)
 {
-  copyVector3(from.linear, to.linear);
-  copyVector3(from.angular, to.angular);
+  copyVector3(from.linear, *to.mutable_linear());
+  copyVector3(from.angular, *to.mutable_angular());
 }
 
-void copyTwist(
-  const ::autonomy::commsgs::geometry_msgs::Twist & from,
-  geometry_msgs::msg::Twist & to)
+void copyTwist(const geo::Twist & from, geometry_msgs::msg::Twist & to)
 {
-  copyVector3(from.linear, to.linear);
-  copyVector3(from.angular, to.angular);
+  copyVector3(from.linear(), to.linear);
+  copyVector3(from.angular(), to.angular);
 }
 
-void copyAccel(
-  const geometry_msgs::msg::Accel & from,
-  ::autonomy::commsgs::geometry_msgs::Accel & to)
+void copyAccel(const geometry_msgs::msg::Accel & from, geo::Accel & to)
 {
-  copyVector3(from.linear, to.linear);
-  copyVector3(from.angular, to.angular);
+  copyVector3(from.linear, *to.mutable_linear());
+  copyVector3(from.angular, *to.mutable_angular());
 }
 
-void copyAccel(
-  const ::autonomy::commsgs::geometry_msgs::Accel & from,
-  geometry_msgs::msg::Accel & to)
+void copyAccel(const geo::Accel & from, geometry_msgs::msg::Accel & to)
 {
-  copyVector3(from.linear, to.linear);
-  copyVector3(from.angular, to.angular);
+  copyVector3(from.linear(), to.linear);
+  copyVector3(from.angular(), to.angular);
 }
 
-void copyWrench(
-  const geometry_msgs::msg::Wrench & from,
-  ::autonomy::commsgs::geometry_msgs::Wrench & to)
+void copyWrench(const geometry_msgs::msg::Wrench & from, geo::Wrench & to)
 {
-  copyVector3(from.force, to.force);
-  copyVector3(from.torque, to.torque);
+  copyVector3(from.force, *to.mutable_force());
+  copyVector3(from.torque, *to.mutable_torque());
 }
 
-void copyWrench(
-  const ::autonomy::commsgs::geometry_msgs::Wrench & from,
-  geometry_msgs::msg::Wrench & to)
+void copyWrench(const geo::Wrench & from, geometry_msgs::msg::Wrench & to)
 {
-  copyVector3(from.force, to.force);
-  copyVector3(from.torque, to.torque);
+  copyVector3(from.force(), to.force);
+  copyVector3(from.torque(), to.torque);
 }
 
-void copyInertia(
-  const geometry_msgs::msg::Inertia & from,
-  ::autonomy::commsgs::geometry_msgs::Inertia & to)
+void copyInertia(const geometry_msgs::msg::Inertia & from, geo::Inertia & to)
 {
-  to.m = static_cast<float>(from.m);
-  copyVector3(from.com, to.com);
-  to.ixx = static_cast<float>(from.ixx);
-  to.ixy = static_cast<float>(from.ixy);
-  to.ixz = static_cast<float>(from.ixz);
-  to.iyy = static_cast<float>(from.iyy);
-  to.iyz = static_cast<float>(from.iyz);
-  to.izz = static_cast<float>(from.izz);
+  to.set_m(static_cast<float>(from.m));
+  copyVector3(from.com, *to.mutable_com());
+  to.set_ixx(static_cast<float>(from.ixx));
+  to.set_ixy(static_cast<float>(from.ixy));
+  to.set_ixz(static_cast<float>(from.ixz));
+  to.set_iyy(static_cast<float>(from.iyy));
+  to.set_iyz(static_cast<float>(from.iyz));
+  to.set_izz(static_cast<float>(from.izz));
 }
 
-void copyInertia(
-  const ::autonomy::commsgs::geometry_msgs::Inertia & from,
-  geometry_msgs::msg::Inertia & to)
+void copyInertia(const geo::Inertia & from, geometry_msgs::msg::Inertia & to)
 {
-  to.m = from.m;
-  copyVector3(from.com, to.com);
-  to.ixx = from.ixx;
-  to.ixy = from.ixy;
-  to.ixz = from.ixz;
-  to.iyy = from.iyy;
-  to.iyz = from.iyz;
-  to.izz = from.izz;
+  to.m = from.m();
+  copyVector3(from.com(), to.com);
+  to.ixx = from.ixx();
+  to.ixy = from.ixy();
+  to.ixz = from.ixz();
+  to.iyy = from.iyy();
+  to.iyz = from.iyz();
+  to.izz = from.izz();
 }
 
-void copyPolygon(
-  const geometry_msgs::msg::Polygon & from,
-  ::autonomy::commsgs::geometry_msgs::Polygon & to)
+void copyPolygon(const geometry_msgs::msg::Polygon & from, geo::Polygon & to)
 {
-  to.points.reserve(from.points.size());
+  to.clear_points();
   for (const auto & p : from.points) {
-    ::autonomy::commsgs::geometry_msgs::Point32 pt;
-    copyPoint32(p, pt);
-    to.points.push_back(pt);
+    copyPoint32(p, *to.add_points());
   }
 }
 
-void copyPolygon(
-  const ::autonomy::commsgs::geometry_msgs::Polygon & from,
-  geometry_msgs::msg::Polygon & to)
+void copyPolygon(const geo::Polygon & from, geometry_msgs::msg::Polygon & to)
 {
-  to.points.reserve(from.points.size());
-  for (const auto & p : from.points) {
+  to.points.reserve(static_cast<size_t>(from.points_size()));
+  for (const auto & p : from.points()) {
     geometry_msgs::msg::Point32 pt;
     copyPoint32(p, pt);
     to.points.push_back(pt);
@@ -337,17 +278,21 @@ void copyPolygon(
 
 void copyCovariance6(
   const std::array<double, 36> & from,
-  std::vector<double> & to)
+  google::protobuf::RepeatedField<double> * to)
 {
-  to.assign(from.begin(), from.end());
+  to->Clear();
+  to->Reserve(static_cast<int>(from.size()));
+  for (double value : from) {
+    to->Add(value);
+  }
 }
 
 void copyCovariance6(
-  const std::vector<double> & from,
+  const google::protobuf::RepeatedField<double> & from,
   std::array<double, 36> & to)
 {
-  if (from.size() >= to.size()) {
-    std::copy_n(from.begin(), to.size(), to.begin());
+  if (from.size() >= static_cast<int>(to.size())) {
+    std::copy_n(from.begin(), static_cast<std::ptrdiff_t>(to.size()), to.begin());
   }
 }
 

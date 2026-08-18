@@ -23,9 +23,9 @@
 #define AUTONOMY_ROS__CONVERSIONS__MAP_MSGS_HPP_
 
 /// @file map_msgs.hpp
-/// @brief Converts commsgs map types to/from ROS map-related messages.
+/// @brief Converts automsgs map types to/from ROS map-related messages.
 ///
-/// Proto schema: autonomy/commsgs/proto/map_msgs.proto
+/// Proto schema: automsgs/msgs/map_msgs/
 ///
 /// @par ROS dependencies
 /// nav_msgs (occupancy grids), map_msgs (OccupancyGridUpdate), octomap_msgs, grid_map_msgs.
@@ -45,7 +45,14 @@
 /// map_pub_->publish(autonomy_ros::toRos(core_grid));
 /// @endcode
 
-#include "autonomy/commsgs/map_msgs.hpp"
+#include <automsgs/msgs/map_msgs/grid_cells.pb.h>
+#include <automsgs/msgs/map_msgs/grid_map.pb.h>
+#include <automsgs/msgs/map_msgs/grid_map_info.pb.h>
+#include <automsgs/msgs/map_msgs/map_meta_data.pb.h>
+#include <automsgs/msgs/map_msgs/occupancy_grid.pb.h>
+#include <automsgs/msgs/map_msgs/occupancy_grid_update.pb.h>
+#include <automsgs/msgs/map_msgs/octomap.pb.h>
+#include <automsgs/msgs/map_msgs/octomap_with_pose.pb.h>
 #include "nav_msgs/msg/grid_cells.hpp"
 #include "nav_msgs/msg/map_meta_data.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
@@ -58,122 +65,122 @@
 namespace autonomy_ros
 {
 
-using GridCells = ::autonomy::commsgs::map_msgs::GridCells;
-using MapMetaData = ::autonomy::commsgs::map_msgs::MapMetaData;
-using OccupancyGrid = ::autonomy::commsgs::map_msgs::OccupancyGrid;
-using OccupancyGridUpdate = ::autonomy::commsgs::map_msgs::OccupancyGridUpdate;
-using Octomap = ::autonomy::commsgs::map_msgs::Octomap;
-using OctomapWithPose = ::autonomy::commsgs::map_msgs::OctomapWithPose;
-using GridMapInfo = ::autonomy::commsgs::map_msgs::GridMapInfo;
-using GridMap = ::autonomy::commsgs::map_msgs::GridMap;
+using GridCells = ::automsgs::msgs::map_msgs::GridCells;
+using MapMetaData = ::automsgs::msgs::map_msgs::MapMetaData;
+using OccupancyGrid = ::automsgs::msgs::map_msgs::OccupancyGrid;
+using OccupancyGridUpdate = ::automsgs::msgs::map_msgs::OccupancyGridUpdate;
+using Octomap = ::automsgs::msgs::map_msgs::Octomap;
+using OctomapWithPose = ::automsgs::msgs::map_msgs::OctomapWithPose;
+using GridMapInfo = ::automsgs::msgs::map_msgs::GridMapInfo;
+using GridMap = ::automsgs::msgs::map_msgs::GridMap;
 
 /**
- * @brief Bidirectional conversion between ROS nav_msgs::msg::GridCells and commsgs GridCells.
+ * @brief Bidirectional conversion between ROS nav_msgs::msg::GridCells and automsgs GridCells.
  *
  * @par fromRos
  * @param from Input ROS message (nav_msgs::msg::GridCells). Fields are copied without coordinate transforms.
- * @return commsgs GridCells for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs GridCells for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs GridCells from planners, bridges, or drivers.
+ * @param from Input automsgs GridCells from planners, bridges, or drivers.
  * @return ROS nav_msgs::msg::GridCells ready for rclcpp publish() or subscribe() adapters.
  */
 GridCells fromRos(const nav_msgs::msg::GridCells & from);
 nav_msgs::msg::GridCells toRos(const GridCells & from);
 
 /**
- * @brief Bidirectional conversion between ROS nav_msgs::msg::MapMetaData and commsgs MapMetaData.
+ * @brief Bidirectional conversion between ROS nav_msgs::msg::MapMetaData and automsgs MapMetaData.
  *
  * @par fromRos
  * @param from Input ROS message (nav_msgs::msg::MapMetaData). Fields are copied without coordinate transforms.
- * @return commsgs MapMetaData for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs MapMetaData for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs MapMetaData from planners, bridges, or drivers.
+ * @param from Input automsgs MapMetaData from planners, bridges, or drivers.
  * @return ROS nav_msgs::msg::MapMetaData ready for rclcpp publish() or subscribe() adapters.
  */
 MapMetaData fromRos(const nav_msgs::msg::MapMetaData & from);
 nav_msgs::msg::MapMetaData toRos(const MapMetaData & from);
 
 /**
- * @brief Bidirectional conversion between ROS nav_msgs::msg::OccupancyGrid and commsgs OccupancyGrid.
+ * @brief Bidirectional conversion between ROS nav_msgs::msg::OccupancyGrid and automsgs OccupancyGrid.
  *
  * @par fromRos
  * @param from Input ROS message (nav_msgs::msg::OccupancyGrid). Fields are copied without coordinate transforms.
- * @return commsgs OccupancyGrid for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs OccupancyGrid for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs OccupancyGrid from planners, bridges, or drivers.
+ * @param from Input automsgs OccupancyGrid from planners, bridges, or drivers.
  * @return ROS nav_msgs::msg::OccupancyGrid ready for rclcpp publish() or subscribe() adapters.
  */
 OccupancyGrid fromRos(const nav_msgs::msg::OccupancyGrid & from);
 nav_msgs::msg::OccupancyGrid toRos(const OccupancyGrid & from);
 
 /**
- * @brief Bidirectional conversion between ROS map_msgs::msg::OccupancyGridUpdate and commsgs OccupancyGridUpdate.
+ * @brief Bidirectional conversion between ROS map_msgs::msg::OccupancyGridUpdate and automsgs OccupancyGridUpdate.
  *
  * @par fromRos
  * @param from Input ROS message (map_msgs::msg::OccupancyGridUpdate). Fields are copied without coordinate transforms.
- * @return commsgs OccupancyGridUpdate for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs OccupancyGridUpdate for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs OccupancyGridUpdate from planners, bridges, or drivers.
+ * @param from Input automsgs OccupancyGridUpdate from planners, bridges, or drivers.
  * @return ROS map_msgs::msg::OccupancyGridUpdate ready for rclcpp publish() or subscribe() adapters.
  */
 OccupancyGridUpdate fromRos(const map_msgs::msg::OccupancyGridUpdate & from);
 map_msgs::msg::OccupancyGridUpdate toRos(const OccupancyGridUpdate & from);
 
 /**
- * @brief Bidirectional conversion between ROS octomap_msgs::msg::Octomap and commsgs Octomap.
+ * @brief Bidirectional conversion between ROS octomap_msgs::msg::Octomap and automsgs Octomap.
  *
  * @par fromRos
  * @param from Input ROS message (octomap_msgs::msg::Octomap). Fields are copied without coordinate transforms.
- * @return commsgs Octomap for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs Octomap for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs Octomap from planners, bridges, or drivers.
+ * @param from Input automsgs Octomap from planners, bridges, or drivers.
  * @return ROS octomap_msgs::msg::Octomap ready for rclcpp publish() or subscribe() adapters.
  */
 Octomap fromRos(const octomap_msgs::msg::Octomap & from);
 octomap_msgs::msg::Octomap toRos(const Octomap & from);
 
 /**
- * @brief Bidirectional conversion between ROS octomap_msgs::msg::OctomapWithPose and commsgs OctomapWithPose.
+ * @brief Bidirectional conversion between ROS octomap_msgs::msg::OctomapWithPose and automsgs OctomapWithPose.
  *
  * @par fromRos
  * @param from Input ROS message (octomap_msgs::msg::OctomapWithPose). Fields are copied without coordinate transforms.
- * @return commsgs OctomapWithPose for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs OctomapWithPose for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs OctomapWithPose from planners, bridges, or drivers.
+ * @param from Input automsgs OctomapWithPose from planners, bridges, or drivers.
  * @return ROS octomap_msgs::msg::OctomapWithPose ready for rclcpp publish() or subscribe() adapters.
  */
 OctomapWithPose fromRos(const octomap_msgs::msg::OctomapWithPose & from);
 octomap_msgs::msg::OctomapWithPose toRos(const OctomapWithPose & from);
 
 /**
- * @brief Bidirectional conversion between ROS grid_map_msgs::msg::GridMapInfo and commsgs GridMapInfo.
+ * @brief Bidirectional conversion between ROS grid_map_msgs::msg::GridMapInfo and automsgs GridMapInfo.
  *
  * @par fromRos
  * @param from Input ROS message (grid_map_msgs::msg::GridMapInfo). Fields are copied without coordinate transforms.
- * @return commsgs GridMapInfo for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs GridMapInfo for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs GridMapInfo from planners, bridges, or drivers.
+ * @param from Input automsgs GridMapInfo from planners, bridges, or drivers.
  * @return ROS grid_map_msgs::msg::GridMapInfo ready for rclcpp publish() or subscribe() adapters.
  */
 GridMapInfo fromRos(const grid_map_msgs::msg::GridMapInfo & from);
 grid_map_msgs::msg::GridMapInfo toRos(const GridMapInfo & from);
 
 /**
- * @brief Bidirectional conversion between ROS grid_map_msgs::msg::GridMap and commsgs GridMap.
+ * @brief Bidirectional conversion between ROS grid_map_msgs::msg::GridMap and automsgs GridMap.
  *
  * @par fromRos
  * @param from Input ROS message (grid_map_msgs::msg::GridMap). Fields are copied without coordinate transforms.
- * @return commsgs GridMap for autonomy core APIs or protobuf via ToProto().
+ * @return automsgs GridMap for autonomy core APIs.
  *
  * @par toRos
- * @param from Input commsgs GridMap from planners, bridges, or drivers.
+ * @param from Input automsgs GridMap from planners, bridges, or drivers.
  * @return ROS grid_map_msgs::msg::GridMap ready for rclcpp publish() or subscribe() adapters.
  */
 GridMap fromRos(const grid_map_msgs::msg::GridMap & from);

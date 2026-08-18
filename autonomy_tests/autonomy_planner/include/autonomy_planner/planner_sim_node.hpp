@@ -27,9 +27,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "autonomy/commsgs/geometry_msgs.hpp"
-#include "autonomy/commsgs/map_msgs.hpp"
-#include "autonomy/commsgs/sensor_msgs.hpp"
+#include "autonomy_ros/conversions/geometry_msgs.hpp"
+#include "autonomy_ros/conversions/map_msgs.hpp"
+#include "autonomy_ros/conversions/sensor_msgs.hpp"
 #include "autonomy/map/costmap_2d/costmap_2d_wrapper.hpp"
 #include "autonomy/planning/common/planner_interface.hpp"
 #include "autonomy/planning/proto/planning_options.pb.h"
@@ -75,8 +75,8 @@ private:
   struct PlanRequest {
     bool have_initial{false};
     bool have_goal{false};
-    autonomy::commsgs::geometry_msgs::PoseStamped initial;
-    autonomy::commsgs::geometry_msgs::PoseStamped goal;
+    automsgs::msgs::geometry_msgs::PoseStamped initial;
+    automsgs::msgs::geometry_msgs::PoseStamped goal;
   };
 
   void DeclareParameters();
@@ -103,15 +103,15 @@ private:
   void ApplyMapGridMetadata(nav_msgs::msg::OccupancyGrid * msg) const;
 
   bool TransformPoseToFrame(
-    autonomy::commsgs::geometry_msgs::PoseStamped * pose,
+    automsgs::msgs::geometry_msgs::PoseStamped * pose,
     const std::string & target_frame) const;
 
   void TryPlanIfReady();
   void ResetPlanRequest();
   void UpdateAndPublishCostmap();
   bool PlanToGoal(
-    const autonomy::commsgs::geometry_msgs::PoseStamped & start,
-    const autonomy::commsgs::geometry_msgs::PoseStamped & goal);
+    const automsgs::msgs::geometry_msgs::PoseStamped & start,
+    const automsgs::msgs::geometry_msgs::PoseStamped & goal);
   autonomy::planning::common::GlobalPlanner::SharedPtr GetActivePlanner() const;
 
   std::string frame_id_;
@@ -123,7 +123,7 @@ private:
   double costmap_publish_hz_{5.0};
 
   bool have_static_map_{false};
-  autonomy::commsgs::map_msgs::OccupancyGrid static_map_;
+  automsgs::msgs::map_msgs::OccupancyGrid static_map_;
 
   autonomy::planning::proto::PlannerOptions planner_options_;
   std::shared_ptr<autonomy::transform::Buffer> tf_buffer_;
@@ -137,13 +137,13 @@ private:
   bool have_odom_{false};
 
   std::mutex cloud_mutex_;
-  autonomy::commsgs::sensor_msgs::PointCloud2 latest_cloud_;
+  automsgs::msgs::sensor_msgs::PointCloud2 latest_cloud_;
   bool have_cloud_{false};
 
   std::mutex costmap_mutex_;
   std::mutex plan_mutex_;
   std::mutex plan_request_mutex_;
-  autonomy::commsgs::planning_msgs::Path latest_plan_;
+  automsgs::msgs::nav_msgs::Path latest_plan_;
   PlanRequest plan_request_;
   RobotPoseState robot_pose_;
 

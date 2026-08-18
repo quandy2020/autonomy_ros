@@ -30,46 +30,44 @@ namespace
 
 void copyMultiArrayDimension(
   const std_msgs::msg::MultiArrayDimension & from,
-  ::autonomy::commsgs::std_msgs::MultiArrayDimension & to)
+  ::automsgs::msgs::std_msgs::MultiArrayDimension & to)
 {
-  to.label = from.label;
-  to.size = from.size;
-  to.stride = from.stride;
+  to.set_label(from.label);
+  to.set_size(from.size);
+  to.set_stride(from.stride);
 }
 
 void copyMultiArrayDimension(
-  const ::autonomy::commsgs::std_msgs::MultiArrayDimension & from,
+  const ::automsgs::msgs::std_msgs::MultiArrayDimension & from,
   std_msgs::msg::MultiArrayDimension & to)
 {
-  to.label = from.label;
-  to.size = from.size;
-  to.stride = from.stride;
+  to.label = from.label();
+  to.size = from.size();
+  to.stride = from.stride();
 }
 
 void copyMultiArrayLayout(
   const std_msgs::msg::MultiArrayLayout & from,
-  ::autonomy::commsgs::std_msgs::MultiArrayLayout & to)
+  ::automsgs::msgs::std_msgs::MultiArrayLayout & to)
 {
-  to.dim.reserve(from.dim.size());
+  to.clear_dim();
   for (const auto & dim : from.dim) {
-    ::autonomy::commsgs::std_msgs::MultiArrayDimension to_dim;
-    copyMultiArrayDimension(dim, to_dim);
-    to.dim.push_back(to_dim);
+    copyMultiArrayDimension(dim, *to.add_dim());
   }
-  to.data_offset = from.data_offset;
+  to.set_data_offset(from.data_offset);
 }
 
 void copyMultiArrayLayout(
-  const ::autonomy::commsgs::std_msgs::MultiArrayLayout & from,
+  const ::automsgs::msgs::std_msgs::MultiArrayLayout & from,
   std_msgs::msg::MultiArrayLayout & to)
 {
-  to.dim.reserve(from.dim.size());
-  for (const auto & dim : from.dim) {
+  to.dim.reserve(static_cast<size_t>(from.dim_size()));
+  for (const auto & dim : from.dim()) {
     std_msgs::msg::MultiArrayDimension to_dim;
     copyMultiArrayDimension(dim, to_dim);
     to.dim.push_back(to_dim);
   }
-  to.data_offset = from.data_offset;
+  to.data_offset = from.data_offset();
 }
 
 }  // namespace
@@ -133,30 +131,30 @@ std_msgs::msg::MultiArrayLayout toRos(const MultiArrayLayout & from)
 Float32MultiArray fromRos(const std_msgs::msg::Float32MultiArray & from)
 {
   Float32MultiArray to;
-  copyMultiArrayLayout(from.layout, to.layout);
-  to.data.assign(from.data.begin(), from.data.end());
+  copyMultiArrayLayout(from.layout, *to.mutable_layout());
+  to.mutable_data()->Assign(from.data.begin(), from.data.end());
   return to;
 }
 
 std_msgs::msg::Float32MultiArray toRos(const Float32MultiArray & from)
 {
   std_msgs::msg::Float32MultiArray to;
-  copyMultiArrayLayout(from.layout, to.layout);
-  to.data.assign(from.data.begin(), from.data.end());
+  copyMultiArrayLayout(from.layout(), to.layout);
+  to.data.assign(from.data().begin(), from.data().end());
   return to;
 }
 
 String fromRos(const std_msgs::msg::String & from)
 {
   String to;
-  to.data = from.data;
+  to.set_data(from.data);
   return to;
 }
 
 std_msgs::msg::String toRos(const String & from)
 {
   std_msgs::msg::String to;
-  to.data = from.data;
+  to.data = from.data();
   return to;
 }
 

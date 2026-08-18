@@ -44,24 +44,27 @@ namespace autonomy_driver {
 namespace {
 
 sensor_msgs::msg::NavSatFix ToRosNavSatFix(
-  const autonomy::commsgs::sensor_msgs::NavSatFix & from)
+  const automsgs::msgs::sensor_msgs::NavSatFix & from)
 {
   sensor_msgs::msg::NavSatFix to;
-  to.header.stamp.sec = from.header.stamp.sec;
-  to.header.stamp.nanosec = from.header.stamp.nanosec;
-  to.header.frame_id = from.header.frame_id;
-  to.status.status = from.status.status;
-  to.status.service = from.status.service;
-  to.latitude = from.latitude;
-  to.longitude = from.longitude;
-  to.altitude = from.altitude;
-  if (from.position_covariance.size() >= to.position_covariance.size()) {
+  to.header.stamp.sec = from.header().stamp().sec();
+  to.header.stamp.nanosec = from.header().stamp().nanosec();
+  to.header.frame_id = from.header().frame_id();
+  to.status.status = static_cast<int8_t>(from.status().status());
+  to.status.service = static_cast<uint16_t>(from.status().service());
+  to.latitude = from.latitude();
+  to.longitude = from.longitude();
+  to.altitude = from.altitude();
+  if (from.position_covariance_size() >=
+    static_cast<int>(to.position_covariance.size()))
+  {
     std::copy_n(
-      from.position_covariance.begin(),
+      from.position_covariance().begin(),
       to.position_covariance.size(),
       to.position_covariance.begin());
   }
-  to.position_covariance_type = from.position_covariance_type;
+  to.position_covariance_type =
+    static_cast<uint8_t>(from.position_covariance_type());
   return to;
 }
 
@@ -111,11 +114,11 @@ void RosSnapshotPublisher::PublishCameraFrame(const autodriver::CameraFrame & fr
 {
   auto image = autodriver::bridge::ToAutonomyImage(frame);
   if (frame.encoding == "16UC1") {
-    image.step = frame.width * 2;
+    image.set_step(frame.width * 2);
   } else if (frame.encoding == "mono8") {
-    image.step = frame.width;
+    image.set_step(frame.width);
   } else {
-    image.step = frame.width * 3;
+    image.set_step(frame.width * 3);
   }
 
   const auto ros_image = autonomy_ros::toRos(image);

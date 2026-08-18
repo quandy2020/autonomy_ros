@@ -23,6 +23,8 @@
 
 #include <cmath>
 
+#include <google/protobuf/repeated_field.h>
+
 #include "autonomy_ros/conversions/detail.hpp"
 #include "autonomy_ros/conversions/geometry_msgs.hpp"
 #include "autonomy_ros/conversions/std_msgs.hpp"
@@ -86,21 +88,22 @@ int8_t occupancyCellToRos(int16_t core_cell)
 
 void copyOccupancyDataFromRos(
   const std::vector<int8_t> & from,
-  std::vector<int16_t> & to)
+  google::protobuf::RepeatedField<int32_t> * to)
 {
-  to.resize(from.size());
-  for (size_t i = 0; i < from.size(); ++i) {
-    to[i] = occupancyCellFromRos(from[i]);
+  to->Clear();
+  to->Reserve(static_cast<int>(from.size()));
+  for (const auto cell : from) {
+    to->Add(static_cast<int32_t>(occupancyCellFromRos(cell)));
   }
 }
 
 void copyOccupancyDataToRos(
-  const std::vector<int16_t> & from,
+  const google::protobuf::RepeatedField<int32_t> & from,
   std::vector<int8_t> & to)
 {
-  to.resize(from.size());
-  for (size_t i = 0; i < from.size(); ++i) {
-    to[i] = occupancyCellToRos(from[i]);
+  to.resize(static_cast<size_t>(from.size()));
+  for (int i = 0; i < from.size(); ++i) {
+    to[static_cast<size_t>(i)] = occupancyCellToRos(static_cast<int16_t>(from.Get(i)));
   }
 }
 
@@ -109,14 +112,11 @@ void copyOccupancyDataToRos(
 GridCells fromRos(const nav_msgs::msg::GridCells & from)
 {
   GridCells to;
-  copyHeader(from.header, to.header);
-  to.cell_width = static_cast<float>(from.cell_width);
-  to.cell_height = static_cast<float>(from.cell_height);
-  to.cells.reserve(from.cells.size());
+  copyHeader(from.header, *to.mutable_header());
+  to.set_cell_width(static_cast<float>(from.cell_width));
+  to.set_cell_height(static_cast<float>(from.cell_height));
   for (const auto & cell : from.cells) {
-    ::autonomy::commsgs::geometry_msgs::Point point;
-    copyPoint(cell, point);
-    to.cells.push_back(point);
+    copyPoint(cell, *to.add_cells());
   }
   return to;
 }
@@ -124,11 +124,11 @@ GridCells fromRos(const nav_msgs::msg::GridCells & from)
 nav_msgs::msg::GridCells toRos(const GridCells & from)
 {
   nav_msgs::msg::GridCells to;
-  copyHeader(from.header, to.header);
-  to.cell_width = from.cell_width;
-  to.cell_height = from.cell_height;
-  to.cells.reserve(from.cells.size());
-  for (const auto & cell : from.cells) {
+  copyHeader(from.header(), to.header);
+  to.cell_width = from.cell_width();
+  to.cell_height = from.cell_height();
+  to.cells.reserve(static_cast<size_t>(from.cells_size()));
+  for (const auto & cell : from.cells()) {
     geometry_msgs::msg::Point ros_point;
     copyPoint(cell, ros_point);
     to.cells.push_back(ros_point);
@@ -139,87 +139,96 @@ nav_msgs::msg::GridCells toRos(const GridCells & from)
 MapMetaData fromRos(const nav_msgs::msg::MapMetaData & from)
 {
   MapMetaData to;
-  copyTime(from.map_load_time, to.map_load_time);
-  to.resolution = static_cast<float>(from.resolution);
-  to.width = from.width;
-  to.height = from.height;
-  copyPose(from.origin, to.origin);
+  copyTime(from.map_load_time, *to.mutable_map_load_time());
+  to.set_resolution(static_cast<float>(from.resolution));
+  to.set_width(from.width);
+  to.set_height(from.height);
+  copyPose(from.origin, *to.mutable_origin());
   return to;
 }
 
 nav_msgs::msg::MapMetaData toRos(const MapMetaData & from)
 {
   nav_msgs::msg::MapMetaData to;
-  to.map_load_time = toRosTime(from.map_load_time);
-  to.resolution = from.resolution;
-  to.width = from.width;
-  to.height = from.height;
-  copyPose(from.origin, to.origin);
+  to.map_load_time = toRosTime(from.map_load_time());
+  to.resolution = from.resolution();
+  to.width = from.width();
+  to.height = from.height();
+  copyPose(from.origin(), to.origin);
   return to;
 }
 
 OccupancyGrid fromRos(const nav_msgs::msg::OccupancyGrid & from)
 {
   OccupancyGrid to;
-  copyHeader(from.header, to.header);
-  to.info = fromRos(from.info);
-  copyOccupancyDataFromRos(from.data, to.data);
+  copyHeader(from.header, *to.mutable_header());
+  *to.mutable_info() = fromRos(from.info);
+  copyOccupancyDataFromRos(from.data, to.mutable_data());
   return to;
 }
 
 nav_msgs::msg::OccupancyGrid toRos(const OccupancyGrid & from)
 {
   nav_msgs::msg::OccupancyGrid to;
-  copyHeader(from.header, to.header);
-  to.info = toRos(from.info);
-  copyOccupancyDataToRos(from.data, to.data);
+  copyHeader(from.header(), to.header);
+  to.info = toRos(from.info());
+  copyOccupancyDataToRos(from.data(), to.data);
   return to;
 }
 
 OccupancyGridUpdate fromRos(const map_msgs::msg::OccupancyGridUpdate & from)
 {
   OccupancyGridUpdate to;
-  copyHeader(from.header, to.header);
-  to.x = from.x;
-  to.y = from.y;
-  to.width = from.width;
-  to.height = from.height;
-  to.data.assign(from.data.begin(), from.data.end());
+  copyHeader(from.header, *to.mutable_header());
+  to.set_x(from.x);
+  to.set_y(from.y);
+  to.set_width(from.width);
+  to.set_height(from.height);
+  to.mutable_data()->Reserve(static_cast<int>(from.data.size()));
+  for (const auto cell : from.data) {
+    to.add_data(static_cast<int32_t>(cell));
+  }
   return to;
 }
 
 map_msgs::msg::OccupancyGridUpdate toRos(const OccupancyGridUpdate & from)
 {
   map_msgs::msg::OccupancyGridUpdate to;
-  copyHeader(from.header, to.header);
-  to.x = from.x;
-  to.y = from.y;
-  to.width = from.width;
-  to.height = from.height;
-  to.data.assign(from.data.begin(), from.data.end());
+  copyHeader(from.header(), to.header);
+  to.x = from.x();
+  to.y = from.y();
+  to.width = from.width();
+  to.height = from.height();
+  to.data.resize(static_cast<size_t>(from.data().size()));
+  for (int i = 0; i < from.data().size(); ++i) {
+    to.data[static_cast<size_t>(i)] = static_cast<int8_t>(from.data().Get(i));
+  }
   return to;
 }
 
 Octomap fromRos(const octomap_msgs::msg::Octomap & from)
 {
   Octomap to;
-  copyHeader(from.header, to.header);
-  to.binary = from.binary;
-  to.id = from.id;
-  to.resolution = from.resolution;
-  to.data.assign(from.data.begin(), from.data.end());
+  copyHeader(from.header, *to.mutable_header());
+  to.set_binary(from.binary);
+  to.set_id(from.id);
+  to.set_resolution(from.resolution);
+  to.mutable_data()->Reserve(static_cast<int>(from.data.size()));
+  for (const auto byte : from.data) {
+    to.add_data(static_cast<int32_t>(byte));
+  }
   return to;
 }
 
 octomap_msgs::msg::Octomap toRos(const Octomap & from)
 {
   octomap_msgs::msg::Octomap to;
-  copyHeader(from.header, to.header);
-  to.binary = from.binary;
-  to.id = from.id;
-  to.resolution = from.resolution;
-  to.data.reserve(from.data.size());
-  for (const auto value : from.data) {
+  copyHeader(from.header(), to.header);
+  to.binary = from.binary();
+  to.id = from.id();
+  to.resolution = from.resolution();
+  to.data.reserve(static_cast<size_t>(from.data_size()));
+  for (const auto value : from.data()) {
     to.data.push_back(static_cast<int8_t>(value));
   }
   return to;
@@ -228,70 +237,69 @@ octomap_msgs::msg::Octomap toRos(const Octomap & from)
 OctomapWithPose fromRos(const octomap_msgs::msg::OctomapWithPose & from)
 {
   OctomapWithPose to;
-  copyHeader(from.header, to.header);
-  copyPose(from.origin, to.origin);
-  to.octomap = fromRos(from.octomap);
+  copyHeader(from.header, *to.mutable_header());
+  copyPose(from.origin, *to.mutable_origin());
+  *to.mutable_octomap() = fromRos(from.octomap);
   return to;
 }
 
 octomap_msgs::msg::OctomapWithPose toRos(const OctomapWithPose & from)
 {
   octomap_msgs::msg::OctomapWithPose to;
-  copyHeader(from.header, to.header);
-  copyPose(from.origin, to.origin);
-  to.octomap = toRos(from.octomap);
+  copyHeader(from.header(), to.header);
+  copyPose(from.origin(), to.origin);
+  to.octomap = toRos(from.octomap());
   return to;
 }
 
 GridMapInfo fromRos(const grid_map_msgs::msg::GridMapInfo & from)
 {
   GridMapInfo to;
-  to.resolution = static_cast<float>(from.resolution);
-  to.length_x = static_cast<float>(from.length_x);
-  to.length_y = static_cast<float>(from.length_y);
-  copyPose(from.pose, to.pose);
+  to.set_resolution(static_cast<float>(from.resolution));
+  to.set_length_x(static_cast<float>(from.length_x));
+  to.set_length_y(static_cast<float>(from.length_y));
+  copyPose(from.pose, *to.mutable_pose());
   return to;
 }
 
 grid_map_msgs::msg::GridMapInfo toRos(const GridMapInfo & from)
 {
   grid_map_msgs::msg::GridMapInfo to;
-  to.resolution = from.resolution;
-  to.length_x = from.length_x;
-  to.length_y = from.length_y;
-  copyPose(from.pose, to.pose);
+  to.resolution = from.resolution();
+  to.length_x = from.length_x();
+  to.length_y = from.length_y();
+  copyPose(from.pose(), to.pose);
   return to;
 }
 
 GridMap fromRos(const grid_map_msgs::msg::GridMap & from)
 {
   GridMap to;
-  to.info = fromRos(from.info);
-  copyHeader(from.header, to.info.header);
-  to.layers = from.layers;
-  to.basic_layers = from.basic_layers;
-  to.data.reserve(from.data.size());
+  *to.mutable_info() = fromRos(from.info);
+  copyHeader(from.header, *to.mutable_info()->mutable_header());
+  to.mutable_layers()->Assign(from.layers.begin(), from.layers.end());
+  to.mutable_basic_layers()->Assign(from.basic_layers.begin(), from.basic_layers.end());
   for (const auto & layer : from.data) {
-    to.data.push_back(fromRos(layer));
+    *to.add_data() = fromRos(layer);
   }
-  to.outer_start_index = from.outer_start_index;
-  to.inner_start_index = from.inner_start_index;
+  to.set_outer_start_index(from.outer_start_index);
+  to.set_inner_start_index(from.inner_start_index);
   return to;
 }
 
 grid_map_msgs::msg::GridMap toRos(const GridMap & from)
 {
   grid_map_msgs::msg::GridMap to;
-  copyHeader(from.info.header, to.header);
-  to.info = toRos(from.info);
-  to.layers = from.layers;
-  to.basic_layers = from.basic_layers;
-  to.data.reserve(from.data.size());
-  for (const auto & layer : from.data) {
+  copyHeader(from.info().header(), to.header);
+  to.info = toRos(from.info());
+  to.layers.assign(from.layers().begin(), from.layers().end());
+  to.basic_layers.assign(from.basic_layers().begin(), from.basic_layers().end());
+  to.data.reserve(static_cast<size_t>(from.data_size()));
+  for (const auto & layer : from.data()) {
     to.data.push_back(toRos(layer));
   }
-  to.outer_start_index = static_cast<uint16_t>(from.outer_start_index);
-  to.inner_start_index = static_cast<uint16_t>(from.inner_start_index);
+  to.outer_start_index = static_cast<uint16_t>(from.outer_start_index());
+  to.inner_start_index = static_cast<uint16_t>(from.inner_start_index());
   return to;
 }
 

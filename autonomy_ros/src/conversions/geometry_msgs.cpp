@@ -21,8 +21,6 @@
 
 #include "autonomy_ros/conversions/geometry_msgs.hpp"
 
-#include <algorithm>
-
 #include "autonomy_ros/conversions/detail.hpp"
 
 namespace autonomy_ros
@@ -115,10 +113,9 @@ geometry_msgs::msg::Pose2D toRos(const Pose2D & from)
 PoseArray fromRos(const geometry_msgs::msg::PoseArray & from)
 {
   PoseArray to;
-  copyHeader(from.header, to.header);
-  to.poses.reserve(from.poses.size());
+  copyHeader(from.header, *to.mutable_header());
   for (const auto & pose : from.poses) {
-    to.poses.push_back(fromRos(pose));
+    copyPose(pose, *to.add_poses());
   }
   return to;
 }
@@ -126,9 +123,9 @@ PoseArray fromRos(const geometry_msgs::msg::PoseArray & from)
 geometry_msgs::msg::PoseArray toRos(const PoseArray & from)
 {
   geometry_msgs::msg::PoseArray to;
-  copyHeader(from.header, to.header);
-  to.poses.reserve(from.poses.size());
-  for (const auto & pose : from.poses) {
+  copyHeader(from.header(), to.header);
+  to.poses.reserve(static_cast<size_t>(from.poses_size()));
+  for (const auto & pose : from.poses()) {
     to.poses.push_back(toRos(pose));
   }
   return to;
@@ -137,32 +134,32 @@ geometry_msgs::msg::PoseArray toRos(const PoseArray & from)
 PoseStamped fromRos(const geometry_msgs::msg::PoseStamped & from)
 {
   PoseStamped to;
-  copyHeader(from.header, to.header);
-  copyPose(from.pose, to.pose);
+  copyHeader(from.header, *to.mutable_header());
+  copyPose(from.pose, *to.mutable_pose());
   return to;
 }
 
 geometry_msgs::msg::PoseStamped toRos(const PoseStamped & from)
 {
   geometry_msgs::msg::PoseStamped to;
-  copyHeader(from.header, to.header);
-  copyPose(from.pose, to.pose);
+  copyHeader(from.header(), to.header);
+  copyPose(from.pose(), to.pose);
   return to;
 }
 
 PoseWithCovariance fromRos(const geometry_msgs::msg::PoseWithCovariance & from)
 {
   PoseWithCovariance to;
-  copyPose(from.pose, to.pose);
-  copyCovariance6(from.covariance, to.covariance);
+  copyPose(from.pose, *to.mutable_pose()->mutable_pose());
+  copyCovariance6(from.covariance, to.mutable_covariance());
   return to;
 }
 
 geometry_msgs::msg::PoseWithCovariance toRos(const PoseWithCovariance & from)
 {
   geometry_msgs::msg::PoseWithCovariance to;
-  copyPose(from.pose, to.pose);
-  copyCovariance6(from.covariance, to.covariance);
+  copyPose(from.pose().pose(), to.pose);
+  copyCovariance6(from.covariance(), to.covariance);
   return to;
 }
 
@@ -170,8 +167,8 @@ PoseWithCovarianceStamped fromRos(
   const geometry_msgs::msg::PoseWithCovarianceStamped & from)
 {
   PoseWithCovarianceStamped to;
-  copyHeader(from.header, to.header);
-  to.pose = fromRos(from.pose);
+  copyHeader(from.header, *to.mutable_header());
+  *to.mutable_pose() = fromRos(from.pose);
   return to;
 }
 
@@ -179,24 +176,24 @@ geometry_msgs::msg::PoseWithCovarianceStamped toRos(
   const PoseWithCovarianceStamped & from)
 {
   geometry_msgs::msg::PoseWithCovarianceStamped to;
-  copyHeader(from.header, to.header);
-  to.pose = toRos(from.pose);
+  copyHeader(from.header(), to.header);
+  to.pose = toRos(from.pose());
   return to;
 }
 
 QuaternionStamped fromRos(const geometry_msgs::msg::QuaternionStamped & from)
 {
   QuaternionStamped to;
-  copyHeader(from.header, to.header);
-  copyQuaternion(from.quaternion, to.quaternion);
+  copyHeader(from.header, *to.mutable_header());
+  copyQuaternion(from.quaternion, *to.mutable_quaternion());
   return to;
 }
 
 geometry_msgs::msg::QuaternionStamped toRos(const QuaternionStamped & from)
 {
   geometry_msgs::msg::QuaternionStamped to;
-  copyHeader(from.header, to.header);
-  copyQuaternion(from.quaternion, to.quaternion);
+  copyHeader(from.header(), to.header);
+  copyQuaternion(from.quaternion(), to.quaternion);
   return to;
 }
 
@@ -217,18 +214,18 @@ geometry_msgs::msg::Transform toRos(const Transform & from)
 TransformStamped fromRos(const geometry_msgs::msg::TransformStamped & from)
 {
   TransformStamped to;
-  copyHeader(from.header, to.header);
-  to.child_frame_id = from.child_frame_id;
-  copyTransform(from.transform, to.transform);
+  copyHeader(from.header, *to.mutable_header());
+  to.set_child_frame_id(from.child_frame_id);
+  copyTransform(from.transform, *to.mutable_transform());
   return to;
 }
 
 geometry_msgs::msg::TransformStamped toRos(const TransformStamped & from)
 {
   geometry_msgs::msg::TransformStamped to;
-  copyHeader(from.header, to.header);
-  to.child_frame_id = from.child_frame_id;
-  copyTransform(from.transform, to.transform);
+  copyHeader(from.header(), to.header);
+  to.child_frame_id = from.child_frame_id();
+  copyTransform(from.transform(), to.transform);
   return to;
 }
 
@@ -249,32 +246,32 @@ geometry_msgs::msg::Twist toRos(const Twist & from)
 TwistStamped fromRos(const geometry_msgs::msg::TwistStamped & from)
 {
   TwistStamped to;
-  copyHeader(from.header, to.header);
-  copyTwist(from.twist, to.twist);
+  copyHeader(from.header, *to.mutable_header());
+  copyTwist(from.twist, *to.mutable_twist());
   return to;
 }
 
 geometry_msgs::msg::TwistStamped toRos(const TwistStamped & from)
 {
   geometry_msgs::msg::TwistStamped to;
-  copyHeader(from.header, to.header);
-  copyTwist(from.twist, to.twist);
+  copyHeader(from.header(), to.header);
+  copyTwist(from.twist(), to.twist);
   return to;
 }
 
 TwistWithCovariance fromRos(const geometry_msgs::msg::TwistWithCovariance & from)
 {
   TwistWithCovariance to;
-  copyTwist(from.twist, to.twist);
-  copyCovariance6(from.covariance, to.covariance);
+  copyTwist(from.twist, *to.mutable_twist());
+  copyCovariance6(from.covariance, to.mutable_covariance());
   return to;
 }
 
 geometry_msgs::msg::TwistWithCovariance toRos(const TwistWithCovariance & from)
 {
   geometry_msgs::msg::TwistWithCovariance to;
-  copyTwist(from.twist, to.twist);
-  copyCovariance6(from.covariance, to.covariance);
+  copyTwist(from.twist(), to.twist);
+  copyCovariance6(from.covariance(), to.covariance);
   return to;
 }
 
@@ -282,8 +279,8 @@ TwistWithCovarianceStamped fromRos(
   const geometry_msgs::msg::TwistWithCovarianceStamped & from)
 {
   TwistWithCovarianceStamped to;
-  copyHeader(from.header, to.header);
-  to.twist = fromRos(from.twist);
+  copyHeader(from.header, *to.mutable_header());
+  *to.mutable_twist() = fromRos(from.twist);
   return to;
 }
 
@@ -291,8 +288,8 @@ geometry_msgs::msg::TwistWithCovarianceStamped toRos(
   const TwistWithCovarianceStamped & from)
 {
   geometry_msgs::msg::TwistWithCovarianceStamped to;
-  copyHeader(from.header, to.header);
-  to.twist = toRos(from.twist);
+  copyHeader(from.header(), to.header);
+  to.twist = toRos(from.twist());
   return to;
 }
 
@@ -313,41 +310,32 @@ geometry_msgs::msg::Accel toRos(const Accel & from)
 AccelStamped fromRos(const geometry_msgs::msg::AccelStamped & from)
 {
   AccelStamped to;
-  copyHeader(from.header, to.header);
-  copyAccel(from.accel, to.accel);
+  copyHeader(from.header, *to.mutable_header());
+  copyAccel(from.accel, *to.mutable_accel());
   return to;
 }
 
 geometry_msgs::msg::AccelStamped toRos(const AccelStamped & from)
 {
   geometry_msgs::msg::AccelStamped to;
-  copyHeader(from.header, to.header);
-  copyAccel(from.accel, to.accel);
+  copyHeader(from.header(), to.header);
+  copyAccel(from.accel(), to.accel);
   return to;
 }
 
 AccelWithCovariance fromRos(const geometry_msgs::msg::AccelWithCovariance & from)
 {
   AccelWithCovariance to;
-  copyAccel(from.accel, to.accel);
-  to.covariance.resize(from.covariance.size());
-  std::transform(
-    from.covariance.begin(), from.covariance.end(), to.covariance.begin(),
-    [](double v) { return static_cast<float>(v); });
+  copyAccel(from.accel, *to.mutable_accel());
+  copyCovariance6(from.covariance, to.mutable_covariance());
   return to;
 }
 
 geometry_msgs::msg::AccelWithCovariance toRos(const AccelWithCovariance & from)
 {
   geometry_msgs::msg::AccelWithCovariance to;
-  copyAccel(from.accel, to.accel);
-  if (from.covariance.size() >= to.covariance.size()) {
-    std::transform(
-      from.covariance.begin(),
-      from.covariance.begin() + static_cast<std::ptrdiff_t>(to.covariance.size()),
-      to.covariance.begin(),
-      [](float v) { return static_cast<double>(v); });
-  }
+  copyAccel(from.accel(), to.accel);
+  copyCovariance6(from.covariance(), to.covariance);
   return to;
 }
 
@@ -355,8 +343,8 @@ AccelWithCovarianceStamped fromRos(
   const geometry_msgs::msg::AccelWithCovarianceStamped & from)
 {
   AccelWithCovarianceStamped to;
-  copyHeader(from.header, to.header);
-  to.accel = fromRos(from.accel);
+  copyHeader(from.header, *to.mutable_header());
+  *to.mutable_accel() = fromRos(from.accel);
   return to;
 }
 
@@ -364,8 +352,8 @@ geometry_msgs::msg::AccelWithCovarianceStamped toRos(
   const AccelWithCovarianceStamped & from)
 {
   geometry_msgs::msg::AccelWithCovarianceStamped to;
-  copyHeader(from.header, to.header);
-  to.accel = toRos(from.accel);
+  copyHeader(from.header(), to.header);
+  to.accel = toRos(from.accel());
   return to;
 }
 
@@ -386,32 +374,32 @@ geometry_msgs::msg::Inertia toRos(const Inertia & from)
 InertiaStamped fromRos(const geometry_msgs::msg::InertiaStamped & from)
 {
   InertiaStamped to;
-  copyHeader(from.header, to.header);
-  copyInertia(from.inertia, to.inertia);
+  copyHeader(from.header, *to.mutable_header());
+  copyInertia(from.inertia, *to.mutable_inertia());
   return to;
 }
 
 geometry_msgs::msg::InertiaStamped toRos(const InertiaStamped & from)
 {
   geometry_msgs::msg::InertiaStamped to;
-  copyHeader(from.header, to.header);
-  copyInertia(from.inertia, to.inertia);
+  copyHeader(from.header(), to.header);
+  copyInertia(from.inertia(), to.inertia);
   return to;
 }
 
 PointStamped fromRos(const geometry_msgs::msg::PointStamped & from)
 {
   PointStamped to;
-  copyHeader(from.header, to.header);
-  copyPoint(from.point, to.point);
+  copyHeader(from.header, *to.mutable_header());
+  copyPoint(from.point, *to.mutable_point());
   return to;
 }
 
 geometry_msgs::msg::PointStamped toRos(const PointStamped & from)
 {
   geometry_msgs::msg::PointStamped to;
-  copyHeader(from.header, to.header);
-  copyPoint(from.point, to.point);
+  copyHeader(from.header(), to.header);
+  copyPoint(from.point(), to.point);
   return to;
 }
 
@@ -432,32 +420,32 @@ geometry_msgs::msg::Polygon toRos(const Polygon & from)
 PolygonStamped fromRos(const geometry_msgs::msg::PolygonStamped & from)
 {
   PolygonStamped to;
-  copyHeader(from.header, to.header);
-  copyPolygon(from.polygon, to.polygon);
+  copyHeader(from.header, *to.mutable_header());
+  copyPolygon(from.polygon, *to.mutable_polygon());
   return to;
 }
 
 geometry_msgs::msg::PolygonStamped toRos(const PolygonStamped & from)
 {
   geometry_msgs::msg::PolygonStamped to;
-  copyHeader(from.header, to.header);
-  copyPolygon(from.polygon, to.polygon);
+  copyHeader(from.header(), to.header);
+  copyPolygon(from.polygon(), to.polygon);
   return to;
 }
 
 Vector3Stamped fromRos(const geometry_msgs::msg::Vector3Stamped & from)
 {
   Vector3Stamped to;
-  copyHeader(from.header, to.header);
-  copyVector3(from.vector, to.vector);
+  copyHeader(from.header, *to.mutable_header());
+  copyVector3(from.vector, *to.mutable_vector());
   return to;
 }
 
 geometry_msgs::msg::Vector3Stamped toRos(const Vector3Stamped & from)
 {
   geometry_msgs::msg::Vector3Stamped to;
-  copyHeader(from.header, to.header);
-  copyVector3(from.vector, to.vector);
+  copyHeader(from.header(), to.header);
+  copyVector3(from.vector(), to.vector);
   return to;
 }
 
@@ -478,16 +466,16 @@ geometry_msgs::msg::Wrench toRos(const Wrench & from)
 WrenchStamped fromRos(const geometry_msgs::msg::WrenchStamped & from)
 {
   WrenchStamped to;
-  copyHeader(from.header, to.header);
-  copyWrench(from.wrench, to.wrench);
+  copyHeader(from.header, *to.mutable_header());
+  copyWrench(from.wrench, *to.mutable_wrench());
   return to;
 }
 
 geometry_msgs::msg::WrenchStamped toRos(const WrenchStamped & from)
 {
   geometry_msgs::msg::WrenchStamped to;
-  copyHeader(from.header, to.header);
-  copyWrench(from.wrench, to.wrench);
+  copyHeader(from.header(), to.header);
+  copyWrench(from.wrench(), to.wrench);
   return to;
 }
 

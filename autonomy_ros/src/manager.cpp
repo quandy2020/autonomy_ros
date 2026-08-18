@@ -378,7 +378,7 @@ bool TaskManager::NavigateThroughPoses(
   if (!core_ || goals.empty()) {
     return false;
   }
-  std::vector<::autonomy::commsgs::geometry_msgs::PoseStamped> core_goals;
+  std::vector<::automsgs::msgs::geometry_msgs::PoseStamped> core_goals;
   core_goals.reserve(goals.size());
   for (const auto & goal : goals) {
     core_goals.push_back(fromRos(goal));
