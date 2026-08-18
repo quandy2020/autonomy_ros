@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "autonomy/commsgs/planning_msgs.hpp"
+#include "autonomy_ros/conversions/planning_msgs.hpp"
 
 namespace autonomy_ros
 {
@@ -40,7 +40,7 @@ struct PathGeneratorParams
 PathShape ParsePathShape(const std::string & name);
 
 /** Generate a closed reference path in the given frame. */
-autonomy::commsgs::planning_msgs::Path GeneratePath(
+automsgs::msgs::nav_msgs::Path GeneratePath(
   PathShape shape,
   const PathGeneratorParams & params);
 

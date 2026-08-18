@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "autonomy/commsgs/geometry_msgs.hpp"
+#include "autonomy_ros/conversions/geometry_msgs.hpp"
 #include "autonomy_ros/options.hpp"
 #include "autonomy_msgs/msg/error.hpp"
 #include "autonomy_msgs/msg/event.hpp"

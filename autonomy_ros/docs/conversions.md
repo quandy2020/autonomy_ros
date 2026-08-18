@@ -1,9 +1,9 @@
 # 消息转换（conversions）
 
-`autonomy_ros` 在 ROS 2 `*::msg::*` 与 `autonomy::commsgs::*` 之间做**逐字段拷贝**，不做 TF 变换或时间重映射。
+`autonomy_ros` 在 ROS 2 `*::msg::*` 与 `automsgs::msgs::*` protobuf 之间做**逐字段拷贝**，不做 TF 变换或时间重映射。
 
 - **提供**：`fromRos`、`toRos`
-- **不提供**：`toProto` / `fromProto`（请用 `autonomy/commsgs` 内各包的 `ToProto` / `FromProto`）
+- 核心侧直接使用 automsgs protobuf 类型，不再经过 `ToProto` / `FromProto` 兼容层
 
 ---
 
@@ -36,7 +36,7 @@ include/autonomy_ros/conversions/
   geometry_msgs.hpp
   sensor_msgs.hpp
   map_msgs.hpp             # OccupancyGrid 等（含 octomap/grid_map 段，按需使用）
-  planning_msgs.hpp        # Path、Odometry
+  planning_msgs.hpp        # Path、Odometry（映射到 automsgs nav_msgs）
   tf2_msgs.hpp
   detail.hpp               # 内部字段拷贝
 ```
@@ -47,7 +47,7 @@ include/autonomy_ros/conversions/
 | `sensor_msgs` | `RosBridge`（LaserScan、PointCloud2、Range） |
 | `map_msgs` / `planning_msgs` | `RosBridge`、`TaskManager`、`Visualizer` |
 | `tf2_msgs` | `RosBridge` |
-| `planning_msgs::Path` | `TaskManager`、`Visualizer` |
+| `nav_msgs::Path` | `TaskManager`、`Visualizer` |
 
 ---
 
@@ -57,11 +57,11 @@ include/autonomy_ros/conversions/
 flowchart LR
   ROS["ROS topics"]
   CV["conversions"]
-  CM["commsgs"]
+  AM["automsgs"]
   CORE["autonomy core"]
 
-  ROS -->|fromRos| CV --> CM --> CORE
-  CORE --> CM -->|toRos| CV --> ROS
+  ROS -->|fromRos| CV --> AM --> CORE
+  CORE --> AM -->|toRos| CV --> ROS
 ```
 
 Bridge 与 `NavigationService` 边界处统一经 `conversions` 进入 core，避免在业务代码中散落字段拷贝。
@@ -70,10 +70,10 @@ Bridge 与 `NavigationService` 边界处统一经 `conversions` 进入 core，�
 
 ## 扩展新类型
 
-1. 确认 commsgs 与 ROS 消息字段可对应  
-2. 在 `include/autonomy_ros/conversions/<pkg>.hpp` 声明 `fromRos` / `toRos`  
-3. 在 `src/conversions/<pkg>.cpp` 实现  
-4. 在 `conversions.hpp` 中 include，并更新 `CMakeLists.txt` / `package.xml` 依赖  
+1. 确认 automsgs proto 与 ROS 消息字段可对应
+2. 在 `include/autonomy_ros/conversions/<pkg>.hpp` 声明 `fromRos` / `toRos`
+3. 在 `src/conversions/<pkg>.cpp` 实现
+4. 在 `conversions.hpp` 中 include，并更新 `CMakeLists.txt` / `package.xml` 依赖
 
 ---
 

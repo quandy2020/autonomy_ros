@@ -5,10 +5,9 @@ ROS 2 C++ 包装：调用 `autonomy::exploration`，在 **Habitat** 仿真中用
 ## 依赖
 
 - `autonomy`（核心库，含 exploration）
+- `autonomy_ros`（ROS ↔ automsgs 转换）
 - `autonomy_simulator`（Habitat 桥）
 - ROS 2：`rclcpp`、`tf2_ros`、`rviz2` 等
-
-> 包内自带轻量 ROS↔commsgs 转换，不依赖 `autonomy_ros`。
 
 先编译并 source：
 

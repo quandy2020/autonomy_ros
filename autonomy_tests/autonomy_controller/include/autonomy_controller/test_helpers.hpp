@@ -25,8 +25,11 @@
 #include <cmath>
 #include <string>
 
-#include "autonomy/commsgs/geometry_msgs.hpp"
-#include "autonomy/commsgs/planning_msgs.hpp"
+#include <automsgs/msgs/geometry_msgs/pose.pb.h>
+#include <automsgs/msgs/geometry_msgs/pose_stamped.pb.h>
+#include <automsgs/msgs/geometry_msgs/point.pb.h>
+#include <automsgs/msgs/geometry_msgs/twist.pb.h>
+#include <automsgs/msgs/nav_msgs/path.pb.h>
 
 /**
  * @namespace autonomy_controller::test
@@ -43,69 +46,69 @@ namespace test
  * @param y Position y [m].
  * @param yaw Heading [rad].
  */
-inline autonomy::commsgs::geometry_msgs::Pose MakePose(
+inline automsgs::msgs::geometry_msgs::Pose MakePose(
   double x, double y, double yaw = 0.0)
 {
-  autonomy::commsgs::geometry_msgs::Pose pose;
-  pose.position.x = x;
-  pose.position.y = y;
-  pose.position.z = 0.0;
-  pose.orientation.x = 0.0;
-  pose.orientation.y = 0.0;
-  pose.orientation.z = std::sin(yaw * 0.5);
-  pose.orientation.w = std::cos(yaw * 0.5);
+  automsgs::msgs::geometry_msgs::Pose pose;
+  pose.mutable_position()->set_x(x);
+  pose.mutable_position()->set_y(y);
+  pose.mutable_position()->set_z(0.0);
+  pose.mutable_orientation()->set_x(0.0);
+  pose.mutable_orientation()->set_y(0.0);
+  pose.mutable_orientation()->set_z(std::sin(yaw * 0.5));
+  pose.mutable_orientation()->set_w(std::cos(yaw * 0.5));
   return pose;
 }
 
 /**
  * @brief Build a stamped pose in the given frame.
  */
-inline autonomy::commsgs::geometry_msgs::PoseStamped MakePoseStamped(
+inline automsgs::msgs::geometry_msgs::PoseStamped MakePoseStamped(
   double x, double y, double yaw = 0.0, const std::string & frame = "odom")
 {
-  autonomy::commsgs::geometry_msgs::PoseStamped stamped;
-  stamped.header.frame_id = frame;
-  stamped.pose = MakePose(x, y, yaw);
+  automsgs::msgs::geometry_msgs::PoseStamped stamped;
+  stamped.mutable_header()->set_frame_id(frame);
+  *stamped.mutable_pose() = MakePose(x, y, yaw);
   return stamped;
 }
 
 /**
  * @brief Build a body-frame twist (planar motion).
  */
-inline autonomy::commsgs::geometry_msgs::Twist MakeTwist(
+inline automsgs::msgs::geometry_msgs::Twist MakeTwist(
   double vx, double vy, double wz)
 {
-  autonomy::commsgs::geometry_msgs::Twist twist;
-  twist.linear.x = vx;
-  twist.linear.y = vy;
-  twist.angular.z = wz;
+  automsgs::msgs::geometry_msgs::Twist twist;
+  twist.mutable_linear()->set_x(vx);
+  twist.mutable_linear()->set_y(vy);
+  twist.mutable_angular()->set_z(wz);
   return twist;
 }
 
 /**
  * @brief Build a 2-D point with z = 0.
  */
-inline autonomy::commsgs::geometry_msgs::Point MakePoint(double x, double y)
+inline automsgs::msgs::geometry_msgs::Point MakePoint(double x, double y)
 {
-  autonomy::commsgs::geometry_msgs::Point p;
-  p.x = x;
-  p.y = y;
-  p.z = 0.0;
+  automsgs::msgs::geometry_msgs::Point p;
+  p.set_x(x);
+  p.set_y(y);
+  p.set_z(0.0);
   return p;
 }
 
 /**
  * @brief Build a straight polyline path with uniform spacing in pose count.
  */
-inline autonomy::commsgs::planning_msgs::Path MakeStraightPath(
+inline automsgs::msgs::nav_msgs::Path MakeStraightPath(
   double x0, double y0, double x1, double y1, int n = 10)
 {
-  autonomy::commsgs::planning_msgs::Path path;
-  path.header.frame_id = "odom";
+  automsgs::msgs::nav_msgs::Path path;
+  path.mutable_header()->set_frame_id("odom");
   for (int i = 0; i < n; ++i) {
     const double t = (n == 1) ? 0.0 : static_cast<double>(i) / (n - 1);
-    path.poses.push_back(
-      MakePoseStamped(x0 + t * (x1 - x0), y0 + t * (y1 - y0)));
+    *path.add_poses() =
+      MakePoseStamped(x0 + t * (x1 - x0), y0 + t * (y1 - y0));
   }
   return path;
 }

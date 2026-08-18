@@ -26,7 +26,7 @@ TEST(DijkstraPlanner, FindsPathOnFreeMap)
   autonomy::planning::planner::dijkstra::DijkstraPlanner planner(
     MakeDijkstraOptions(), "dijkstra_planner", costmap_wrapper);
 
-  autonomy::commsgs::planning_msgs::Path path;
+  automsgs::msgs::nav_msgs::Path path;
   const auto start = MakePose(0.25, 0.25);
   const auto goal = MakePose(0.40, 0.40);
   const uint32_t code =
@@ -36,7 +36,7 @@ TEST(DijkstraPlanner, FindsPathOnFreeMap)
     static_cast<uint32_t>(
       autonomy::planning::proto::PlannerResultCode::PLANNER_SUCCESS),
     code);
-  EXPECT_FALSE(path.poses.empty());
+  EXPECT_GT(path.poses_size(), 0);
 }
 
 TEST(DijkstraPlanner, FindsLongerPathAroundBlock)
@@ -53,7 +53,7 @@ TEST(DijkstraPlanner, FindsLongerPathAroundBlock)
   autonomy::planning::planner::dijkstra::DijkstraPlanner planner(
     MakeDijkstraOptions(), "dijkstra_planner", costmap_wrapper);
 
-  autonomy::commsgs::planning_msgs::Path path;
+  automsgs::msgs::nav_msgs::Path path;
   const auto start = MakePose(2.0, 5.0);
   const auto goal = MakePose(8.0, 5.0);
   const uint32_t code =
@@ -63,5 +63,5 @@ TEST(DijkstraPlanner, FindsLongerPathAroundBlock)
     static_cast<uint32_t>(
       autonomy::planning::proto::PlannerResultCode::PLANNER_SUCCESS),
     code);
-  EXPECT_GE(path.poses.size(), 2U);
+  EXPECT_GE(path.poses_size(), 2);
 }

@@ -17,7 +17,7 @@
 #include "autolink/autolink.hpp"
 #include "autonomy/common/configuration_file_resolver.hpp"
 #include "autonomy/common/lua_parameter_dictionary.hpp"
-#include "autonomy/commsgs/planning_msgs.hpp"
+#include "autonomy_ros/conversions/planning_msgs.hpp"
 #include "autonomy/control/control_options.hpp"
 #include "autonomy/control/controller/mppi_controller/mppi_controller.hpp"
 #include "autonomy/control/controller_server.hpp"
@@ -467,7 +467,7 @@ public:
 private:
   bool EnsureReferencePath()
   {
-    if (reference_path_.poses.size() >= 2) {
+    if (reference_path_.poses_size() >= 2) {
       return true;
     }
     try {
@@ -476,7 +476,7 @@ private:
       RCLCPP_ERROR(get_logger(), "Path generation failed: %s", ex.what());
       return false;
     }
-    if (reference_path_.poses.size() < 2) {
+    if (reference_path_.poses_size() < 2) {
       RCLCPP_ERROR(get_logger(), "Generated path is too short");
       return false;
     }
@@ -484,7 +484,7 @@ private:
   }
 
   void SyncControllerOdometryAndTf(
-    const autonomy::commsgs::geometry_msgs::PoseStamped & pose)
+    const automsgs::msgs::geometry_msgs::PoseStamped & pose)
   {
     nav_msgs::msg::Odometry odom;
     odom.header.stamp = now();
@@ -499,10 +499,10 @@ private:
 
   void SnapFakeRobotToPathStart()
   {
-    if (!snap_robot_to_path_start_ || reference_path_.poses.empty()) {
+    if (!snap_robot_to_path_start_ || reference_path_.poses_size() == 0) {
       return;
     }
-    const auto & start = reference_path_.poses.front();
+    const auto & start = reference_path_.poses(0);
     auto pose = autonomy_ros::toRos(start);
     pose.header.stamp = now();
     if (pose.header.frame_id.empty()) {
@@ -510,7 +510,8 @@ private:
     }
     fake_robot_set_pose_pub_->publish(pose);
     SyncControllerOdometryAndTf(start);
-    const double yaw = autonomy::transform::tf2::getYaw(start.pose.orientation);
+    const double yaw = autonomy::transform::tf2::getYaw(
+      autonomy_ros::toRos(start.pose().orientation()));
     RCLCPP_INFO(
       get_logger(),
       "Snapped fake_robot to path start (%.2f, %.2f, yaw=%.2f rad)",
@@ -564,17 +565,19 @@ private:
       return;
     }
 
-    autonomy::commsgs::geometry_msgs::PoseStamped pose;
-    pose.header.frame_id = frame_id_;
-    pose.pose = autonomy_ros::fromRos(*msg).pose.pose;
+    automsgs::msgs::geometry_msgs::PoseStamped pose;
+    pose.mutable_header()->set_frame_id(frame_id_);
+    *pose.mutable_pose() = autonomy_ros::fromRos(*msg).pose().pose();
 
     std::lock_guard<std::mutex> lock(executed_mutex_);
-    if (executed_path_.poses.empty() ||
+    if (executed_path_.poses_size() == 0 ||
       std::hypot(
-        executed_path_.poses.back().pose.position.x - pose.pose.position.x,
-        executed_path_.poses.back().pose.position.y - pose.pose.position.y) > 0.02)
+        executed_path_.poses(executed_path_.poses_size() - 1).pose().position().x() -
+        pose.pose().position().x(),
+        executed_path_.poses(executed_path_.poses_size() - 1).pose().position().y() -
+        pose.pose().position().y()) > 0.02)
     {
-      executed_path_.poses.push_back(pose);
+      *executed_path_.add_poses() = pose;
     }
     PublishExecutedPathLocked();
   }
@@ -592,7 +595,7 @@ private:
     cmd_vel_pub_->publish(cmd);
   }
 
-  void FollowGeneratedPath(const autonomy::commsgs::planning_msgs::Path & path)
+  void FollowGeneratedPath(const automsgs::msgs::nav_msgs::Path & path)
   {
     follow_active_.store(true);
 
@@ -608,8 +611,8 @@ private:
       if (lap_count == 1) {
         RCLCPP_INFO(
           get_logger(),
-          "Following path_generator path (%zu poses) controller=%s repeat=%s",
-          path.poses.size(), controller_id_.c_str(),
+          "Following path_generator path (%d poses) controller=%s repeat=%s",
+          path.poses_size(), controller_id_.c_str(),
           repeat_path_ ? "true" : "false");
       } else {
         RCLCPP_INFO(get_logger(), "Restarting path follow (lap %d)", lap_count);
@@ -621,8 +624,8 @@ private:
 
       {
         std::lock_guard<std::mutex> lock(executed_mutex_);
-        executed_path_.poses.clear();
-        executed_path_.header = path.header;
+        executed_path_.clear_poses();
+        *executed_path_.mutable_header() = path.header();
       }
 
       if (!controller_->BeginFollowPath(
@@ -684,7 +687,7 @@ private:
 
   void OnReferencePathTimer()
   {
-    if (reference_path_.poses.size() < 2) {
+    if (reference_path_.poses_size() < 2) {
       return;
     }
     PublishReferencePath();
@@ -702,11 +705,11 @@ private:
 
   void PublishCenter()
   {
-    autonomy::commsgs::geometry_msgs::PoseStamped center;
-    center.header.frame_id = frame_id_;
-    center.pose.position.x = path_params_.center_x;
-    center.pose.position.y = path_params_.center_y;
-    center.pose.orientation.w = 1.0;
+    automsgs::msgs::geometry_msgs::PoseStamped center;
+    center.mutable_header()->set_frame_id(frame_id_);
+    center.mutable_pose()->mutable_position()->set_x(path_params_.center_x);
+    center.mutable_pose()->mutable_position()->set_y(path_params_.center_y);
+    center.mutable_pose()->mutable_orientation()->set_w(1.0);
     auto ros_center = autonomy_ros::toRos(center);
     ros_center.header.stamp = now();
     center_pub_->publish(ros_center);
@@ -768,13 +771,13 @@ private:
   int mppi_trajectory_step_{5};
   int mppi_time_step_{3};
 
-  autonomy::commsgs::planning_msgs::Path reference_path_;
-  autonomy::commsgs::planning_msgs::Path executed_path_;
+  automsgs::msgs::nav_msgs::Path reference_path_;
+  automsgs::msgs::nav_msgs::Path executed_path_;
   std::mutex executed_mutex_;
 
   std::atomic<bool> follow_active_{false};
   std::thread follow_thread_;
-  autonomy::commsgs::geometry_msgs::TwistStamped last_cmd_vel_;
+  automsgs::msgs::geometry_msgs::TwistStamped last_cmd_vel_;
 
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr reference_path_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr executed_path_pub_;

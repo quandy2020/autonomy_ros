@@ -160,7 +160,7 @@ void ExplorationNode::FeedAutonomyTf(
 
 bool ExplorationNode::LookupMapTCamera(
   const std::string & camera_frame,
-  autonomy::commsgs::geometry_msgs::Transform * out)
+  automsgs::msgs::geometry_msgs::Transform * out)
 {
   if (!out) {
     return false;
@@ -181,7 +181,7 @@ bool ExplorationNode::LookupMapTCamera(
       map_frame_, cam, tf2::TimePointZero);
     FeedAutonomyTf(ros_tf);
     const auto stamped = convert::FromRos(ros_tf);
-    *out = stamped.transform;
+    *out = stamped.transform();
     return true;
   } catch (const tf2::TransformException & ex) {
     RCLCPP_WARN_THROTTLE(
@@ -243,7 +243,7 @@ void ExplorationNode::OnDepth(
   if (!depth || !info || !server_) {
     return;
   }
-  autonomy::commsgs::geometry_msgs::Transform map_t_camera;
+  automsgs::msgs::geometry_msgs::Transform map_t_camera;
   const std::string cam_frame =
     depth->header.frame_id.empty() ? camera_frame_ : depth->header.frame_id;
   if (!LookupMapTCamera(cam_frame, &map_t_camera)) {
@@ -269,7 +269,7 @@ void ExplorationNode::OnTimer()
     if (!has_odom_) {
       return;
     }
-    autonomy::commsgs::geometry_msgs::PoseStamped comms_wp;
+    automsgs::msgs::geometry_msgs::PoseStamped comms_wp;
     if (server_->GetNextWaypoint(comms_wp)) {
       wp = convert::ToRos(comms_wp);
       have_wp = true;
@@ -386,7 +386,7 @@ void ExplorationNode::PublishVisualization()
     markers.markers.push_back(path_line);
   }
 
-  autonomy::commsgs::geometry_msgs::PoseStamped comms_wp;
+  automsgs::msgs::geometry_msgs::PoseStamped comms_wp;
   if (server_->GetNextWaypoint(comms_wp)) {
     visualization_msgs::msg::Marker sphere;
     sphere.header.frame_id = map_frame_;
@@ -431,9 +431,9 @@ void ExplorationNode::PublishVisualization()
     pts.color.a = 0.85f;
     for (const auto & t : pts_src) {
       geometry_msgs::msg::Point p;
-      p.x = t.x;
-      p.y = t.y;
-      p.z = t.z + 0.1;
+      p.x = t.x();
+      p.y = t.y();
+      p.z = t.z() + 0.1;
       pts.points.push_back(p);
     }
     if (!pts.points.empty()) {

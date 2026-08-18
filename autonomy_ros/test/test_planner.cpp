@@ -26,8 +26,8 @@
 #include "autolink/action/types.hpp"
 #include "autolink/autolink.hpp"
 #include "autonomy/common/configuration_file_resolver.hpp"
-#include "autonomy/commsgs/geometry_msgs.hpp"
-#include "autonomy/commsgs/planning_msgs.hpp"
+#include "autonomy_ros/conversions/geometry_msgs.hpp"
+#include "autonomy_ros/conversions/planning_msgs.hpp"
 #include "autonomy/map/costmap_2d/map_io.hpp"
 #include "autonomy/planning/constants.hpp"
 #include "autonomy/planning/planner_options.hpp"
@@ -166,8 +166,8 @@ private:
     }
 
     auto pose = autonomy_ros::fromRos(*msg);
-    if (pose.header.frame_id.empty()) {
-      pose.header.frame_id = frame_id_;
+    if (pose.header().frame_id().empty()) {
+      pose.mutable_header()->set_frame_id(frame_id_);
     }
     ++goal_pose_count_;
 
@@ -177,8 +177,8 @@ private:
       RCLCPP_INFO(
         get_logger(),
         "Received first goal_pose as start: (%.3f, %.3f) frame=%s",
-        start_pose_.pose.position.x, start_pose_.pose.position.y,
-        start_pose_.header.frame_id.c_str());
+        start_pose_.pose().position().x(), start_pose_.pose().position().y(),
+        start_pose_.header().frame_id().c_str());
       return;
     }
 
@@ -187,14 +187,14 @@ private:
     RCLCPP_INFO(
       get_logger(),
       "Received second goal_pose as goal: (%.3f, %.3f) frame=%s",
-      goal_pose_.pose.position.x, goal_pose_.pose.position.y,
-      goal_pose_.header.frame_id.c_str());
+      goal_pose_.pose().position().x(), goal_pose_.pose().position().y(),
+      goal_pose_.header().frame_id().c_str());
 
     PlanOnceWithClient();
     goal_pose_count_ = 0;
   }
 
-  void PublishPathResult(const autonomy::commsgs::planning_msgs::Path & path)
+  void PublishPathResult(const automsgs::msgs::nav_msgs::Path & path)
   {
     nav_msgs::msg::Path ros_path = autonomy_ros::toRos(path);
     ros_path.header.stamp = now();
@@ -232,8 +232,8 @@ private:
     ActionTraits::Goal goal;
     goal.set_use_start(true);
     goal.set_planner_id(planner_id_);
-    *goal.mutable_start() = autonomy::commsgs::geometry_msgs::ToProto(start_pose_);
-    *goal.mutable_goal() = autonomy::commsgs::geometry_msgs::ToProto(goal_pose_);
+    *goal.mutable_start() = start_pose_;
+    *goal.mutable_goal() = goal_pose_;
 
     constexpr auto kAcceptTimeout = std::chrono::seconds(30);
     constexpr auto kResultTimeout = std::chrono::seconds(60);
@@ -278,13 +278,12 @@ private:
       return;
     }
 
-    const auto path =
-      autonomy::commsgs::planning_msgs::FromProto(wrapped.result->path());
+    const auto path = wrapped.result->path();
     PublishPathResult(path);
     RCLCPP_INFO(
       get_logger(),
-      "Planned via action client. path poses=%zu",
-      path.poses.size());
+      "Planned via action client. path poses=%d",
+      path.poses_size());
   }
   void PublishMapAndCostmap()
   {
@@ -300,7 +299,7 @@ private:
     nav_msgs::msg::OccupancyGrid ros_grid;
     bool has_snapshot = false;
     if (costmap_wrapper_) {
-      autonomy::commsgs::map_msgs::OccupancyGrid grid;
+      automsgs::msgs::map_msgs::OccupancyGrid grid;
       if (costmap_wrapper_->snapshotOccupancyGrid(grid)) {
         ros_grid = autonomy_ros::toRos(grid);
         has_snapshot = true;
@@ -342,7 +341,7 @@ private:
 
   void PublishPose(
     const rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr & pub,
-    const autonomy::commsgs::geometry_msgs::PoseStamped & pose)
+    const automsgs::msgs::geometry_msgs::PoseStamped & pose)
   {
     auto ros_pose = autonomy_ros::toRos(pose);
     ros_pose.header.stamp = now();
@@ -354,7 +353,7 @@ private:
   std::shared_ptr<autolink::action::Client<
     autonomy::navigator::behavior_tree::ComputePathToPoseActionTraits>> compute_path_client_;
   autonomy::map::costmap_2d::Costmap2DWrapper::SharedPtr costmap_wrapper_;
-  autonomy::commsgs::map_msgs::OccupancyGrid raw_map_;
+  automsgs::msgs::map_msgs::OccupancyGrid raw_map_;
   bool has_raw_map_{false};
   std::string frame_id_;
   std::string planner_id_;
@@ -367,8 +366,8 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
   std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
-  autonomy::commsgs::geometry_msgs::PoseStamped start_pose_;
-  autonomy::commsgs::geometry_msgs::PoseStamped goal_pose_;
+  automsgs::msgs::geometry_msgs::PoseStamped start_pose_;
+  automsgs::msgs::geometry_msgs::PoseStamped goal_pose_;
   int goal_pose_count_{0};
 };
 }  // namespace autonomy_ros
