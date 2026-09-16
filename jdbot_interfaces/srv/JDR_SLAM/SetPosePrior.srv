@@ -1,6 +1,0 @@
-# Request
-geometry_msgs/Pose position
----
-# Response
-bool success
-string message 

@@ -1,1 +1,0 @@
-"""Autonomy autocharge demo helpers."""

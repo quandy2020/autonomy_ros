@@ -1,134 +1,35 @@
 # autonomy_ros
 
-A **ROS 2 autonomous navigation** workspace focused on two production features: **single-goal navigation** and **multi-waypoint navigation**.
+与 `autonomy` **进程隔离**：不链接 `libautonomy`，只通过 **autolink 消息**桥接。
 
-It combines the `autonomy` navigation core, the `autonomy_ros` ROS integration layer
-
-*  `autonomy_msgs` API package
-* `autonomy_simulator` 
-*  simulation assets (based on [nav2_minimal_tb3_sim](https://github.com/ros-navigation/nav2_minimal_turtlebot_simulation/tree/main/nav2_minimal_tb3_sim)).
-
----
-
-## ✨ Features
-
-- 🎯 **Single-goal navigation** via `/navigate_pose` action and RViz `goal_pose`.
-- 🧭 **Multi-waypoint navigation** via `/navigate_through` action with waypoint sequencing.
-- 🛠️ **Task control APIs** for cancel, pause/resume, emergency stop, and status query.
-- 🧪 **Simulation-ready workflow** with Gazebo and fake-robot modes in one launch entry.
-
-## 🎥 Demo
-
-- Demo GIF: [`autonomy-sim.gif`](autonomy_ros/docs/autonomy-sim.gif)
-
-![autonomy simulation demo](autonomy_ros/docs/autonomy-sim.gif)
-
----
-
-## 📦 Dependencies and build
-
-```bash
-sudo apt update
-sudo apt install -y \
-  ros-${ROS_DISTRO}-ros-gz-sim \
-  ros-${ROS_DISTRO}-ros-gz-bridge \
-  ros-${ROS_DISTRO}-ros-gz-interfaces \
-  ros-${ROS_DISTRO}-robot-state-publisher \
-  ros-${ROS_DISTRO}-rviz2 \
-  ros-${ROS_DISTRO}-xacro
-
-cd /path/to/your_ws
-colcon build --symlink-install --packages-up-to autonomy autonomy_simulator autonomy_ros
-source install/setup.bash
+```
+[ autonomy 进程 ]  ←──autolink──→  [ autonomy_ros 进程 ]  ←──DDS──→  RViz / 客户端
 ```
 
----
+## 依赖
 
-## 🚀 Launch
+| 链接 | 不链接 |
+|------|--------|
+| `Autolink`、`automsgs`、`rclcpp` | `libautonomy` |
 
-Use `navigation_stack.launch.py` for the navigation stack, and control behavior with launch arguments.
+## 桥接通道（与 autonomy 对齐）
 
-```bash
-ros2 launch autonomy_ros navigation_stack.launch.py
-```
+| 方向 | Channel | 用途 |
+|------|---------|------|
+| autonomy → ROS | `/map` `/plan` `/cmd_vel` `/odom` | 可视化 / 控制输出 |
+| autodriver → autonomy | `/odom` `/scan` | 传感器（不经 ROS） |
+| ROS → autonomy | `/navigate_to_pose` `/navigate_through_poses` | 导航 Action |
 
-### 🧩 Common scenarios
+## 外部 ROS API（Nav2 风格）
 
-1) **Full stack with RViz**
+- Action: `navigate_to_pose` / `navigate_through_poses`
+- Service: `set_initial_pose` / `cancel_task`
+- Topic: `goal_pose` / `waypoints`
 
-```bash
-ros2 launch autonomy_ros navigation_stack.launch.py use_rviz:=true
-```
-
-2) **Fake robot + navigation stack**
-
-```bash
-ros2 launch autonomy_ros navigation_stack.launch.py \
-  simulation_mode:=fake use_sim_time:=false
-```
-
-For fake mode, set `autonomy.enable_scan_bridge=false` in `config/parameters.yaml` and keep `autonomy.planner.global_frame=odom`.
-
-3) **Simulation only (no navigation stack)**
+## 启动
 
 ```bash
-ros2 launch autonomy_simulator tb3_simulator.launch.py
-ros2 launch autonomy_simulator fake_robot.launch.py
+# 1) 先启动 autonomy（mainboard / 导航进程）
+# 2) 再启动 ROS 桥
+ros2 launch autonomy_ros autonomy.launch.py use_rviz:=true
 ```
-
-### ⚙️ Launch arguments
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `simulation_mode` | `gazebo` | `gazebo` or `fake` |
-| `use_sim_time` | `true` | Use simulation clock |
-| `use_rviz` | `false` | Start RViz |
-| `core_config_directory` | auto-resolved | Directory containing `autonomy.lua` |
-
----
-
-## 🔌 Public API
-
-### 🎬 Actions
-
-| Name | Description |
-|------|-------------|
-| `/navigate_pose` | Single-goal navigation |
-| `/navigate_through` | Sequential multi-waypoint navigation |
-
-### 🧰 Services
-
-| Name | Description |
-|------|-------------|
-| `/cancel_task` | Cancel a task |
-| `/get_task_status` | Query task status |
-| `/pause_task` / `/resume_task` | Pause / resume |
-| `/trigger_estop` | Emergency stop |
-| `/set_initial_pose` | Set initial pose (localization) |
-
-### 📡 Status topics
-
-| Name | Type |
-|------|------|
-| `/status` | `autonomy_msgs/msg/TaskStatus` |
-| `/events` | `autonomy_msgs/msg/Event` |
-
-### 💻 CLI examples
-
-```bash
-ros2 run autonomy_ros navigation_client.py list-tasks
-ros2 run autonomy_ros navigation_client.py run-task go_to_point_a --feedback
-ros2 run autonomy_ros navigation_client.py navigate-pose --x 1.0 --y 0.5 --feedback
-```
-
-### 🖼️ RViz
-
-- **2D Goal Pose** → `goal_pose`: triggers single-goal navigation (may preempt the current action)
-- **2D Pose Estimate** → `initialpose`: forwarded by `NavigationService` for relocalization
-
----
-
-## 🙏 Acknowledgements
-
-- Simulation: [nav2_minimal_turtlebot_simulation](https://github.com/ros-navigation/nav2_minimal_turtlebot_simulation) (Apache-2.0)
-- API inspiration: [nav2_msgs](https://github.com/ros-navigation/navigation2/tree/main/nav2_msgs)

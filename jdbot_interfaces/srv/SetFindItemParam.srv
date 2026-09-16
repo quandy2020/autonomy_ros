@@ -1,8 +1,0 @@
-uint8 ant_id
-bool switch_flag
-bool scan
-bool selftest
-string mac
----
-string message
-bool result

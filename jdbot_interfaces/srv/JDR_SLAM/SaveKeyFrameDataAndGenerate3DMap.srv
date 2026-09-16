@@ -1,4 +1,0 @@
-string save_path
-uint8 thread_num
----
-bool success

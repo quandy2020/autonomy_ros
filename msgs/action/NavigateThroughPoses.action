@@ -1,0 +1,28 @@
+# Multi-pose / through-poses navigation (Nav2-style external API)
+geometry_msgs/PoseStamped[] poses
+# Optional BT XML path; empty = use autonomy default
+string behavior_tree
+---
+# Result
+# Error codes (priority matches declaration order)
+uint16 NONE=0
+uint16 UNKNOWN=9100
+uint16 FAILED_TO_LOAD_BEHAVIOR_TREE=9101
+uint16 TF_ERROR=9102
+uint16 TIMEOUT=9103
+uint16 CANCELED=9104
+uint16 FAILED=9105
+uint16 NO_VALID_WAYPOINTS=9106
+
+uint16 error_code
+string error_msg
+WaypointStatus[] waypoint_statuses
+---
+# Feedback
+geometry_msgs/PoseStamped current_pose
+builtin_interfaces/Duration navigation_time
+builtin_interfaces/Duration estimated_time_remaining
+int16 number_of_recoveries
+float32 distance_remaining
+int16 number_of_poses_remaining
+WaypointStatus[] waypoint_statuses

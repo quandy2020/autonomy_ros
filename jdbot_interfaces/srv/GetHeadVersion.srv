@@ -1,4 +1,0 @@
-# 请求：无
----
-# 响应：版本信息
-string version  # 格式："Vx.x.x:HWx.x.x"

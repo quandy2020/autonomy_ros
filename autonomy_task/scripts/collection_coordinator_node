@@ -1,2 +1,0 @@
-#!/bin/sh
-exec /usr/bin/python3 -m autonomy_task.node "$@"

@@ -1,0 +1,24 @@
+# A→B navigation goal (Nav2-style external API)
+geometry_msgs/PoseStamped pose
+# Optional BT XML path; empty = use autonomy default
+string behavior_tree
+---
+# Result
+# Error codes (priority matches declaration order)
+uint16 NONE=0
+uint16 UNKNOWN=9000
+uint16 FAILED_TO_LOAD_BEHAVIOR_TREE=9001
+uint16 TF_ERROR=9002
+uint16 TIMEOUT=9003
+uint16 CANCELED=9004
+uint16 FAILED=9005
+
+uint16 error_code
+string error_msg
+---
+# Feedback
+geometry_msgs/PoseStamped current_pose
+builtin_interfaces/Duration navigation_time
+builtin_interfaces/Duration estimated_time_remaining
+int16 number_of_recoveries
+float32 distance_remaining

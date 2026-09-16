@@ -1,0 +1,23 @@
+autonomy_ros:
+  ros__parameters:
+    autolink:
+      map_channel: /map
+      plan_channel: /plan
+      cmd_vel_channel: /cmd_vel
+      odom_channel: /odom
+      navigate_to_pose: /navigate_to_pose
+      navigate_through_poses: /navigate_through_poses
+
+    ros:
+      map_topic: map
+      plan_topic: plan
+      cmd_vel_topic: cmd_vel
+      odom_topic: odom
+
+    navigation:
+      waypoint_timeout_sec: 120.0
+      goal_pose_topic: goal_pose
+      waypoints_topic: waypoints
+
+    visualization:
+      frame_id: odom

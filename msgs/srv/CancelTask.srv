@@ -1,0 +1,7 @@
+# Cancel active navigation task
+# Empty task_id cancels the current task
+string task_id
+bool cancel_all
+---
+bool success
+string message

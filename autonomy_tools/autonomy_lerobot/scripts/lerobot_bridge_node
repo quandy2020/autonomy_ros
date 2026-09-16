@@ -1,3 +1,0 @@
-#!/bin/sh
-# ROS2 entry point — avoid setuptools #!python shebang in Docker.
-exec /usr/bin/python3 -m autonomy_lerobot.node "$@"

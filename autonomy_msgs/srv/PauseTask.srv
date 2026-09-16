@@ -1,8 +1,0 @@
-# Pause navigation / tour (service: /pause_task).
-
-string task_id                 # Empty: pause active task
-string reason                  # Stored in TaskStatus.description
----
-bool success                   # False if no active task
-Error error
-TaskStatus status

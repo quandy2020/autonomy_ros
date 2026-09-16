@@ -1,0 +1,5 @@
+# Set robot initial pose (e.g. from RViz 2D Pose Estimate / localization)
+geometry_msgs/PoseWithCovarianceStamped pose
+---
+bool success
+string message

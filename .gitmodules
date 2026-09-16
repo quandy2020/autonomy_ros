@@ -1,4 +1,0 @@
-[submodule "autonomy_planning/autonomy_internnav/InternNav"]
-	path = autonomy_planning/autonomy_internnav/InternNav
-	url = https://github.com/InternRobotics/InternNav.git
-	branch = main
